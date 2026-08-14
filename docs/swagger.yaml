@@ -1,0 +1,1038 @@
+basePath: /
+definitions:
+  request.AdminCreateCharacterReq:
+    properties:
+      description:
+        type: string
+      health:
+        minimum: 0
+        type: integer
+      name:
+        type: string
+      owner_number:
+        minimum: 0
+        type: integer
+      type:
+        type: string
+    required:
+    - health
+    - name
+    - type
+    type: object
+  request.AdminCreateEnemyReq:
+    properties:
+      description:
+        type: string
+      health:
+        minimum: 0
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    required:
+    - health
+    - name
+    - type
+    type: object
+  request.AdminCreateSkillReq:
+    properties:
+      character_id:
+        minimum: 1
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    required:
+    - character_id
+    - name
+    - type
+    type: object
+  request.AdminCreateToolReq:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  request.AdminUpdateCharacterReq:
+    properties:
+      description:
+        type: string
+      health:
+        minimum: 0
+        type: integer
+      name:
+        type: string
+      owner_number:
+        minimum: 0
+        type: integer
+      type:
+        type: string
+    type: object
+  request.AdminUpdateEmailReq:
+    properties:
+      host:
+        type: string
+      max_count:
+        type: integer
+      pass:
+        type: string
+      port:
+        type: integer
+      status:
+        type: integer
+      user:
+        type: string
+    type: object
+  request.AdminUpdateEnemyReq:
+    properties:
+      description:
+        type: string
+      health:
+        minimum: 0
+        type: integer
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  request.AdminUpdatePlayerExpReq:
+    properties:
+      exp:
+        minimum: 0
+        type: integer
+    required:
+    - exp
+    type: object
+  request.AdminUpdatePlayerLevelReq:
+    properties:
+      level:
+        minimum: 0
+        type: integer
+    required:
+    - level
+    type: object
+  request.AdminUpdateRoleReq:
+    properties:
+      role:
+        enum:
+        - admin
+        - user
+        type: string
+    required:
+    - role
+    type: object
+  request.AdminUpdateSkillReq:
+    properties:
+      character_id:
+        minimum: 1
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  request.AdminUpdateToolReq:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  request.LoginReq:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  request.RefreshReq:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  request.RegisterReq:
+    properties:
+      code:
+        maxLength: 6
+        minLength: 6
+        type: string
+      email:
+        maxLength: 50
+        type: string
+      name:
+        maxLength: 20
+        minLength: 3
+        type: string
+      password:
+        maxLength: 20
+        minLength: 6
+        type: string
+    required:
+    - code
+    - email
+    - name
+    - password
+    type: object
+  response.LoginResp:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  response.Result:
+    properties:
+      code:
+        description: 业务码：0 成功，非 0 失败
+        type: integer
+      data:
+        description: 业务数据
+      message:
+        description: 提示信息
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: 1473443474@qq.com
+    name: API Support
+  description: DisembodiedSpecter API 文档
+  termsOfService: http://swagger.io/terms/
+  title: DisembodiedSpecter API
+  version: "1.0"
+paths:
+  /api/v1/login:
+    post:
+      consumes:
+      - application/json
+      description: 通过用户名密码进行登录，返回双令牌（access_token + refresh_token）
+      parameters:
+      - description: 登录请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回双令牌
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Result'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.LoginResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 用户登录
+      tags:
+      - 认证模块
+  /api/v1/logout:
+    post:
+      consumes:
+      - application/json
+      description: 退出登录接口（需要 access token 和 refresh token）
+      parameters:
+      - description: 退出登录请求参数（refresh_token）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 退出登录成功
+          schema:
+            $ref: '#/definitions/response.Result'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 用户退出登录接口
+      tags:
+      - 认证模块
+  /api/v1/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh token 获取新的双令牌
+      parameters:
+      - description: 刷新令牌请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回新的双令牌
+          schema:
+            $ref: '#/definitions/response.Result'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 刷新令牌
+      tags:
+      - 认证模块
+  /api/v1/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册新用户，返回双令牌（access_token + refresh_token）
+      parameters:
+      - description: 注册请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.RegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回双令牌
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Result'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.LoginResp'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 用户注册
+      tags:
+      - 认证模块
+  /api/v1/send_verify_code:
+    get:
+      consumes:
+      - application/json
+      description: 发送验证码到指定邮箱
+      parameters:
+      - description: 验证目标（邮箱）
+        in: query
+        name: verifier
+        required: true
+        type: string
+      - description: 验证类型（email）
+        in: query
+        name: verifier_type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 发送验证码成功
+          schema:
+            $ref: '#/definitions/response.Result'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 发送验证码接口
+      tags:
+      - 认证模块
+  /api/v2/data:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户数据，包括邮箱、状态等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '成功 data: 用户数据对象'
+          schema:
+            $ref: '#/definitions/response.Result'
+        "500":
+          description: 失败
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 获取用户数据
+      tags:
+      - 用户
+  /api/v2/ws-code:
+    get:
+      consumes:
+      - application/json
+      description: 获取 WebSocket 连接码，用于连接 WebSocket 服务器
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '成功 data: {"wsCode": "123456"}'
+          schema:
+            $ref: '#/definitions/response.Result'
+        "500":
+          description: 失败
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 获取 WebSocket 连接码
+      tags:
+      - 用户
+  /api/v3/admin/config/emails:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 邮箱配置列表
+      tags:
+      - 管理员-系统配置
+  /api/v3/admin/config/emails/{id}:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 邮箱配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 邮箱配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateEmailReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改邮箱配置
+      tags:
+      - 管理员-系统配置
+  /api/v3/admin/game/characters:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 角色信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminCreateCharacterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 创建角色
+      tags:
+      - 管理员-游戏内容-角色
+  /api/v3/admin/game/characters/{id}:
+    get:
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 角色详情
+      tags:
+      - 管理员-游戏内容-角色
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateCharacterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改角色
+      tags:
+      - 管理员-游戏内容-角色
+  /api/v3/admin/game/characters/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 角色列表
+      tags:
+      - 管理员-游戏内容-角色
+  /api/v3/admin/game/enemies:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 敌人信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminCreateEnemyReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 创建敌人
+      tags:
+      - 管理员-游戏内容-敌人
+  /api/v3/admin/game/enemies/{id}:
+    get:
+      parameters:
+      - description: 敌人ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 敌人详情
+      tags:
+      - 管理员-游戏内容-敌人
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 敌人ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 敌人信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateEnemyReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改敌人
+      tags:
+      - 管理员-游戏内容-敌人
+  /api/v3/admin/game/enemies/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 敌人列表
+      tags:
+      - 管理员-游戏内容-敌人
+  /api/v3/admin/game/skills:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 技能信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminCreateSkillReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 创建技能
+      tags:
+      - 管理员-游戏内容-技能
+  /api/v3/admin/game/skills/{id}:
+    get:
+      parameters:
+      - description: 技能ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 技能详情
+      tags:
+      - 管理员-游戏内容-技能
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 技能ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 技能信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateSkillReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改技能
+      tags:
+      - 管理员-游戏内容-技能
+  /api/v3/admin/game/skills/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 技能列表
+      tags:
+      - 管理员-游戏内容-技能
+  /api/v3/admin/game/tools:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 道具信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminCreateToolReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 创建道具
+      tags:
+      - 管理员-游戏内容-道具
+  /api/v3/admin/game/tools/{id}:
+    get:
+      parameters:
+      - description: 道具ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 道具详情
+      tags:
+      - 管理员-游戏内容-道具
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 道具ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 道具信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateToolReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改道具
+      tags:
+      - 管理员-游戏内容-道具
+  /api/v3/admin/game/tools/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 道具列表
+      tags:
+      - 管理员-游戏内容-道具
+  /api/v3/admin/players/{id}:
+    get:
+      parameters:
+      - description: 玩家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 玩家详情
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/players/{id}/ban:
+    put:
+      parameters:
+      - description: 玩家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 封禁玩家
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/players/{id}/exp:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 玩家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 经验值
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdatePlayerExpReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改玩家经验
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/players/{id}/level:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 玩家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 等级
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdatePlayerLevelReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改玩家等级
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/players/{id}/unban:
+    put:
+      parameters:
+      - description: 玩家ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 解封玩家
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/players/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 玩家列表
+      tags:
+      - 管理员-玩家管理
+  /api/v3/admin/stats/items:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 道具分布
+      tags:
+      - 管理员-数据统计
+  /api/v3/admin/stats/online:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 在线统计
+      tags:
+      - 管理员-数据统计
+  /api/v3/admin/stats/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 数据总览
+      tags:
+      - 管理员-数据统计
+  /api/v3/admin/users/{id}/disable:
+    put:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 禁用用户
+      tags:
+      - 管理员-用户管理
+  /api/v3/admin/users/{id}/enable:
+    put:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 启用用户
+      tags:
+      - 管理员-用户管理
+  /api/v3/admin/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 角色
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.AdminUpdateRoleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 修改用户角色
+      tags:
+      - 管理员-用户管理
+  /api/v3/admin/users/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Result'
+      summary: 用户列表
+      tags:
+      - 管理员-用户管理
+swagger: "2.0"

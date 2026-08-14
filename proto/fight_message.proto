@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./pd";
+
+enum Switch_Phase_Option {
+  START_PHASE = 0; // 开始本轮回合战斗
+  EXIT_FIGHT = 1; // 退出战斗
+  RETURN_PREV_PHASE = 2; // 回到上一回合
+}
+
+message Buff {
+  int32 buff_id = 1; // buffID
+  int32 time = 2; // buff持续时间
+}
+
+// 角色状态
+message CharacterStatus {
+  int32 health = 1; // 生命值
+  double attack = 2; // 攻击倍率
+  int32 defense = 3; // 防御值
+
+  repeated Buff buffs = 4; // buff列表
+  bool is_my_character = 5; // 是否是我的角色
+}
+
+// 道具
+message Tool {
+  int32 tool_id = 1; // 道具ID
+  int32 count = 2; // 道具数量
+}
+
+// 位置
+message Site {
+  bool is_main_action_character = 1; // 是否是行动角色
+}
+
+// 战斗状态
+message FightStatus {
+  bool is_self_round = 1; // 是否是我的回合
+  int32 round = 2; // 回合数
+
+  repeated CharacterStatus characters = 3; // 角色状态
+  repeated Site sites = 4; // 位置
+
+  repeated Tool tools = 5; // 道具列表
+  int32 now_fight_status = 6; // 当前战斗状态
+  map<string, float> counters = 7; // 计数器
+
+  int32 state_number = 8; // 状态编号
+}
+
+// 选择技能
+message C2S_ChoseSkill {
+  int32 skill_id = 1; // 技能ID
+  int32 target_id = 2; // 目标ID
+  int32 character_id = 3; // 角色ID
+}
+
+// 使用道具
+message C2S_UseTool {
+  int32 tool_id = 1; // 道具ID
+  int32 target_id = 2; // 目标ID
+}
+
+// 阶段切换
+message C2S_SwitchPhase {
+  Switch_Phase_Option phase = 1; // 阶段选项
+}
+
+// 同步战斗状态请求
+message Msg_SyncFightStatus {
+  FightStatus status = 1; // 战斗状态
+  int64 timestamp = 2; // 消息发送时间戳
+}
+
+// 顶层消息包装器 (Envelope)
+message FightMessage {
+  uint64 sequence_id = 1;      // 消息序号 (用于处理乱序、丢包或消息确认)
+  int64 timestamp = 2;         // 消息发送时间戳
+
+  oneof payload {
+    C2S_ChoseSkill chose_skill = 3; // 选择技能
+    C2S_UseTool use_tool = 4; // 使用道具
+    C2S_SwitchPhase switch_phase = 5; // 阶段切换
+
+    Msg_SyncFightStatus sync_fight_status = 6; // 同步战斗状态请求
+  }
+}
