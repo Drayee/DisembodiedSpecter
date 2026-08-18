@@ -3,10 +3,17 @@ package service
 import (
 	"DisembodiedSpecter/internal/config"
 	"DisembodiedSpecter/internal/dto/response"
+	"DisembodiedSpecter/internal/service/fight"
+	"DisembodiedSpecter/internal/service/fight/character"
+	"DisembodiedSpecter/internal/service/fight/enemy"
+	"DisembodiedSpecter/internal/service/fight/structs"
 	"DisembodiedSpecter/internal/utils"
 	"DisembodiedSpecter/proto/pd"
+	"context"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -15,14 +22,24 @@ import (
 )
 
 type FightUseCase struct {
-	redis              rueidis.Client
+	redis         rueidis.Client
+	fighter       map[int]struct{}
+	battleSession []*fight.BattleSession
+	key           string
+
 	gameContentManager *utils.GameContentManager
-	fighter            map[int]struct{}
-	key                string
+	playerDataManager  *utils.PlayerDataManager
+	skillManager       *character.SkillManager
+	enemyManager       *enemy.EnemyManager
 }
 
-func NewFightUseCase(redis rueidis.Client, config *config.Config, gameContentManager *utils.GameContentManager) *FightUseCase {
-	return &FightUseCase{redis: redis, gameContentManager: gameContentManager, fighter: make(map[int]struct{}), key: fmt.Sprintf("%s:ws-code", config.Cache.BaseKey)}
+func NewFightUseCase(redis rueidis.Client,
+	config *config.Config,
+	gameContentManager *utils.GameContentManager,
+	playerDataManager *utils.PlayerDataManager,
+	skillManager *character.SkillManager,
+	enemyManager *enemy.EnemyManager) *FightUseCase {
+	return &FightUseCase{redis: redis, gameContentManager: gameContentManager, playerDataManager: playerDataManager, fighter: make(map[int]struct{}), key: fmt.Sprintf("%s:ws-code", config.Cache.BaseKey), skillManager: skillManager, enemyManager: enemyManager}
 }
 
 func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
@@ -45,6 +62,24 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 	}
 
 	fu.fighter[userID] = struct{}{}
+	fu.battleSession = append(fu.battleSession, &fight.BattleSession{
+		Mu:        sync.RWMutex{},
+		ID:        fmt.Sprintf("%d", len(fu.battleSession)),
+		Player1ID: userID,
+		Player2ID: -1,
+	})
+
+	// 创建并初始化战斗状态机（从玩家数据加载队伍与对战 NPC）
+	machine, err := structs.NewMachine(c, fu.playerDataManager, fu.gameContentManager, userID)
+	if err != nil {
+		response.FailServer(c, err.Error())
+		return
+	}
+	fightEngine := fight.NewFightEngine(
+		fu.skillManager,
+		fu.enemyManager,
+		fu.gameContentManager,
+	)
 
 	ws, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
@@ -77,14 +112,36 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		if msgType == websocket.MessageBinary {
 			var respMsg pd.FightMessage
 			if err := proto.Unmarshal(msg, &respMsg); err != nil {
-				log.Fatalf("failed to unmarshal response: %v", err)
+				log.Printf("反序列化战斗消息失败: %v, userId %d", err, userID)
+				continue
 			}
 			switch respMsg.Payload.(type) {
 			case *pd.FightMessage_SyncFightStatus:
-				// 处理同步战斗状态
+				// 检测前端上报的战斗状态是否正确，是否需要同步
+				syncMsg := respMsg.GetSyncFightStatus()
+				needSync, checkErr := fightEngine.CheckSyncFightStatus(machine, syncMsg)
+				if checkErr != nil {
+					log.Printf("同步状态检测失败: %v, userId %d", checkErr, userID)
+					continue
+				}
+				if needSync {
+					log.Printf("前端战斗状态与服务器不一致，下发权威状态, userId %d", userID)
+					fu.sendFightStatus(ws, c, machine, userID)
+				}
 
 			case *pd.FightMessage_ChoseSkill:
-				// 处理选择技能
+				// 检测所选技能是否属于在使用的角色，且一个角色不能同时使用两个技能
+				skillMsg := respMsg.GetChoseSkill()
+				if checkErr := fightEngine.CheckChoseSkill(c, machine, skillMsg); checkErr != nil {
+					log.Printf("选择技能被拒绝: %v, userId %d", checkErr, userID)
+					// 校验失败：拒绝该操作，并向客户端同步一次权威状态以纠正前端
+					fu.sendFightStatus(ws, c, machine, userID)
+					continue
+				}
+				fightEngine.ApplyChoseSkill(machine, skillMsg)
+				log.Printf("角色 %d 使用技能 %d（目标 %d）, userId %d",
+					skillMsg.CharacterId, skillMsg.SkillId, skillMsg.TargetId, userID)
+				// TODO: 触发技能执行（skillManager.Init / Listener / Run 等）
 
 			}
 		}
@@ -94,5 +151,27 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 	if e != nil {
 		response.FailServer(c, e.Error())
 		return
+	}
+}
+
+// sendFightStatus 向客户端下发服务器权威战斗状态（用于纠正前端或主动同步）
+func (fu *FightUseCase) sendFightStatus(ws *websocket.Conn, ctx context.Context, machine *structs.Machine, userID int) {
+	status := fight.BuildFightStatus(machine)
+	respMsg := &pd.FightMessage{
+		Timestamp: time.Now().UnixMilli(),
+		Payload: &pd.FightMessage_SyncFightStatus{
+			SyncFightStatus: &pd.Msg_SyncFightStatus{
+				Status:    status,
+				Timestamp: time.Now().UnixMilli(),
+			},
+		},
+	}
+	data, err := proto.Marshal(respMsg)
+	if err != nil {
+		log.Printf("序列化战斗状态失败: %v, userId %d", err, userID)
+		return
+	}
+	if err := ws.Write(ctx, websocket.MessageBinary, data); err != nil {
+		log.Printf("下发战斗状态失败: %v, userId %d", err, userID)
 	}
 }

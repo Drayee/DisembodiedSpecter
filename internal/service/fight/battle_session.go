@@ -3,8 +3,8 @@ package fight
 import "sync"
 
 type BattleSession struct {
-	mu        sync.RWMutex
+	Mu        sync.RWMutex
 	ID        string
-	player1ID int
-	player2ID int
+	Player1ID int
+	Player2ID int
 }

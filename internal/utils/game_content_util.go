@@ -106,10 +106,7 @@ func paginateIDs(ids []int, page, pageSize int) ([]int, int64) {
 	if start >= len(ids) {
 		return []int{}, total
 	}
-	end := start + pageSize
-	if end > len(ids) {
-		end = len(ids)
-	}
+	end := min(start+pageSize, len(ids))
 	return ids[start:end], total
 }
 
@@ -138,6 +135,29 @@ func (m *GameContentManager) GetCharacter(ctx context.Context, id int) (*domain.
 		return c, nil
 	}
 	return m.parseCharacter(fields), nil
+}
+
+func (m *GameContentManager) GetCharacterNumber(ctx context.Context) (int, error) {
+	number, err := m.redis.Do(ctx, m.redis.B().Hget().Key(characterKeyPrefix).Field("character_number").Build()).AsInt64()
+	if err == nil {
+		return int(number), nil
+	}
+	var characterNumber int
+	characterNumber64, err := m.redis.Do(ctx, m.redis.B().Lrange().Key(characterKeyPrefix).Start(0).Stop(-1).Build()).AsInt64()
+	if err != nil {
+		characterNumber, err = m.gameRepo.GetAllCharacterNumber(ctx)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		characterNumber = int(characterNumber64)
+	}
+	if err := m.redis.Do(ctx, m.redis.B().Hset().Key(characterKeyPrefix).FieldValue().
+		FieldValue("character_number", strconv.Itoa(characterNumber)).
+		Build()).Error(); err != nil {
+		return 0, err
+	}
+	return characterNumber, nil
 }
 
 func (m *GameContentManager) parseCharacter(fields map[string]string) *domain.Character {
@@ -391,6 +411,27 @@ func (m *GameContentManager) UpdateEnemy(ctx context.Context, id int, e *domain.
 		}
 	}
 	return m.saveEnemyToCache(ctx, e)
+}
+
+func (m *GameContentManager) GetEnemyNumber(ctx context.Context) (int, error) {
+	var total int
+	totalInt64, err := m.redis.Do(ctx, m.redis.B().Hget().Key(enemyKeyPrefix).Field("enemy_number").Build()).AsInt64()
+	if err == nil {
+		return int(totalInt64), err
+	}
+	totalInt64, err = m.redis.Do(ctx, m.redis.B().Lrange().Key(enemyKeyPrefix).Start(0).Stop(-1).Build()).AsInt64()
+	if err == nil {
+		total = int(totalInt64)
+	} else {
+		total, err = m.gameRepo.GetAllEnemyNumber(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("获取所有敌人数量失败: %w", err)
+		}
+	}
+	if err := m.redis.Do(ctx, m.redis.B().Hset().Key(enemyKeyPrefix).FieldValue().FieldValue("enemy_number", strconv.Itoa(total)).Build()).Error(); err != nil {
+		return 0, fmt.Errorf("更新所有敌人数量失败: %w", err)
+	}
+	return total, nil
 }
 
 func (m *GameContentManager) SyncEnemyToDB(ctx context.Context, id int) error {
@@ -689,6 +730,27 @@ func (m *GameContentManager) UpdateSkill(ctx context.Context, id int, s *domain.
 	return m.saveSkillToCache(ctx, s)
 }
 
+func (m *GameContentManager) GetAllSkillNumber(ctx context.Context) (int, error) {
+	var total int
+	totalInt64, err := m.redis.Do(ctx, m.redis.B().Hget().Key(skillKeyPrefix).Field("skill_number").Build()).AsInt64()
+	if err == nil {
+		return int(totalInt64), err
+	}
+	totalInt64, err = m.redis.Do(ctx, m.redis.B().Lrange().Key(skillKeyPrefix).Start(0).Stop(-1).Build()).AsInt64()
+	if err == nil {
+		total = int(totalInt64)
+	} else {
+		total, err = m.gameRepo.GetAllSkillNumber(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("获取所有技能数量失败: %w", err)
+		}
+	}
+	if err := m.redis.Do(ctx, m.redis.B().Hset().Key(skillKeyPrefix).FieldValue().FieldValue("skill_number", strconv.Itoa(total)).Build()).Error(); err != nil {
+		return 0, fmt.Errorf("更新所有技能数量失败: %w", err)
+	}
+	return total, nil
+}
+
 func (m *GameContentManager) SyncSkillToDB(ctx context.Context, id int) error {
 	key := m.skillKey(id)
 	exists, err := m.exists(ctx, key)
@@ -744,9 +806,7 @@ func (m *GameContentManager) SyncAllToDB(ctx context.Context) (*SyncAllToDBResul
 	var firstErr error
 
 	if s, f, err := m.SyncAllCharactersToDB(ctx); err != nil {
-		if firstErr == nil {
-			firstErr = err
-		}
+		firstErr = err
 	} else {
 		result.CharacterSuccess = s
 		result.CharacterFail = f

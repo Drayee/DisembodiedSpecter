@@ -9,6 +9,9 @@ import (
 	"DisembodiedSpecter/internal/handlers"
 	"DisembodiedSpecter/internal/repository"
 	"DisembodiedSpecter/internal/service"
+	"DisembodiedSpecter/internal/service/fight/character"
+	"DisembodiedSpecter/internal/service/fight/enemy"
+	"DisembodiedSpecter/internal/service/global"
 	"DisembodiedSpecter/internal/utils"
 
 	"github.com/google/wire"
@@ -39,7 +42,10 @@ func InitializeApp(cfg *config.Config, redisClient rueidis.Client) (*Init, func(
 		service.NewAdminUseCase,
 		handlers.NewAdminHandler,
 		filter.NewAuthFilter,
+		character.NewSkillManager,
+		enemy.NewEnemyManager,
 		service.NewFightUseCase,
+		global.NewGlobalEngine,
 		service.NewGlobalUseCase,
 		handlers.NewWebSocketHandler,
 

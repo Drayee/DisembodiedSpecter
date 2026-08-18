@@ -1,4 +1,4 @@
-﻿package utils
+package utils
 
 import (
 	"DisembodiedSpecter/internal/domain"
@@ -17,6 +17,19 @@ import (
 )
 
 const playerDataKeyPrefix = "private:player:data:"
+
+// 全局状态机（global.Machine）字段在玩家 Hash 中的 field 名。
+// 与 PlayerDataManager 共用同一个 Hash：private:player:data:{playerID}
+const (
+	machineTeamField     = "character_team" // JSON []int
+	machineListField     = "character_list" // JSON []int
+	machineDoingField    = "doing"          // int（字符串）
+	machineDoingMapField = "doing_map"      // JSON map[string]string
+)
+
+// machineDoingNothing 与 global/structs.Machine 的 Nothing 常量对齐，
+// 仅在 loadFromDB 从 SQL 重建缓存时为状态机字段填充默认值。
+const machineDoingNothing = 2
 
 type PlayerDataManager struct {
 	redis      rueidis.Client
@@ -133,7 +146,12 @@ func (m *PlayerDataManager) loadFromDB(ctx context.Context, playerID int) error 
 		FieldValue("least_active_type", player.LeastActiveType).
 		FieldValue("least_active_ip", player.LeastActiveIP).
 		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
-		FieldValue("location", string(locBytes))
+		FieldValue("location", string(locBytes)).
+		// 状态机字段默认值（与 global.Machine 对齐，仅缓存重建时初始化）
+		FieldValue(machineTeamField, "[]").
+		FieldValue(machineListField, "[]").
+		FieldValue(machineDoingField, strconv.Itoa(machineDoingNothing)).
+		FieldValue(machineDoingMapField, "{}")
 
 	// 逐个查询道具名并追加 bag:{itemID} 字段
 	for _, item := range items {
@@ -384,6 +402,83 @@ func (m *PlayerDataManager) UpdateItemAttribute(ctx context.Context, playerID in
 	bytes, _ := json.Marshal(obj)
 	setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
 	return m.redis.Do(ctx, setCmd).Error()
+}
+
+// ==================== 全局状态机字段（与 global.Machine 对齐） ====================
+
+// MachineState 玩家全局状态机（global.Machine）在 Redis 中的持久化形态。
+// 与玩家数据共用同一个 Hash，因此状态机字段与 player_data_util 完全对齐。
+type MachineState struct {
+	CharacterTeam []int             `json:"character_team"`
+	CharacterList []int             `json:"character_list"`
+	Doing         int               `json:"doing"`
+	DoingMap      map[string]string `json:"doing_map"`
+}
+
+// GetMachineState 读取状态机字段（cache-aside，miss 时从 DB 加载并回填默认值）
+func (m *PlayerDataManager) GetMachineState(ctx context.Context, playerID int) (*MachineState, error) {
+	if err := m.ensureLoaded(ctx, playerID); err != nil {
+		return nil, err
+	}
+
+	key := m.hashKey(playerID)
+	hmget := m.redis.B().Hmget().Key(key).
+		Field(machineTeamField, machineListField, machineDoingField, machineDoingMapField).Build()
+	vals, err := m.redis.Do(ctx, hmget).AsStrSlice()
+	if err != nil {
+		return nil, fmt.Errorf("读取状态机字段失败: %w", err)
+	}
+
+	state := &MachineState{
+		CharacterTeam: []int{},
+		CharacterList: []int{},
+		Doing:         machineDoingNothing,
+		DoingMap:      map[string]string{},
+	}
+	// vals 顺序与 Field 一致；HMGET 缺失字段返回空字符串
+	if len(vals) > 0 && vals[0] != "" {
+		_ = json.Unmarshal([]byte(vals[0]), &state.CharacterTeam)
+	}
+	if len(vals) > 1 && vals[1] != "" {
+		_ = json.Unmarshal([]byte(vals[1]), &state.CharacterList)
+	}
+	if len(vals) > 2 && vals[2] != "" {
+		state.Doing, _ = strconv.Atoi(vals[2])
+	}
+	if len(vals) > 3 && vals[3] != "" {
+		_ = json.Unmarshal([]byte(vals[3]), &state.DoingMap)
+	}
+	return state, nil
+}
+
+// SaveMachineState 写回状态机字段（仅写 Redis，与玩家数据同一 Hash）
+func (m *PlayerDataManager) SaveMachineState(ctx context.Context, playerID int, state *MachineState) error {
+	if err := m.ensureLoaded(ctx, playerID); err != nil {
+		return err
+	}
+	if state == nil {
+		return nil
+	}
+	// 归一化 nil 集合，避免序列化为 "null"，保证与 Machine 构造默认值一致
+	if state.CharacterTeam == nil {
+		state.CharacterTeam = []int{}
+	}
+	if state.CharacterList == nil {
+		state.CharacterList = []int{}
+	}
+	if state.DoingMap == nil {
+		state.DoingMap = map[string]string{}
+	}
+	teamBytes, _ := json.Marshal(state.CharacterTeam)
+	listBytes, _ := json.Marshal(state.CharacterList)
+	doingMapBytes, _ := json.Marshal(state.DoingMap)
+	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().
+		FieldValue(machineTeamField, string(teamBytes)).
+		FieldValue(machineListField, string(listBytes)).
+		FieldValue(machineDoingField, strconv.Itoa(state.Doing)).
+		FieldValue(machineDoingMapField, string(doingMapBytes)).
+		Build()
+	return m.redis.Do(ctx, cmd).Error()
 }
 
 // ==================== TTL 管理 ====================

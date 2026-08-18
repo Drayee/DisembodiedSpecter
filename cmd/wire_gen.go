@@ -12,6 +12,9 @@ import (
 	"DisembodiedSpecter/internal/handlers"
 	"DisembodiedSpecter/internal/repository"
 	"DisembodiedSpecter/internal/service"
+	"DisembodiedSpecter/internal/service/fight/character"
+	"DisembodiedSpecter/internal/service/fight/enemy"
+	"DisembodiedSpecter/internal/service/global"
 	"DisembodiedSpecter/internal/utils"
 	"github.com/redis/rueidis"
 )
@@ -41,8 +44,12 @@ func InitializeApp(cfg *config.Config, redisClient rueidis.Client) (*Init, func(
 	adminUseCase := service.NewAdminUseCase(userRepo, playerRepo, emailRepo, playerDataManager, gameRepo, gameContentManager)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
 	authFilter := filter.NewAuthFilter(cfg, tokenManager, redisClient)
-	fightUseCase := service.NewFightUseCase(redisClient, cfg, gameContentManager)
-	webSocketHandler := handlers.NewWebSocketHandler(fightUseCase)
+	skillManager := character.NewSkillManager(gameContentManager)
+	enemyManager := enemy.NewEnemyManager(gameContentManager)
+	fightUseCase := service.NewFightUseCase(redisClient, cfg, gameContentManager, playerDataManager, skillManager, enemyManager)
+	globalEngine := global.NewGlobalEngine(redisClient, playerDataManager)
+	globalUseCase := service.NewGlobalUseCase(gameContentManager, playerDataManager, globalEngine, redisClient, cfg)
+	webSocketHandler := handlers.NewWebSocketHandler(fightUseCase, globalUseCase)
 	engine := handlers.NewRouter(authHandler, userHandler, adminHandler, authFilter, webSocketHandler)
 	init := NewInit(syncScheduler, engine)
 	return init, func() {

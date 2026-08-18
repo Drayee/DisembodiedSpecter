@@ -13,11 +13,13 @@ type GameRepo interface {
 	GetCharacterByID(ctx context.Context, id int) (*domain.Character, error)
 	GetAllCharacters(ctx context.Context, page, pageSize int) ([]*domain.Character, int64, error)
 	UpsertCharacter(ctx context.Context, c *domain.Character) error
+	GetAllCharacterNumber(ctx context.Context) (int, error)
 
 	// Enemy 敌人
 	GetEnemyByID(ctx context.Context, id int) (*domain.Enemy, error)
 	GetAllEnemies(ctx context.Context, page, pageSize int) ([]*domain.Enemy, int64, error)
 	UpsertEnemy(ctx context.Context, e *domain.Enemy) error
+	GetAllEnemyNumber(ctx context.Context) (int, error)
 
 	// Tool 道具
 	GetToolByID(ctx context.Context, id int) (*domain.Tool, error)
@@ -28,6 +30,7 @@ type GameRepo interface {
 	GetSkillByID(ctx context.Context, id int) (*domain.Skill, error)
 	GetAllSkills(ctx context.Context, page, pageSize int) ([]*domain.Skill, int64, error)
 	UpsertSkill(ctx context.Context, s *domain.Skill) error
+	GetAllSkillNumber(ctx context.Context) (int, error)
 }
 
 func NewGormGameRepo(db *gorm.DB) GameRepo {
@@ -64,6 +67,15 @@ func (g *gormGameRepo) UpsertCharacter(ctx context.Context, c *domain.Character)
 	return g.db.WithContext(ctx).Save(c).Error
 }
 
+func (g *gormGameRepo) GetAllCharacterNumber(ctx context.Context) (int, error) {
+	var count int64
+	err := g.db.WithContext(ctx).Model(&domain.Character{}).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
+
 // ==================== Enemy ====================
 
 func (g *gormGameRepo) GetEnemyByID(ctx context.Context, id int) (*domain.Enemy, error) {
@@ -88,6 +100,15 @@ func (g *gormGameRepo) GetAllEnemies(ctx context.Context, page, pageSize int) ([
 
 func (g *gormGameRepo) UpsertEnemy(ctx context.Context, e *domain.Enemy) error {
 	return g.db.WithContext(ctx).Save(e).Error
+}
+
+func (g *gormGameRepo) GetAllEnemyNumber(ctx context.Context) (int, error) {
+	var total int64
+	err := g.db.WithContext(ctx).Model(&domain.Enemy{}).Count(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return int(total), nil
 }
 
 // ==================== Tool ====================
@@ -140,4 +161,13 @@ func (g *gormGameRepo) GetAllSkills(ctx context.Context, page, pageSize int) ([]
 
 func (g *gormGameRepo) UpsertSkill(ctx context.Context, s *domain.Skill) error {
 	return g.db.WithContext(ctx).Save(s).Error
+}
+
+func (g *gormGameRepo) GetAllSkillNumber(ctx context.Context) (int, error) {
+	var total int64
+	err := g.db.WithContext(ctx).Model(&domain.Skill{}).Count(&total).Error
+	if err != nil {
+		return 0, err
+	}
+	return int(total), nil
 }
