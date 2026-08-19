@@ -1,13 +1,13 @@
 ﻿app:
   name: DisembodiedSpecter
   port: 8080
-  version: 0.0.1
+  version: 0.0.2
 
 database:
   host: localhost
   port: 5432
   username: postgres
-  password: yuanshen123
+  password: 123456
   dbname: disembodied_specter
 
 jwt:
@@ -17,7 +17,7 @@ jwt:
 
 redis:
   init_addr: localhost:6379
-  password: "yuanshen123"
+  password: "123456"
   db: 1
   pool_size: 100
   conn_with_timeout: 5s
