@@ -2,6 +2,7 @@ package repository
 
 import (
 	"DisembodiedSpecter/internal/config"
+	"DisembodiedSpecter/internal/domain"
 	"fmt"
 	"time"
 
@@ -44,7 +45,27 @@ func ProvideDB(cfg *config.Config) (*gorm.DB, func(), error) {
 		return nil, nil, err
 	}
 
-	// 2. 定义清理逻辑
+	// 2. 自动迁移：将全部 Go domain 模型同步到 SQL（建表 + 索引）
+	//    已存在的表只会做增量变更（新增列/索引），不会清空数据
+	if err := database.AutoMigrate(
+		&domain.User{},
+		&domain.Player{},
+		&domain.Item{},
+		&domain.PlayerItem{},
+		&domain.Email{},
+		&domain.Character{},
+		&domain.Enemy{},
+		&domain.Tool{},
+		&domain.Skill{},
+	); err != nil {
+		sqlDB, _ := database.DB()
+		if sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+		return nil, nil, fmt.Errorf("数据库自动迁移失败: %w", err)
+	}
+
+	// 3. 定义清理逻辑
 	cleanup := func() {
 		sqlDB, _ := database.DB()
 		if sqlDB != nil {

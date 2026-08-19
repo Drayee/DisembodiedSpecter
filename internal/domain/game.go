@@ -11,7 +11,7 @@ type Character struct {
 
 	Description string `json:"description" gorm:"column:description;type:text"`
 
-	OwnerNumber int `json:"owner_number" gorm:"column:owner_number"`
+	OwnerNumber int `json:"owner_number" gorm:"column:owner_number;index"`
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at"`
 }
@@ -40,7 +40,7 @@ type Tool struct {
 
 type Skill struct {
 	ID int `json:"id" gorm:"primaryKey"`
-	CharacterID int `json:"character_id" gorm:"column:character_id"`
+	CharacterID int `json:"character_id" gorm:"column:character_id;index"`
 
 	Name string `json:"name" gorm:"column:name;uniqueIndex"`
 	Type string `json:"type" gorm:"column:type"`

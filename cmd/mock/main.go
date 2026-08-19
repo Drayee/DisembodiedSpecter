@@ -53,8 +53,8 @@ func main() {
 	defer sqlDB2.Close()
 
 	// 4. 删除旧表后自动迁移（确保列名变更生效）
-	db.Migrator().DropTable("player_items", "items", "players", "users", "emails")
-	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}); err != nil {
+	db.Migrator().DropTable("player_items", "items", "players", "users", "emails", "characters", "enemies", "tools", "skills")
+	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}, &domain.Character{}, &domain.Enemy{}, &domain.Tool{}, &domain.Skill{}); err != nil {
 		log.Fatalf("自动迁移失败: %v", err)
 	}
 	log.Println("表结构迁移完成")
