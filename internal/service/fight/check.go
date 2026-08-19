@@ -10,10 +10,12 @@ import (
 )
 
 // CheckChoseSkill 检测玩家选择的技能是否合法：
+//  0. 战斗未结束，且当前处于等待选择技能的状态（StateNumber == Waiting）；
 //  1. 技能必须存在，且属于"在使用的角色"（技能的归属角色 == 消息中的角色，即技能组归属检测）；
-//  2. 使用技能的角色必须在本场战斗的我方队伍中；
+//  2. 使用技能的角色必须在本场战斗的我方队伍中（通过 角色ID → 战斗位索引 映射校验）；
 //  3. 若已标记当前行动角色（CharacterSite.IsMainActionCharacter），技能只能由该行动角色使用；
-//  4. 一个角色本回合不能同时使用两个技能。
+//  4. 目标必须为合法的战斗位索引（0..总战斗位-1）；
+//  5. 一个角色本回合不能同时使用两个技能。
 func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Machine, req *pd.Skill) error {
 	if req == nil {
 		return fmt.Errorf("选择技能消息为空")
@@ -21,9 +23,16 @@ func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Mac
 	if machine == nil {
 		return fmt.Errorf("战斗状态机为空")
 	}
+	if machine.Ended {
+		return fmt.Errorf("战斗已结束")
+	}
+	if machine.StateNumber != structs.Waiting {
+		return fmt.Errorf("当前状态（%d）不允许选择技能，请等待本阶段结束", machine.StateNumber)
+	}
 
 	characterID := int(req.CharacterId)
 	skillID := int(req.SkillId)
+	targetID := int(req.TargetId)
 
 	// 1. 技能必须存在，且属于该角色（技能组归属）
 	skill, err := fe.gameContentManager.GetSkill(ctx, skillID)
@@ -34,8 +43,8 @@ func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Mac
 		return fmt.Errorf("技能 %d 不属于角色 %d（属于角色 %d）", skillID, characterID, skill.CharacterID)
 	}
 
-	// 2. 角色必须在本场战斗的我方队伍中
-	if !containsInt(machine.SelfCharacterIDs, characterID) {
+	// 2. 角色必须在本场战斗的我方队伍中（角色 ID → 战斗位索引）
+	if _, ok := machine.SelfCharacterIndex[characterID]; !ok {
 		return fmt.Errorf("角色 %d 不在本场战斗的我方队伍中", characterID)
 	}
 
@@ -44,7 +53,15 @@ func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Mac
 		return fmt.Errorf("技能只能由当前行动角色 %d 使用，而非角色 %d", acting, characterID)
 	}
 
-	// 4. 一个角色本回合不能同时使用两个技能
+	// 4. 目标必须是合法的战斗位索引
+	machine.Mu.RLock()
+	combatantCount := len(machine.CharacterState)
+	machine.Mu.RUnlock()
+	if targetID < 0 || targetID >= combatantCount {
+		return fmt.Errorf("目标战斗位 %d 不合法（范围 0..%d）", targetID, combatantCount-1)
+	}
+
+	// 5. 一个角色本回合不能同时使用两个技能
 	if used, ok := machine.CharacterUsedSkill[characterID]; ok {
 		return fmt.Errorf("角色 %d 本回合已使用技能 %d，不能再次使用", characterID, used)
 	}
@@ -52,7 +69,8 @@ func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Mac
 	return nil
 }
 
-// ApplyChoseSkill 记录角色本回合已使用的技能（需在 CheckChoseSkill 通过后调用）
+// ApplyChoseSkill 记录角色本回合已使用的技能（需在 CheckChoseSkill 通过后调用）。
+// 以角色 DB ID 为键记录，避免把角色 ID 当作数组下标使用。
 func (fe *FightEngine) ApplyChoseSkill(machine *structs.Machine, req *pd.Skill) {
 	if machine == nil || req == nil {
 		return
@@ -60,7 +78,7 @@ func (fe *FightEngine) ApplyChoseSkill(machine *structs.Machine, req *pd.Skill) 
 	if machine.CharacterUsedSkill == nil {
 		machine.CharacterUsedSkill = make(map[int]int)
 	}
-	machine.CharacterUsedSkill[machine.SelfCharacterIDs[int(req.CharacterId)]] = int(req.SkillId)
+	machine.CharacterUsedSkill[int(req.CharacterId)] = int(req.SkillId)
 }
 
 // CheckSyncFightStatus 检测前端上报的战斗状态是否正确：
@@ -88,6 +106,9 @@ func BuildFightStatus(machine *structs.Machine) *pd.FightStatus {
 			Counters:   map[string]float32{},
 		}
 	}
+	machine.Mu.RLock()
+	defer machine.Mu.RUnlock()
+
 	status := &pd.FightStatus{
 		IsSelfRound:    machine.IsSelfRound,
 		Round:          int32(machine.Round),
@@ -145,16 +166,6 @@ func buildBuffs(buffs []*structs.Buff) []*pd.Buff {
 		out = append(out, &pd.Buff{BuffId: int32(b.ID), Time: int32(b.Time)})
 	}
 	return out
-}
-
-// containsInt 判断切片中是否包含指定值
-func containsInt(list []int, v int) bool {
-	for _, item := range list {
-		if item == v {
-			return true
-		}
-	}
-	return false
 }
 
 // actingSelfCharacterID 返回当前行动的我方角色 ID；

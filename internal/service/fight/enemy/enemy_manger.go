@@ -39,13 +39,21 @@ func NewEnemyManager(gm *utils.GameContentManager) *EnemyManager {
 	return enemyManager
 }
 
-func (a *EnemyManager) Run(id int, machine *structs.Machine, pubSub *gochannel.GoChannel, enemyID int) error {
+func (a *EnemyManager) Run(id int, machine *structs.Machine, pubSub *gochannel.GoChannel, enemyID int) (err error) {
 	method, ok := a.Action[enemyID]
 	if !ok {
 		return fmt.Errorf("action %d 缺少必需的方法", id)
 	}
+	// 反射调用：reflect.Type.Method.Func 的第一个参数是接收者，必须传入；
+	// 捕获 panic 防止 goroutine 崩溃拖垮进程
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("敌方行动 panic: %v", r)
+		}
+	}()
 	results := method.Func.Call(
 		[]reflect.Value{
+			reflect.ValueOf(a),
 			reflect.ValueOf(machine),
 			reflect.ValueOf(pubSub),
 			reflect.ValueOf(id),

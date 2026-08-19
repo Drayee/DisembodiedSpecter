@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 )
 
 // Machine 战斗状态机
@@ -19,6 +20,9 @@ type Machine struct {
 	// 注意：不要存放 HTTP 请求上下文（gin.Context），请求结束后会被取消，而 Machine 会长期存活。
 	Ctx context.Context
 
+	// Mu 保护 CharacterState / Counters 等被 actuator 监听 goroutine 与主循环并发访问的字段
+	Mu sync.RWMutex
+
 	CharacterState      []*CharacterState // 角色状态(包括敌方角色和我方角色)
 	CharacterSite       []*Site           // 角色位置(包括敌方角色和我方角色)
 	SelfCharacterNumber int               // 我的角色数
@@ -27,19 +31,29 @@ type Machine struct {
 	SelfCharacterIDs  []int // 我方队伍角色 ID 列表（来自玩家数据的 character_team）
 	EnemyCharacterIDs []int // 对方 NPC 角色 ID 列表（来自 DoingMap 的 enemy_id / enemy_ids）
 
+	// 角色/敌人 DB ID → 战斗位索引（0..N-1，我方在前敌方在后，与 CharacterState 下标一致）
+	SelfCharacterIndex  map[int]int
+	EnemyCharacterIndex map[int]int
+
 	RoundCharacterNeededOperation []int // 角色回合操作
 
 	// CharacterUsedSkill 本回合各角色已使用的技能（characterID -> skillID），
-	// 用于检测一个角色不能同时使用两个技能；新回合开始时需重置。
+	// 用于检测一个角色不能同时使用两个技能；每回合结束后重置。
 	CharacterUsedSkill map[int]int
 
 	Tools          []*Tool            // 道具列表
 	NowFightStatus int                // 现在的战斗情况
 	Counters       map[string]float32 // 计数器
 
-	StateNumber   int      // 状态编号
-	UUID          string   // 战斗UUID
-	LastTimeFight *Machine // 上一次战斗状态
+	StateNumber int    // 状态编号
+	UUID        string // 战斗UUID
+
+	// LastStateNumber 上一阶段的状态编号（RETURN_PREV_PHASE 时恢复）
+	LastStateNumber int
+
+	// Ended / PlayerWin 战斗是否结束及结果（全部敌方阵亡胜利，全部我方阵亡失败）
+	Ended     bool
+	PlayerWin bool
 }
 
 // CharacterState 角色状态
@@ -97,12 +111,15 @@ type Event struct {
 //     并将 ID 列表写入 SelfCharacterIDs / EnemyCharacterIDs。
 func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.GameContentManager, userID int) (*Machine, error) {
 	machine := &Machine{
-		IsSelfRound:       true,
-		Round:             0,
-		Ctx:               ctx,
-		CharacterState:    nil,
-		CharacterUsedSkill: map[int]int{},
-		Counters:          map[string]float32{},
+		IsSelfRound:         true,
+		Round:               0,
+		Ctx:                 ctx,
+		CharacterState:      nil,
+		SelfCharacterIndex:  map[int]int{},
+		EnemyCharacterIndex: map[int]int{},
+		CharacterUsedSkill:  map[int]int{},
+		Counters:            map[string]float32{},
+		LastStateNumber:     Waiting,
 	}
 
 	// 1+2. 从玩家数据（Redis Hash）读取状态机字段：队伍角色 ID + DoingMap
@@ -120,8 +137,10 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 			log.Printf("获取角色 %d 信息失败: %v", cid, err)
 			continue
 		}
+		idx := len(machine.CharacterState)
 		machine.CharacterState = append(machine.CharacterState,
 			&CharacterState{Health: character.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+		machine.SelfCharacterIndex[cid] = idx
 	}
 	machine.SelfCharacterNumber = len(machine.CharacterState)
 
@@ -132,11 +151,46 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 			log.Printf("获取敌人 %d 信息失败: %v", eid, err)
 			continue
 		}
+		idx := len(machine.CharacterState)
 		machine.CharacterState = append(machine.CharacterState,
 			&CharacterState{Health: enemy.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+		machine.EnemyCharacterIndex[eid] = idx
 	}
 
 	return machine, nil
+}
+
+// CheckBattleEnd 检测战斗是否结束：我方全部阵亡则失败，敌方全部阵亡则胜利。
+// 没有敌方时视为胜利（无战斗目标）。
+func (m *Machine) CheckBattleEnd() (ended bool, playerWin bool) {
+	m.Mu.RLock()
+	defer m.Mu.RUnlock()
+
+	if len(m.EnemyCharacterIDs) == 0 {
+		return true, true
+	}
+	allDead := func(from, to int) bool {
+		if from >= len(m.CharacterState) {
+			return true
+		}
+		if to > len(m.CharacterState) {
+			to = len(m.CharacterState)
+		}
+		for i := from; i < to; i++ {
+			cs := m.CharacterState[i]
+			if cs != nil && cs.Health > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	if allDead(0, m.SelfCharacterNumber) {
+		return true, false
+	}
+	if allDead(m.SelfCharacterNumber, len(m.CharacterState)) {
+		return true, true
+	}
+	return false, false
 }
 
 // parseDoingMapEnemyIDs 从 DoingMap 中解析对战的 NPC ID 列表

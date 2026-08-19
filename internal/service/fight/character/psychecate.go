@@ -29,16 +29,19 @@ func (sm *SkillManager) Skill2Listener(pubSub *gochannel.GoChannel, machine *str
 	}
 	go func() {
 		for msg := range messages {
+			machine.Mu.Lock()
 			attackNumber, _ := machine.Counters["limit:skill2"]
 			if attackNumber >= 1 {
+				machine.Mu.Unlock()
 				return
 			}
+			machine.Counters["limit:skill2"] = attackNumber + 1
+			machine.Mu.Unlock()
 			attack := &structs.Attack{}
 			err := json.Unmarshal(msg.Payload, attack)
 			if err != nil {
 				return
 			}
-			machine.Counters["limit:skill2"] = attackNumber + 1
 			jsonBytes, _ := json.Marshal(structs.Attack{
 				Damage:   attack.Damage / 2,
 				TargetID: attack.TargetID,
