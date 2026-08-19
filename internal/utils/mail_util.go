@@ -28,7 +28,11 @@ type Email struct {
 }
 
 func NewMailManager(emailRepo repository.EmailRepo, redisClient rueidis.Client) MailManager {
-	emails, err := emailRepo.GetAll(context.Background())
+	// 启动初始化：带超时，避免 DB/Redis 不可用时启动无限阻塞
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	emails, err := emailRepo.GetAll(ctx)
 	if err != nil {
 		log.Fatalf("获取所有邮箱失败: %v", err)
 	}
@@ -36,12 +40,12 @@ func NewMailManager(emailRepo repository.EmailRepo, redisClient rueidis.Client) 
 		key := fmt.Sprintf("public:datebase:email:%d", email.ID)
 		emailJSON, _ := json.Marshal(email)
 		cmd := redisClient.B().Set().Key(key).Value(string(emailJSON)).Build()
-		if err := redisClient.Do(context.Background(), cmd).Error(); err != nil {
+		if err := redisClient.Do(ctx, cmd).Error(); err != nil {
 			log.Fatalf("设置邮箱到Redis失败: %v", err)
 		}
 	}
 	r := MailManager{emailRepo: emailRepo, redisClient: redisClient}
-	if err := r.GetAllUsableEmails(context.Background()); err != nil {
+	if err := r.GetAllUsableEmails(ctx); err != nil {
 		log.Fatalf("获取所有可用邮箱失败: %v", err)
 	}
 	return r
@@ -129,7 +133,7 @@ func (e *MailManager) SendEmail(ctx context.Context, email Email) error {
 				e.usableEmailNum--
 				continue
 			}
-			// 发送邮件
+			// 发送邮件（gomail 内部 TCP 拨号自带 10s 超时）
 			m := gomail.NewMessage()
 			m.SetHeader("From", user)
 			m.SetHeader("To", email.Receiver)
@@ -156,8 +160,14 @@ func (e *MailManager) StartEmailWorker(taskQueue <-chan Email) {
 				time.Sleep(time.Second)
 				continue
 			} else {
-				ctx := context.Background()
+				// 每次批量发送使用带超时的上下文，Redis 异常时不会让 worker 无限阻塞
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
 				for emailTaskNum > 0 {
+					// 无可用的邮箱时避免 rand.Intn(0) panic，跳出后等待下一轮重试
+					if e.usableEmailNum <= 0 {
+						break
+					}
 					key := fmt.Sprintf("public:datebase:email:%d", rand.Intn(e.usableEmailNum)+1)
 					n, nErr := e.redisClient.Do(ctx, e.redisClient.B().Hget().Key(key).Field("count").Build()).AsInt64()
 					m, mErr := e.redisClient.Do(ctx, e.redisClient.B().Hget().Key(key).Field("max_count").Build()).AsInt64()

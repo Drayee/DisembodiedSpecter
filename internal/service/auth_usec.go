@@ -35,7 +35,7 @@ func (auc *AuthUseCase) Login(ctx context.Context, req *request.LoginReq) (*resp
 	if user.Status == domain.UserStatusDisabled {
 		return nil, errors.New("账号已被禁用")
 	}
-	accessToken, refreshToken, err := auc.tokenManager.GenerateTokens(user.ID, user.Name, user.Role)
+	accessToken, refreshToken, err := auc.tokenManager.GenerateTokens(ctx, user.ID, user.Name, user.Role)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (auc *AuthUseCase) Register(ctx context.Context, req *request.RegisterReq) 
 	if err := auc.userRepo.Save(ctx, &user); err != nil {
 		return nil, err
 	}
-	accessToken, refreshToken, err := auc.tokenManager.GenerateTokens(user.ID, user.Name, user.Role)
+	accessToken, refreshToken, err := auc.tokenManager.GenerateTokens(ctx, user.ID, user.Name, user.Role)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (auc *AuthUseCase) SendVerifyCode(ctx context.Context, verifier string, ver
 }
 
 func (auc *AuthUseCase) Refresh(ctx context.Context, refreshToken string) (*response.LoginResp, error) {
-	accessToken, newRefreshToken, err := auc.tokenManager.RefreshAccessToken(refreshToken)
+	accessToken, newRefreshToken, err := auc.tokenManager.RefreshAccessToken(ctx, refreshToken)
 	if err != nil {
 		return nil, err
 	}

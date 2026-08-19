@@ -14,7 +14,10 @@ import (
 type Machine struct {
 	IsSelfRound bool // 是否是自己的回合
 	Round       int  // 回合数
-	Ctx         context.Context
+
+	// Ctx 战斗生命周期上下文：由战斗会话创建（context.WithCancel），连接断开时统一取消。
+	// 注意：不要存放 HTTP 请求上下文（gin.Context），请求结束后会被取消，而 Machine 会长期存活。
+	Ctx context.Context
 
 	CharacterState      []*CharacterState // 角色状态(包括敌方角色和我方角色)
 	CharacterSite       []*Site           // 角色位置(包括敌方角色和我方角色)

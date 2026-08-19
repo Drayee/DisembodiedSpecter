@@ -49,7 +49,8 @@ func generateToken(userID int, username string, role string, tokenType string, e
 	return token.SignedString([]byte(secret))
 }
 
-func (tm *TokenManager) GenerateTokens(userID int, username string, role string) (accessToken string, refreshToken string, err error) {
+// GenerateTokens 生成双令牌并写入 Redis，使用调用方传入的 ctx（请求上下文，带超时/取消）
+func (tm *TokenManager) GenerateTokens(ctx context.Context, userID int, username string, role string) (accessToken string, refreshToken string, err error) {
 	accessToken, err = generateToken(userID, username, role, "access", tm.Expire, tm.Secret)
 	if err != nil {
 		return "", "", err
@@ -60,7 +61,6 @@ func (tm *TokenManager) GenerateTokens(userID int, username string, role string)
 		return "", "", err
 	}
 
-	ctx := context.Background()
 	if err := tm.storeToken(ctx, "access", accessToken, userID, tm.Expire); err != nil {
 		return "", "", err
 	}
@@ -118,9 +118,8 @@ func (tm *TokenManager) ValidateRefreshToken(tokenString string) (int, string, s
 	return parseAndValidateToken(tokenString, tm.Secret, "refresh")
 }
 
-func (tm *TokenManager) RefreshAccessToken(refreshToken string) (newAccessToken string, newRefreshToken string, err error) {
-	ctx := context.Background()
-
+// RefreshAccessToken 轮换 refresh token，使用调用方传入的 ctx
+func (tm *TokenManager) RefreshAccessToken(ctx context.Context, refreshToken string) (newAccessToken string, newRefreshToken string, err error) {
 	// 检查 refresh token 在 Redis 中是否存在
 	key := fmt.Sprintf("jwt:refresh:%s", refreshToken)
 	existsCmd := tm.redis.B().Exists().Key(key).Build()
@@ -140,19 +139,14 @@ func (tm *TokenManager) RefreshAccessToken(refreshToken string) (newAccessToken 
 	tm.redis.Do(ctx, delCmd)
 
 	// 生成新的双令牌
-	return tm.GenerateTokens(userID, username, role)
+	return tm.GenerateTokens(ctx, userID, username, role)
 }
 
 func (tm *TokenManager) RevokeToken(ctx context.Context, token string) error {
 	// 删除 access token
 	accessKey := fmt.Sprintf("jwt:access:%s", token)
 	delAccess := tm.redis.B().Del().Key(accessKey).Build()
-	tm.redis.Do(ctx, delAccess)
-
-	// 同时查找并删除 refresh token（从 token 解析 userID 不可行，
-	// 因此删除同前缀的 refresh token 不现实。
-	// 登出应同时提供 refresh token 来完整清理。
-	return nil
+	return tm.redis.Do(ctx, delAccess).Error()
 }
 
 // RevokeSession 完整登出：删除 access + refresh token
@@ -163,9 +157,8 @@ func (tm *TokenManager) RevokeSession(ctx context.Context, accessToken string, r
 	return tm.redis.Do(ctx, delCmd).Error()
 }
 
-// IsTokenInRedis 检查 token 是否存在于 Redis（供 AuthFilter 使用）
-func (tm *TokenManager) IsTokenInRedis(token string) bool {
-	ctx := context.Background()
+// IsTokenInRedis 检查 token 是否存在于 Redis，使用调用方传入的 ctx
+func (tm *TokenManager) IsTokenInRedis(ctx context.Context, token string) bool {
 	key := fmt.Sprintf("jwt:access:%s", token)
 	existsCmd := tm.redis.B().Exists().Key(key).Build()
 	exists, err := tm.redis.Do(ctx, existsCmd).AsInt64()

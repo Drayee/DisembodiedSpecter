@@ -9,6 +9,7 @@ import (
 	"log"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
@@ -21,7 +22,9 @@ type ActuatorManager struct {
 }
 
 func NewActuatorManager(gm *utils.GameContentManager) *ActuatorManager {
-	ctx := context.Background()
+	// 构造阶段读取数量：带超时，避免 Redis 不可用时启动无限阻塞
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	characterNumber, e1 := gm.GetCharacterNumber(ctx)
 	enemyNumber, e2 := gm.GetEnemyNumber(ctx)
 	if e1 != nil || e2 != nil {

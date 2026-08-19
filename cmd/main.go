@@ -18,11 +18,13 @@ import (
 )
 
 func main() {
+	// 1. 加载配置文件
 	appConfig, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("加载配置文件失败: %v", err)
 	}
 
+	// 2. 连接Redis
 	redisClient, err := utils.ConnectRedis(appConfig)
 	if err != nil {
 		log.Fatalf("连接Redis失败: %v", err)
@@ -48,7 +50,7 @@ func main() {
 		cleanup()
 	}()
 
-	// 2. 启动服务
+	// 5. 启动服务
 	portStr := ":" + strconv.Itoa(appConfig.App.Port)
 	if err := engine.Run(portStr); err != nil {
 		log.Fatalf("服务运行失败: %v", err)

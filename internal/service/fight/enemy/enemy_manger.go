@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
@@ -20,7 +21,9 @@ func NewEnemyManager(gm *utils.GameContentManager) *EnemyManager {
 	enemyManager := &EnemyManager{GameContentManager: gm}
 	enemyManager.Action = make(map[int]reflect.Method)
 	t := reflect.TypeFor[*EnemyManager]()
-	actionIDs, err := enemyManager.GameContentManager.GetEnemyNumber(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	actionIDs, err := enemyManager.GameContentManager.GetEnemyNumber(ctx)
 	if err != nil {
 		panic(err)
 	}

@@ -140,7 +140,7 @@ func main() {
 
 	// 8. 生成测试用 JWT token（双令牌）
 	tokenManager := utils.NewTokenManager(redisClient, cfg)
-	accessToken, refreshToken, err := tokenManager.GenerateTokens(user.ID, user.Name, user.Role)
+	accessToken, refreshToken, err := tokenManager.GenerateTokens(context.Background(), user.ID, user.Name, user.Role)
 	if err != nil {
 		log.Fatalf("生成 token 失败: %v", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
@@ -25,7 +26,9 @@ type SkillManager struct {
 func NewSkillManager(manager *utils.GameContentManager) *SkillManager {
 	sm := &SkillManager{GameContentManger: manager}
 	t := reflect.TypeFor[*SkillManager]()
-	skillIDs, err := sm.GameContentManger.GetAllSkillNumber(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	skillIDs, err := sm.GameContentManger.GetAllSkillNumber(ctx)
 	if err != nil {
 		panic(err)
 	}

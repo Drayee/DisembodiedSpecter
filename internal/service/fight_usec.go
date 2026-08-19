@@ -69,12 +69,21 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		Player2ID: -1,
 	})
 
-	// 创建并初始化战斗状态机（从玩家数据加载队伍与对战 NPC）
-	machine, err := structs.NewMachine(c, fu.playerDataManager, fu.gameContentManager, userID)
+	// 创建并初始化战斗状态机（从玩家数据加载队伍与对战 NPC），加载阶段带超时
+	loadCtx, loadCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	machine, err := structs.NewMachine(loadCtx, fu.playerDataManager, fu.gameContentManager, userID)
+	loadCancel()
 	if err != nil {
 		response.FailServer(c, err.Error())
 		return
 	}
+
+	// 战斗上下文独立于 HTTP 请求：请求结束（gin 取消）不会误杀长期存活的 Machine，
+	// 连接断开时由 cancelBattle 统一取消（同时终止 pubsub 订阅等监听）
+	battleCtx, cancelBattle := context.WithCancel(context.Background())
+	machine.Ctx = battleCtx
+	defer cancelBattle()
+
 	fightEngine := fight.NewFightEngine(
 		fu.skillManager,
 		fu.enemyManager,
@@ -132,16 +141,15 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			case *pd.FightMessage_ChoseSkill:
 				// 检测所选技能是否属于在使用的角色，且一个角色不能同时使用两个技能
 				skillMsg := respMsg.GetChoseSkill()
-				if checkErr := fightEngine.CheckChoseSkill(c, machine, skillMsg); checkErr != nil {
-					log.Printf("选择技能被拒绝: %v, userId %d", checkErr, userID)
-					// 校验失败：拒绝该操作，并向客户端同步一次权威状态以纠正前端
-					fu.sendFightStatus(ws, c, machine, userID)
-					continue
+				for _, skill := range skillMsg.Skills {
+					if checkErr := fightEngine.CheckChoseSkill(c, machine, skill); checkErr != nil {
+						log.Printf("选择技能被拒绝: %v, userId %d", checkErr, userID)
+						// 校验失败：拒绝该操作，并向客户端同步一次权威状态以纠正前端
+						fu.sendFightStatus(ws, c, machine, userID)
+						continue
+					}
+					fightEngine.ApplyChoseSkill(machine, skill)
 				}
-				fightEngine.ApplyChoseSkill(machine, skillMsg)
-				log.Printf("角色 %d 使用技能 %d（目标 %d）, userId %d",
-					skillMsg.CharacterId, skillMsg.SkillId, skillMsg.TargetId, userID)
-				// TODO: 触发技能执行（skillManager.Init / Listener / Run 等）
 
 			}
 		}

@@ -14,7 +14,7 @@ import (
 //  2. 使用技能的角色必须在本场战斗的我方队伍中；
 //  3. 若已标记当前行动角色（CharacterSite.IsMainActionCharacter），技能只能由该行动角色使用；
 //  4. 一个角色本回合不能同时使用两个技能。
-func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Machine, req *pd.C2S_ChoseSkill) error {
+func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Machine, req *pd.Skill) error {
 	if req == nil {
 		return fmt.Errorf("选择技能消息为空")
 	}
@@ -53,14 +53,14 @@ func (fe *FightEngine) CheckChoseSkill(ctx context.Context, machine *structs.Mac
 }
 
 // ApplyChoseSkill 记录角色本回合已使用的技能（需在 CheckChoseSkill 通过后调用）
-func (fe *FightEngine) ApplyChoseSkill(machine *structs.Machine, req *pd.C2S_ChoseSkill) {
+func (fe *FightEngine) ApplyChoseSkill(machine *structs.Machine, req *pd.Skill) {
 	if machine == nil || req == nil {
 		return
 	}
 	if machine.CharacterUsedSkill == nil {
 		machine.CharacterUsedSkill = make(map[int]int)
 	}
-	machine.CharacterUsedSkill[int(req.CharacterId)] = int(req.SkillId)
+	machine.CharacterUsedSkill[machine.SelfCharacterIDs[int(req.CharacterId)]] = int(req.SkillId)
 }
 
 // CheckSyncFightStatus 检测前端上报的战斗状态是否正确：

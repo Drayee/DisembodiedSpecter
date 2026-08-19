@@ -252,6 +252,67 @@ func (x *Tool) GetCount() int32 {
 	return 0
 }
 
+// 技能
+type Skill struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillId       int32                  `protobuf:"varint,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`             // 技能ID
+	TargetId      int32                  `protobuf:"varint,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`          // 目标ID
+	CharacterId   int32                  `protobuf:"varint,3,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"` // 角色ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Skill) Reset() {
+	*x = Skill{}
+	mi := &file_fight_message_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Skill) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Skill) ProtoMessage() {}
+
+func (x *Skill) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Skill.ProtoReflect.Descriptor instead.
+func (*Skill) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Skill) GetSkillId() int32 {
+	if x != nil {
+		return x.SkillId
+	}
+	return 0
+}
+
+func (x *Skill) GetTargetId() int32 {
+	if x != nil {
+		return x.TargetId
+	}
+	return 0
+}
+
+func (x *Skill) GetCharacterId() int32 {
+	if x != nil {
+		return x.CharacterId
+	}
+	return 0
+}
+
 // 位置
 type Site struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
@@ -262,7 +323,7 @@ type Site struct {
 
 func (x *Site) Reset() {
 	*x = Site{}
-	mi := &file_fight_message_proto_msgTypes[3]
+	mi := &file_fight_message_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -274,7 +335,7 @@ func (x *Site) String() string {
 func (*Site) ProtoMessage() {}
 
 func (x *Site) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[3]
+	mi := &file_fight_message_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -287,7 +348,7 @@ func (x *Site) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Site.ProtoReflect.Descriptor instead.
 func (*Site) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{3}
+	return file_fight_message_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Site) GetIsMainActionCharacter() bool {
@@ -314,7 +375,7 @@ type FightStatus struct {
 
 func (x *FightStatus) Reset() {
 	*x = FightStatus{}
-	mi := &file_fight_message_proto_msgTypes[4]
+	mi := &file_fight_message_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -326,7 +387,7 @@ func (x *FightStatus) String() string {
 func (*FightStatus) ProtoMessage() {}
 
 func (x *FightStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[4]
+	mi := &file_fight_message_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -339,7 +400,7 @@ func (x *FightStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FightStatus.ProtoReflect.Descriptor instead.
 func (*FightStatus) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{4}
+	return file_fight_message_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *FightStatus) GetIsSelfRound() bool {
@@ -399,30 +460,28 @@ func (x *FightStatus) GetStateNumber() int32 {
 }
 
 // 选择技能
-type C2S_ChoseSkill struct {
+type C2S_ChoseSkills struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SkillId       int32                  `protobuf:"varint,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`             // 技能ID
-	TargetId      int32                  `protobuf:"varint,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`          // 目标ID
-	CharacterId   int32                  `protobuf:"varint,3,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"` // 角色ID
+	Skills        []*Skill               `protobuf:"bytes,1,rep,name=skills,proto3" json:"skills,omitempty"` // 技能列表
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *C2S_ChoseSkill) Reset() {
-	*x = C2S_ChoseSkill{}
-	mi := &file_fight_message_proto_msgTypes[5]
+func (x *C2S_ChoseSkills) Reset() {
+	*x = C2S_ChoseSkills{}
+	mi := &file_fight_message_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *C2S_ChoseSkill) String() string {
+func (x *C2S_ChoseSkills) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*C2S_ChoseSkill) ProtoMessage() {}
+func (*C2S_ChoseSkills) ProtoMessage() {}
 
-func (x *C2S_ChoseSkill) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[5]
+func (x *C2S_ChoseSkills) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,30 +492,16 @@ func (x *C2S_ChoseSkill) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use C2S_ChoseSkill.ProtoReflect.Descriptor instead.
-func (*C2S_ChoseSkill) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use C2S_ChoseSkills.ProtoReflect.Descriptor instead.
+func (*C2S_ChoseSkills) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *C2S_ChoseSkill) GetSkillId() int32 {
+func (x *C2S_ChoseSkills) GetSkills() []*Skill {
 	if x != nil {
-		return x.SkillId
+		return x.Skills
 	}
-	return 0
-}
-
-func (x *C2S_ChoseSkill) GetTargetId() int32 {
-	if x != nil {
-		return x.TargetId
-	}
-	return 0
-}
-
-func (x *C2S_ChoseSkill) GetCharacterId() int32 {
-	if x != nil {
-		return x.CharacterId
-	}
-	return 0
+	return nil
 }
 
 // 使用道具
@@ -470,7 +515,7 @@ type C2S_UseTool struct {
 
 func (x *C2S_UseTool) Reset() {
 	*x = C2S_UseTool{}
-	mi := &file_fight_message_proto_msgTypes[6]
+	mi := &file_fight_message_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +527,7 @@ func (x *C2S_UseTool) String() string {
 func (*C2S_UseTool) ProtoMessage() {}
 
 func (x *C2S_UseTool) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[6]
+	mi := &file_fight_message_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +540,7 @@ func (x *C2S_UseTool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use C2S_UseTool.ProtoReflect.Descriptor instead.
 func (*C2S_UseTool) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{6}
+	return file_fight_message_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *C2S_UseTool) GetToolId() int32 {
@@ -522,7 +567,7 @@ type C2S_SwitchPhase struct {
 
 func (x *C2S_SwitchPhase) Reset() {
 	*x = C2S_SwitchPhase{}
-	mi := &file_fight_message_proto_msgTypes[7]
+	mi := &file_fight_message_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +579,7 @@ func (x *C2S_SwitchPhase) String() string {
 func (*C2S_SwitchPhase) ProtoMessage() {}
 
 func (x *C2S_SwitchPhase) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[7]
+	mi := &file_fight_message_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +592,7 @@ func (x *C2S_SwitchPhase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use C2S_SwitchPhase.ProtoReflect.Descriptor instead.
 func (*C2S_SwitchPhase) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{7}
+	return file_fight_message_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *C2S_SwitchPhase) GetPhase() Switch_Phase_Option {
@@ -568,7 +613,7 @@ type Msg_SyncFightStatus struct {
 
 func (x *Msg_SyncFightStatus) Reset() {
 	*x = Msg_SyncFightStatus{}
-	mi := &file_fight_message_proto_msgTypes[8]
+	mi := &file_fight_message_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +625,7 @@ func (x *Msg_SyncFightStatus) String() string {
 func (*Msg_SyncFightStatus) ProtoMessage() {}
 
 func (x *Msg_SyncFightStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[8]
+	mi := &file_fight_message_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +638,7 @@ func (x *Msg_SyncFightStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Msg_SyncFightStatus.ProtoReflect.Descriptor instead.
 func (*Msg_SyncFightStatus) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{8}
+	return file_fight_message_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Msg_SyncFightStatus) GetStatus() *FightStatus {
@@ -628,7 +673,7 @@ type FightMessage struct {
 
 func (x *FightMessage) Reset() {
 	*x = FightMessage{}
-	mi := &file_fight_message_proto_msgTypes[9]
+	mi := &file_fight_message_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -640,7 +685,7 @@ func (x *FightMessage) String() string {
 func (*FightMessage) ProtoMessage() {}
 
 func (x *FightMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[9]
+	mi := &file_fight_message_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -653,7 +698,7 @@ func (x *FightMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FightMessage.ProtoReflect.Descriptor instead.
 func (*FightMessage) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{9}
+	return file_fight_message_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FightMessage) GetSequenceId() uint64 {
@@ -677,7 +722,7 @@ func (x *FightMessage) GetPayload() isFightMessage_Payload {
 	return nil
 }
 
-func (x *FightMessage) GetChoseSkill() *C2S_ChoseSkill {
+func (x *FightMessage) GetChoseSkill() *C2S_ChoseSkills {
 	if x != nil {
 		if x, ok := x.Payload.(*FightMessage_ChoseSkill); ok {
 			return x.ChoseSkill
@@ -718,7 +763,7 @@ type isFightMessage_Payload interface {
 }
 
 type FightMessage_ChoseSkill struct {
-	ChoseSkill *C2S_ChoseSkill `protobuf:"bytes,3,opt,name=chose_skill,json=choseSkill,proto3,oneof"` // 选择技能
+	ChoseSkill *C2S_ChoseSkills `protobuf:"bytes,3,opt,name=chose_skill,json=choseSkill,proto3,oneof"` // 选择技能
 }
 
 type FightMessage_UseTool struct {
@@ -757,7 +802,11 @@ const file_fight_message_proto_rawDesc = "" +
 	"\x0fis_my_character\x18\x05 \x01(\bR\risMyCharacter\"5\n" +
 	"\x04Tool\x12\x17\n" +
 	"\atool_id\x18\x01 \x01(\x05R\x06toolId\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"?\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"b\n" +
+	"\x05Skill\x12\x19\n" +
+	"\bskill_id\x18\x01 \x01(\x05R\askillId\x12\x1b\n" +
+	"\ttarget_id\x18\x02 \x01(\x05R\btargetId\x12!\n" +
+	"\fcharacter_id\x18\x03 \x01(\x05R\vcharacterId\"?\n" +
 	"\x04Site\x127\n" +
 	"\x18is_main_action_character\x18\x01 \x01(\bR\x15isMainActionCharacter\"\x8d\x03\n" +
 	"\vFightStatus\x12\"\n" +
@@ -773,11 +822,9 @@ const file_fight_message_proto_rawDesc = "" +
 	"\fstate_number\x18\b \x01(\x05R\vstateNumber\x1a;\n" +
 	"\rCountersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x02R\x05value:\x028\x01\"k\n" +
-	"\x0eC2S_ChoseSkill\x12\x19\n" +
-	"\bskill_id\x18\x01 \x01(\x05R\askillId\x12\x1b\n" +
-	"\ttarget_id\x18\x02 \x01(\x05R\btargetId\x12!\n" +
-	"\fcharacter_id\x18\x03 \x01(\x05R\vcharacterId\"C\n" +
+	"\x05value\x18\x02 \x01(\x02R\x05value:\x028\x01\"7\n" +
+	"\x0fC2S_ChoseSkills\x12$\n" +
+	"\x06skills\x18\x01 \x03(\v2\f.proto.SkillR\x06skills\"C\n" +
 	"\vC2S_UseTool\x12\x17\n" +
 	"\atool_id\x18\x01 \x01(\x05R\x06toolId\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\x05R\btargetId\"C\n" +
@@ -785,12 +832,12 @@ const file_fight_message_proto_rawDesc = "" +
 	"\x05phase\x18\x01 \x01(\x0e2\x1a.proto.Switch_Phase_OptionR\x05phase\"_\n" +
 	"\x13Msg_SyncFightStatus\x12*\n" +
 	"\x06status\x18\x01 \x01(\v2\x12.proto.FightStatusR\x06status\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xca\x02\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xcb\x02\n" +
 	"\fFightMessage\x12\x1f\n" +
 	"\vsequence_id\x18\x01 \x01(\x04R\n" +
 	"sequenceId\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x128\n" +
-	"\vchose_skill\x18\x03 \x01(\v2\x15.proto.C2S_ChoseSkillH\x00R\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x129\n" +
+	"\vchose_skill\x18\x03 \x01(\v2\x16.proto.C2S_ChoseSkillsH\x00R\n" +
 	"choseSkill\x12/\n" +
 	"\buse_tool\x18\x04 \x01(\v2\x12.proto.C2S_UseToolH\x00R\auseTool\x12;\n" +
 	"\fswitch_phase\x18\x05 \x01(\v2\x16.proto.C2S_SwitchPhaseH\x00R\vswitchPhase\x12H\n" +
@@ -815,38 +862,40 @@ func file_fight_message_proto_rawDescGZIP() []byte {
 }
 
 var file_fight_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_fight_message_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_fight_message_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_fight_message_proto_goTypes = []any{
 	(Switch_Phase_Option)(0),    // 0: proto.Switch_Phase_Option
 	(*Buff)(nil),                // 1: proto.Buff
 	(*CharacterStatus)(nil),     // 2: proto.CharacterStatus
 	(*Tool)(nil),                // 3: proto.Tool
-	(*Site)(nil),                // 4: proto.Site
-	(*FightStatus)(nil),         // 5: proto.FightStatus
-	(*C2S_ChoseSkill)(nil),      // 6: proto.C2S_ChoseSkill
-	(*C2S_UseTool)(nil),         // 7: proto.C2S_UseTool
-	(*C2S_SwitchPhase)(nil),     // 8: proto.C2S_SwitchPhase
-	(*Msg_SyncFightStatus)(nil), // 9: proto.Msg_SyncFightStatus
-	(*FightMessage)(nil),        // 10: proto.FightMessage
-	nil,                         // 11: proto.FightStatus.CountersEntry
+	(*Skill)(nil),               // 4: proto.Skill
+	(*Site)(nil),                // 5: proto.Site
+	(*FightStatus)(nil),         // 6: proto.FightStatus
+	(*C2S_ChoseSkills)(nil),     // 7: proto.C2S_ChoseSkills
+	(*C2S_UseTool)(nil),         // 8: proto.C2S_UseTool
+	(*C2S_SwitchPhase)(nil),     // 9: proto.C2S_SwitchPhase
+	(*Msg_SyncFightStatus)(nil), // 10: proto.Msg_SyncFightStatus
+	(*FightMessage)(nil),        // 11: proto.FightMessage
+	nil,                         // 12: proto.FightStatus.CountersEntry
 }
 var file_fight_message_proto_depIdxs = []int32{
 	1,  // 0: proto.CharacterStatus.buffs:type_name -> proto.Buff
 	2,  // 1: proto.FightStatus.characters:type_name -> proto.CharacterStatus
-	4,  // 2: proto.FightStatus.sites:type_name -> proto.Site
+	5,  // 2: proto.FightStatus.sites:type_name -> proto.Site
 	3,  // 3: proto.FightStatus.tools:type_name -> proto.Tool
-	11, // 4: proto.FightStatus.counters:type_name -> proto.FightStatus.CountersEntry
-	0,  // 5: proto.C2S_SwitchPhase.phase:type_name -> proto.Switch_Phase_Option
-	5,  // 6: proto.Msg_SyncFightStatus.status:type_name -> proto.FightStatus
-	6,  // 7: proto.FightMessage.chose_skill:type_name -> proto.C2S_ChoseSkill
-	7,  // 8: proto.FightMessage.use_tool:type_name -> proto.C2S_UseTool
-	8,  // 9: proto.FightMessage.switch_phase:type_name -> proto.C2S_SwitchPhase
-	9,  // 10: proto.FightMessage.sync_fight_status:type_name -> proto.Msg_SyncFightStatus
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	12, // 4: proto.FightStatus.counters:type_name -> proto.FightStatus.CountersEntry
+	4,  // 5: proto.C2S_ChoseSkills.skills:type_name -> proto.Skill
+	0,  // 6: proto.C2S_SwitchPhase.phase:type_name -> proto.Switch_Phase_Option
+	6,  // 7: proto.Msg_SyncFightStatus.status:type_name -> proto.FightStatus
+	7,  // 8: proto.FightMessage.chose_skill:type_name -> proto.C2S_ChoseSkills
+	8,  // 9: proto.FightMessage.use_tool:type_name -> proto.C2S_UseTool
+	9,  // 10: proto.FightMessage.switch_phase:type_name -> proto.C2S_SwitchPhase
+	10, // 11: proto.FightMessage.sync_fight_status:type_name -> proto.Msg_SyncFightStatus
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_fight_message_proto_init() }
@@ -854,7 +903,7 @@ func file_fight_message_proto_init() {
 	if File_fight_message_proto != nil {
 		return
 	}
-	file_fight_message_proto_msgTypes[9].OneofWrappers = []any{
+	file_fight_message_proto_msgTypes[10].OneofWrappers = []any{
 		(*FightMessage_ChoseSkill)(nil),
 		(*FightMessage_UseTool)(nil),
 		(*FightMessage_SwitchPhase)(nil),
@@ -866,7 +915,7 @@ func file_fight_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fight_message_proto_rawDesc), len(file_fight_message_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
