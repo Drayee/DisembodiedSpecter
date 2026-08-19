@@ -5,8 +5,10 @@ import (
 	"DisembodiedSpecter/internal/domain"
 	"DisembodiedSpecter/internal/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -124,6 +126,41 @@ func main() {
 	db.Create(&email)
 	log.Printf("邮箱配置已创建: id=%d, host=%s", email.ID, email.Host)
 
+	// 6.6 游戏内容：角色 / 敌人 / 技能（供战斗试玩）
+	character := domain.Character{
+		Name:        "见习剑士",
+		Health:      100,
+		Type:        "melee",
+		Description: "新手村的新人剑士",
+		OwnerNumber: user.ID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	db.Create(&character)
+	log.Printf("角色已创建: id=%d, name=%s, hp=%d", character.ID, character.Name, character.Health)
+
+	enemy := domain.Enemy{
+		Name:        "根眼怪",
+		Health:      50,
+		Type:        "monster",
+		Description: "路边的根眼怪",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	db.Create(&enemy)
+	log.Printf("敌人已创建: id=%d, name=%s, hp=%d", enemy.ID, enemy.Name, enemy.Health)
+
+	skill := domain.Skill{
+		CharacterID: character.ID,
+		Name:        "初击",
+		Type:        "attack",
+		Description: "对目标造成 2 点伤害",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	db.Create(&skill)
+	log.Printf("技能已创建: id=%d, name=%s, character_id=%d", skill.ID, skill.Name, skill.CharacterID)
+
 	// 7. 清空 Redis DB
 	redisClient, err := utils.ConnectRedis(cfg)
 	if err != nil {
@@ -136,6 +173,23 @@ func main() {
 		log.Printf("清空 Redis 失败: %v", err)
 	} else {
 		log.Println("Redis DB 已清空")
+	}
+
+	// 7.1 预置玩家战斗状态：队伍 [character.ID]、对战 NPC [enemy.ID]、
+	//     等级/经验（与玩家数据 Hash 共用，先建 key 后 loadFromDB 不会覆盖）
+	playerDataKey := fmt.Sprintf("private:player:data:%d", player.ID)
+	teamBytes, _ := json.Marshal([]int{character.ID})
+	doingMapBytes, _ := json.Marshal(map[string]string{"enemy_ids": fmt.Sprintf("[%d]", enemy.ID)})
+	hsetCmd := redisClient.B().Hset().Key(playerDataKey).FieldValue().
+		FieldValue("level", strconv.Itoa(player.Level)).
+		FieldValue("exp", strconv.Itoa(player.Exp)).
+		FieldValue("character_team", string(teamBytes)).
+		FieldValue("doing_map", string(doingMapBytes)).
+		Build()
+	if err := redisClient.Do(context.Background(), hsetCmd).Error(); err != nil {
+		log.Printf("预置战斗状态失败: %v", err)
+	} else {
+		log.Printf("战斗状态已预置: 队伍=[%d] 对战NPC=[%d]", character.ID, enemy.ID)
 	}
 
 	// 8. 生成测试用 JWT token（双令牌）

@@ -27,6 +27,11 @@ import (
 // maxFightMessageSize 单条战斗消息上限（防内存 DoS）
 const maxFightMessageSize = 1 << 20 // 1MB
 
+// battleSettleDelay 技能/敌方行动发布 pubsub 事件后、读取状态前的结算等待：
+// 伤害/治疗/buff 由各战斗位的监听 goroutine 异步应用，需等待其落地后再做
+// 胜负判定与状态同步，避免下发滞后一拍的数值。
+const battleSettleDelay = 20 * time.Millisecond
+
 type FightUseCase struct {
 	redis         rueidis.Client
 	fighter       map[int]struct{}
@@ -122,13 +127,20 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		return
 	}
 
-	// 确保连接在函数退出时关闭
-	defer func(ws *websocket.Conn, code websocket.StatusCode, reason string) {
-		err := ws.Close(code, reason)
-		if err != nil {
-			response.FailServer(c, err.Error())
+	// 正常关闭标记：EXIT_FIGHT 或连接正常结束时置位，
+	// 此时关闭帧使用 StatusNormalClosure，避免给客户端发"内部服务器错误"
+	normalClose := false
+	defer func(ws *websocket.Conn) {
+		code := websocket.StatusInternalError
+		reason := "内部服务器错误"
+		if normalClose {
+			code = websocket.StatusNormalClosure
+			reason = "处理完毕"
 		}
-	}(ws, websocket.StatusInternalError, "内部服务器错误")
+		if err := ws.Close(code, reason); err != nil {
+			log.Printf("关闭 WebSocket 失败: %v, userId %d", err, userID)
+		}
+	}(ws)
 
 	// 战斗开始：启动全部战斗位的底层监听器（攻击/治疗/buff），并同步初始状态（计划步骤 1）
 	if err := fightEngine.ActuatorListenerStart(battlePubSub, machine); err != nil {
@@ -203,6 +215,7 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			if err := fightEngine.RunSkillStart(skills, battlePubSub, machine); err != nil {
 				log.Printf("技能执行失败: %v, userId %d", err, userID)
 			}
+			time.Sleep(battleSettleDelay) // 等待监听器结算完成
 			machine.Round++
 			machine.CharacterUsedSkill = map[int]int{} // 本回合技能记录已用完，重置
 			// 胜负判定
@@ -231,6 +244,7 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				case structs.OtherRound:
 					// 敌方回合：调用 enemy 行动（底层监听器已在战斗开始时启动）
 					fu.runEnemyRound(machine, battlePubSub)
+					time.Sleep(battleSettleDelay) // 等待监听器结算完成
 					if ended, win := machine.CheckBattleEnd(); ended {
 						machine.Ended = true
 						machine.PlayerWin = win
@@ -245,6 +259,7 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				}
 			case pd.Switch_Phase_Option_EXIT_FIGHT:
 				log.Printf("玩家 %d 退出战斗", userID)
+				normalClose = true
 				return
 			case pd.Switch_Phase_Option_RETURN_PREV_PHASE:
 				// 回到上一阶段（恢复上一状态编号；复杂回滚需快照，暂未实现）
@@ -256,11 +271,8 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		}
 	}
 
-	e := ws.Close(websocket.StatusNormalClosure, "处理完毕")
-	if e != nil {
-		response.FailServer(c, e.Error())
-		return
-	}
+	// 连接正常结束，由 deferred close 发送正常关闭帧
+	normalClose = true
 }
 
 // runEnemyRound 敌方回合：为每个敌方 NPC 执行其行动（Action{enemyID}Run）。

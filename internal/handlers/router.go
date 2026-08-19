@@ -25,8 +25,8 @@ func NewRouter(authHandler *AuthHandler, userHandler *UserHandler, adminHandler 
 	r.GET("/api/v2/ws-code", userHandler.WSCode)
 	r.GET("/api/v2/data", userHandler.GetData)
 
-	// 战斗路由（无需认证）
-	r.GET("/api/ws/fight", websocketHandler.FightConnect)
+	// 战斗路由（无需认证，通过 ws-code 校验）
+	r.GET("/api/ws/fight/:user_id/:ws_code", websocketHandler.FightConnect)
 
 	// 管理员路由（需认证 + 管理员权限）
 	admin := r.Group("/api/v3/admin", authFilter.AdminRequired())

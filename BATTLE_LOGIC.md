@@ -158,7 +158,7 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 ## 已知限制与 TODO
 
 - **奖励结算**：`settle.go` 为空，战斗结束未发放经验/掉落/同步玩家数据（可接入 `PlayerDataManager.AddExp`/`AddItem`）；
-- **pubsub 异步性**：伤害由监听器异步结算，胜负判定可能与结算存在极短窗口的延迟（约 1 轮）；
+- **结算时序**：伤害由监听 goroutine 异步应用，技能/敌方行动后通过 `battleSettleDelay`（20ms）等待结算落地再做胜负判定与状态同步，避免下发滞后数值；极端高延迟环境可调大该常量；
 - **回合回滚**：`RETURN_PREV_PHASE` 仅恢复上一状态编号，未实现完整快照回滚；
 - **技能实现不完整**：当前仅 `Skill1Init`/`Skill2Listener`/`Action1Run` 有实现，其余技能待补充；
 - **行动角色标记**：`CharacterSite.IsMainActionCharacter` 尚未在战斗初始化时填充，行动角色限制检查暂未生效；

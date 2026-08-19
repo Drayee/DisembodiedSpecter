@@ -30,7 +30,20 @@ type CacheManager struct {
 }
 
 func NewCacheManager(client rueidis.Client, cfg *config.Config) *CacheManager {
-	return &CacheManager{client: client, baseKey: cfg.Cache.BaseKey + ":", ttl: time.Duration(cfg.Cache.Expire) * time.Second}
+	// 注意：baseKey 不带尾部冒号，Key/Fetch 内部用 ":" 拼接各段，
+	// 避免生成 "private:cache::xxx" 双冒号 key，与战斗/全局服务读取的
+	// "{baseKey}:ws-code:{userID}" 保持一致。
+	return &CacheManager{client: client, baseKey: cfg.Cache.BaseKey, ttl: time.Duration(cfg.Cache.Expire) * time.Second}
+}
+
+// Key 拼接缓存 key：{baseKey}:{part1}:{part2}...
+func (cm *CacheManager) Key(parts ...string) string {
+	return strings.Join(append([]string{cm.baseKey}, parts...), ":")
+}
+
+// TTLSeconds 返回缓存默认过期秒数
+func (cm *CacheManager) TTLSeconds() int64 {
+	return int64(cm.ttl / time.Second)
 }
 
 func Fetch[T any](cm *CacheManager, ctx context.Context, key string, value string, ttl time.Duration, fetcher func() (T, error)) (T, error) {
