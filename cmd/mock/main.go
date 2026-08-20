@@ -55,8 +55,8 @@ func main() {
 	defer sqlDB2.Close()
 
 	// 4. 删除旧表后自动迁移（确保列名变更生效）
-	db.Migrator().DropTable("player_items", "items", "players", "users", "emails", "characters", "enemies", "tools", "skills")
-	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}, &domain.Character{}, &domain.Enemy{}, &domain.Tool{}, &domain.Skill{}); err != nil {
+	db.Migrator().DropTable("player_items", "items", "players", "users", "emails", "characters", "user_characters", "enemies", "tools", "skills")
+	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}, &domain.Character{}, &domain.UserCharacter{}, &domain.Enemy{}, &domain.Tool{}, &domain.Skill{}); err != nil {
 		log.Fatalf("自动迁移失败: %v", err)
 	}
 	log.Println("表结构迁移完成")
@@ -132,12 +132,16 @@ func main() {
 		Health:      100,
 		Type:        "melee",
 		Description: "新手村的新人剑士",
-		OwnerNumber: user.ID,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 	db.Create(&character)
 	log.Printf("角色已创建: id=%d, name=%s, hp=%d", character.ID, character.Name, character.Health)
+
+	// 6.6.1 用户-角色 多对多归属关系（角色加入出战队伍）
+	uc := domain.UserCharacter{UserID: user.ID, CharacterID: character.ID, IsInTeam: true, Level: 1}
+	db.Create(&uc)
+	log.Printf("用户-角色归属已创建: user_id=%d character_id=%d is_in_team=%v level=%d", uc.UserID, uc.CharacterID, uc.IsInTeam, uc.Level)
 
 	enemy := domain.Enemy{
 		Name:        "根眼怪",

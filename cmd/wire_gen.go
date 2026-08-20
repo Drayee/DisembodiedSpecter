@@ -43,7 +43,7 @@ func InitializeApp(cfg *config.Config, redisClient rueidis.Client) (*Init, func(
 	userHandler := handlers.NewUserHandler(userUseCase)
 	adminUseCase := service.NewAdminUseCase(userRepo, playerRepo, emailRepo, playerDataManager, gameRepo, gameContentManager)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
-	authFilter := filter.NewAuthFilter(cfg, tokenManager, redisClient)
+	authFilter := filter.NewAuthFilter(cfg, tokenManager)
 	skillManager := character.NewSkillManager(gameContentManager)
 	enemyManager := enemy.NewEnemyManager(gameContentManager)
 	fightUseCase := service.NewFightUseCase(redisClient, cfg, gameContentManager, playerDataManager, skillManager, enemyManager)

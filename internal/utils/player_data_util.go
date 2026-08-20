@@ -137,6 +137,14 @@ func (m *PlayerDataManager) loadFromDB(ctx context.Context, playerID int) error 
 	// 序列化 location
 	locBytes, _ := json.Marshal(player.Location)
 
+	// 出战队伍：从 user_characters（is_in_team = true）初始化，
+	// 与玩家数据共用同一 Hash，供全局/战斗状态机读取
+	teamIDs, err := m.playerRepo.GetUserTeamCharacterIDs(ctx, playerID)
+	if err != nil {
+		return fmt.Errorf("获取玩家出战队伍失败: %w", err)
+	}
+	teamBytes, _ := json.Marshal(teamIDs)
+
 	// 构造 HSET 命令（标量字段）
 	hset := m.redis.B().Hset().Key(key).FieldValue().
 		FieldValue("description", player.Description).
@@ -147,8 +155,8 @@ func (m *PlayerDataManager) loadFromDB(ctx context.Context, playerID int) error 
 		FieldValue("least_active_ip", player.LeastActiveIP).
 		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
 		FieldValue("location", string(locBytes)).
-		// 状态机字段默认值（与 global.Machine 对齐，仅缓存重建时初始化）
-		FieldValue(machineTeamField, "[]").
+		// 状态机字段（与 global.Machine 对齐，仅缓存重建时初始化）
+		FieldValue(machineTeamField, string(teamBytes)).
 		FieldValue(machineListField, "[]").
 		FieldValue(machineDoingField, strconv.Itoa(machineDoingNothing)).
 		FieldValue(machineDoingMapField, "{}")
@@ -479,6 +487,58 @@ func (m *PlayerDataManager) SaveMachineState(ctx context.Context, playerID int, 
 		FieldValue(machineDoingMapField, string(doingMapBytes)).
 		Build()
 	return m.redis.Do(ctx, cmd).Error()
+}
+
+// ==================== 用户-角色归属关系（user_characters 多对多） ====================
+// 角色归属属于玩家数据：哪些角色归该玩家所有，由 PlayerDataManager 统一管理，
+// 直接读写 SQL 的 user_characters 表（不经 Redis 缓存）。
+
+// GetUserCharacterIDs 查询玩家拥有的角色 ID 列表
+func (m *PlayerDataManager) GetUserCharacterIDs(ctx context.Context, playerID int) ([]int, error) {
+	return m.playerRepo.GetUserCharacterIDs(ctx, playerID)
+}
+
+// GetUserTeamCharacterIDs 查询玩家出战队伍中的角色 ID 列表（is_in_team = true）
+func (m *PlayerDataManager) GetUserTeamCharacterIDs(ctx context.Context, playerID int) ([]int, error) {
+	return m.playerRepo.GetUserTeamCharacterIDs(ctx, playerID)
+}
+
+// SetUserCharacterTeam 设置角色是否在当前出战队伍中（true 加入 / false 移出）
+func (m *PlayerDataManager) SetUserCharacterTeam(ctx context.Context, playerID int, characterID int, inTeam bool) error {
+	return m.playerRepo.SetUserCharacterTeam(ctx, playerID, characterID, inTeam)
+}
+
+// SetUserCharacterLevel 设置角色等级（预留）
+func (m *PlayerDataManager) SetUserCharacterLevel(ctx context.Context, playerID int, characterID int, level int) error {
+	return m.playerRepo.SetUserCharacterLevel(ctx, playerID, characterID, level)
+}
+
+// GetUserCharacterLevel 查询角色等级（预留）
+func (m *PlayerDataManager) GetUserCharacterLevel(ctx context.Context, playerID int, characterID int) (int, error) {
+	return m.playerRepo.GetUserCharacterLevel(ctx, playerID, characterID)
+}
+
+// GetCharactersByUserID 查询玩家拥有的角色列表
+func (m *PlayerDataManager) GetCharactersByUserID(ctx context.Context, playerID int) ([]*domain.Character, error) {
+	return m.playerRepo.GetCharactersByUserID(ctx, playerID)
+}
+
+// AddUserCharacter 绑定玩家与角色（幂等）
+func (m *PlayerDataManager) AddUserCharacter(ctx context.Context, playerID int, characterID int) error {
+	return m.playerRepo.AddUserCharacter(ctx, playerID, characterID)
+}
+
+// RemoveUserCharacter 解除玩家与角色的绑定
+func (m *PlayerDataManager) RemoveUserCharacter(ctx context.Context, playerID int, characterID int) error {
+	return m.playerRepo.RemoveUserCharacter(ctx, playerID, characterID)
+}
+
+// RebindUserCharacter 将角色归属转移到指定玩家（先清除原归属，再绑定新归属）
+func (m *PlayerDataManager) RebindUserCharacter(ctx context.Context, characterID int, newPlayerID int) error {
+	if err := m.playerRepo.DeleteUserCharacterByCharacterID(ctx, characterID); err != nil {
+		return err
+	}
+	return m.playerRepo.AddUserCharacter(ctx, newPlayerID, characterID)
 }
 
 // ==================== TTL 管理 ====================

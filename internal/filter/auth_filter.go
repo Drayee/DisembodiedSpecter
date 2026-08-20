@@ -5,22 +5,19 @@ import (
 	"DisembodiedSpecter/internal/domain"
 	"DisembodiedSpecter/internal/dto/response"
 	"DisembodiedSpecter/internal/utils"
-	"fmt"
 	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/rueidis"
 )
 
 type AuthFilter struct {
 	cfg          *config.Config
 	tokenManager *utils.TokenManager
-	redis        rueidis.Client
 }
 
-func NewAuthFilter(cfg *config.Config, tokenManager *utils.TokenManager, redis rueidis.Client) *AuthFilter {
-	return &AuthFilter{cfg: cfg, tokenManager: tokenManager, redis: redis}
+func NewAuthFilter(cfg *config.Config, tokenManager *utils.TokenManager) *AuthFilter {
+	return &AuthFilter{cfg: cfg, tokenManager: tokenManager}
 }
 
 func (tm *AuthFilter) AuthRequired() gin.HandlerFunc {
@@ -40,20 +37,11 @@ func (tm *AuthFilter) AuthRequired() gin.HandlerFunc {
 		}
 		tokenString := strings.TrimPrefix(authHeader, tm.cfg.Security.SecurityHeaderPrefix)
 
-		// JWT 签名 + 类型校验
-		userID, username, role, err := tm.tokenManager.ValidateAccessToken(tokenString)
+		// JWT 签名 + 类型校验 + Redis 会话唯一码比对
+		// （唯一码不一致说明已登出或被新登录顶替，token 立即失效）
+		userID, username, role, err := tm.tokenManager.ValidateAccessToken(c, tokenString)
 		if err != nil {
 			response.FailUnauthorized(c, err.Error())
-			c.Abort()
-			return
-		}
-
-		// Redis 存在性检查（防止已登出的 token 继续使用）
-		key := fmt.Sprintf("jwt:access:%s", tokenString)
-		existsCmd := tm.redis.B().Exists().Key(key).Build()
-		exists, err := tm.redis.Do(c, existsCmd).AsInt64()
-		if err != nil || exists == 0 {
-			response.FailUnauthorized(c, "token 已失效")
 			c.Abort()
 			return
 		}

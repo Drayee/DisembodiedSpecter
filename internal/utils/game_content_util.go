@@ -171,9 +171,6 @@ func (m *GameContentManager) parseCharacter(fields map[string]string) *domain.Ch
 	}
 	c.Type = fields["type"]
 	c.Description = fields["description"]
-	if v, ok := fields["owner_number"]; ok {
-		c.OwnerNumber, _ = strconv.Atoi(v)
-	}
 	if v, ok := fields["created_at"]; ok {
 		c.CreatedAt, _ = time.Parse(time.RFC3339, v)
 	}
@@ -191,7 +188,6 @@ func (m *GameContentManager) saveCharacterToCache(ctx context.Context, c *domain
 		FieldValue("health", strconv.Itoa(c.Health)).
 		FieldValue("type", c.Type).
 		FieldValue("description", c.Description).
-		FieldValue("owner_number", strconv.Itoa(c.OwnerNumber)).
 		FieldValue("created_at", c.CreatedAt.Format(time.RFC3339)).
 		FieldValue("updated_at", c.UpdatedAt.Format(time.RFC3339)).
 		Build()

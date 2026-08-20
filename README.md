@@ -20,7 +20,7 @@ WebSocket 战斗系统与全局状态机，数据采用 **Redis Hash 缓存 + �
 
 ## 核心特性
 
-- **双令牌认证**：Access Token（短期）+ Refresh Token（长期），Redis 记录 token 实现登出即失效
+- **双令牌认证**：Access Token（短期）+ Refresh Token（长期）；Redis 记录**每用户一个会话唯一码（版本号）**，JWT 的 subject 携带该码——重新登录即顶替旧 token，登出即全端失效（单端登录），且同一用户不会在 Redis 中积累多个 key
 - **玩家数据缓存**：`PlayerDataManager` 以 Redis Hash 按字段缓存玩家数据（cache-aside），写操作只写 Redis，由定时调度器同步回 SQL
 - **游戏内容管理**：角色 / 敌人 / 道具 / 技能 统一由 `GameContentManager` 管理（Redis 缓存 + SQL 同步），并提供管理端 CRUD
 - **战斗系统**：WebSocket 接入，服务器权威状态机（技能校验 → 技能执行 → 敌方行动 → 胜负判定），pubsub 事件驱动底层伤害/治疗/buff 结算
@@ -165,7 +165,7 @@ exit                          退出战斗
 ```
 
 - ws-code 写入 Redis 并带缓存：过期窗口内重复获取返回同一个 code；连接成功后即被消费删除
-- Access Token 同时校验 JWT 签名与 Redis 存在性，登出后立即失效
+- 令牌校验：JWT 签名/类型/过期 + `subject` 与 Redis `jwt:unique:{userID}` 比对；每次登录/刷新替换唯一码使旧 token 立即失效（单端登录），登出删除唯一码；唯一码 TTL 取 refresh 有效期，避免压缩 token 实际寿命
 - 战斗/全局 WebSocket 也支持携带 `Authorization: Bearer <access_token>`（`/api/ws/*` 白名单仅匹配单段路径）
 
 ## 数据存储设计
@@ -191,14 +191,19 @@ ID 由 Redis INCR 生成，管理端 CRUD 只写 Redis，由调度器同步到 S
 ### 数据表与索引
 
 服务启动时 `AutoMigrate` 全量建表：`users`、`players`、`items`、`player_items`、`emails`、
-`characters`、`enemies`、`tools`、`skills`。关键索引：
+`characters`、`user_characters`（用户-角色多对多归属）、`enemies`、`tools`、`skills`。关键索引：
 
 - `users.name` / `users.email`（唯一）
 - `characters.name` / `enemies.name` / `tools.name` / `skills.name`（唯一）
-- `characters.owner_number`（角色归属查询）
+- `user_characters` 复合主键 `(user_id, character_id)` + `character_id` 索引（归属双向查询）
+  - 字段：`is_in_team`（是否在出战队伍，索引）、`level`（角色等级，预留）
 - `skills.character_id`（角色技能组查询）
 - `players.is_active`（在线统计）
 - `player_items` 复合主键 `(player_id, item_id)` 覆盖 `WHERE player_id = ?`
+
+> 角色归属不再存在 `characters.owner_number` 列，已迁移到 `user_characters` 多对多表；
+> 迁移会自动删除旧列（`database.go` 中带保护地 DropColumn）。
+> 玩家数据 Hash 的 `character_team`（出战队伍）在缓存重建时从 `user_characters.is_in_team = true` 初始化。
 
 ## 战斗系统
 

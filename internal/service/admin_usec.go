@@ -242,9 +242,17 @@ func (a *AdminUseCase) CreateCharacter(ctx context.Context, req *request.AdminCr
 		Health:      req.Health,
 		Type:        req.Type,
 		Description: req.Description,
-		OwnerNumber: req.OwnerNumber,
 	}
-	return a.gameContentManager.CreateCharacter(ctx, c)
+	if err := a.gameContentManager.CreateCharacter(ctx, c); err != nil {
+		return err
+	}
+	// 归属关系写入 user_characters 多对多表（归属属于玩家数据，走 PlayerDataManager）
+	if req.OwnerNumber > 0 {
+		if err := a.playerDataManager.AddUserCharacter(ctx, req.OwnerNumber, c.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *AdminUseCase) UpdateCharacter(ctx context.Context, id int, req *request.AdminUpdateCharacterReq) error {
@@ -253,9 +261,17 @@ func (a *AdminUseCase) UpdateCharacter(ctx context.Context, id int, req *request
 		Health:      req.Health,
 		Type:        req.Type,
 		Description: req.Description,
-		OwnerNumber: req.OwnerNumber,
 	}
-	return a.gameContentManager.UpdateCharacter(ctx, id, c)
+	if err := a.gameContentManager.UpdateCharacter(ctx, id, c); err != nil {
+		return err
+	}
+	// 归属变更：owner_number > 0 时将角色归属转移到指定玩家（清除旧归属）
+	if req.OwnerNumber > 0 {
+		if err := a.playerDataManager.RebindUserCharacter(ctx, id, req.OwnerNumber); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ==================== 游戏内容管理 - Enemy ====================
