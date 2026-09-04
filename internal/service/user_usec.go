@@ -55,3 +55,10 @@ func (u *UserUseCase) GetData(c *gin.Context) (*response.PlayerDataResp, error) 
 	userID := val.(int)
 	return u.PlayerDataManager.GetPlayerData(c, userID)
 }
+
+// GetDataVersion 获取玩家数据版本号（弱 ETag），用于条件同步判断
+func (u *UserUseCase) GetDataVersion(c *gin.Context) (int, error) {
+	val, _ := c.Get("userID")
+	userID := val.(int)
+	return u.PlayerDataManager.GetPlayerDataVersion(c, userID)
+}

@@ -11,16 +11,18 @@ import (
 )
 
 type AuthUseCase struct {
-	userRepo     repository.UserRepo
-	tokenManager *utils.TokenManager
-	codeManager  *utils.CodeManager
+	userRepo          repository.UserRepo
+	tokenManager      *utils.TokenManager
+	codeManager       *utils.CodeManager
+	playerDataManager *utils.PlayerDataManager
 }
 
-func NewAuthUseCase(repo repository.UserRepo, tokenManager *utils.TokenManager, codeManager *utils.CodeManager) *AuthUseCase {
+func NewAuthUseCase(repo repository.UserRepo, tokenManager *utils.TokenManager, codeManager *utils.CodeManager, playerDataManager *utils.PlayerDataManager) *AuthUseCase {
 	return &AuthUseCase{
-		userRepo:     repo,
-		tokenManager: tokenManager,
-		codeManager:  codeManager,
+		userRepo:          repo,
+		tokenManager:      tokenManager,
+		codeManager:       codeManager,
+		playerDataManager: playerDataManager,
 	}
 }
 
@@ -62,6 +64,12 @@ func (auc *AuthUseCase) Register(ctx context.Context, req *request.RegisterReq) 
 		Status:   domain.UserStatusActive,
 	}
 	if err := auc.userRepo.Save(ctx, &user); err != nil {
+		return nil, err
+	}
+	player := domain.Player{
+		ID: user.ID,
+	}
+	if err := auc.playerDataManager.AddPlayer(ctx, &player); err != nil {
 		return nil, err
 	}
 	accessToken, refreshToken, err := auc.tokenManager.GenerateTokens(ctx, user.ID, user.Name, user.Role)

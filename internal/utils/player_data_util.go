@@ -31,6 +31,10 @@ const (
 // 仅在 loadFromDB 从 SQL 重建缓存时为状态机字段填充默认值。
 const machineDoingNothing = 2
 
+// playerDataVersionField 玩家数据版本号字段：每次写操作自增，
+// 作为弱 ETag（W/"version"）用于前后端条件同步（If-None-Match / 304）。
+const playerDataVersionField = "version"
+
 type PlayerDataManager struct {
 	redis      rueidis.Client
 	playerRepo repository.PlayerRepo
@@ -155,6 +159,7 @@ func (m *PlayerDataManager) loadFromDB(ctx context.Context, playerID int) error 
 		FieldValue("least_active_ip", player.LeastActiveIP).
 		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
 		FieldValue("location", string(locBytes)).
+		FieldValue(playerDataVersionField, "1"). // 初始版本号 1
 		// 状态机字段（与 global.Machine 对齐，仅缓存重建时初始化）
 		FieldValue(machineTeamField, string(teamBytes)).
 		FieldValue(machineListField, "[]").
@@ -199,6 +204,34 @@ func (m *PlayerDataManager) ensureLoaded(ctx context.Context, playerID int) erro
 	return nil
 }
 
+// ==================== 版本号（弱 ETag，条件同步用） ====================
+
+// GetPlayerDataVersion 读取玩家数据版本号（HGET version）。
+// 缓存不存在或没有版本号时返回 0，表示"未知"（调用方应走全量同步）。
+func (m *PlayerDataManager) GetPlayerDataVersion(ctx context.Context, playerID int) (int, error) {
+	cmd := m.redis.B().Hget().Key(m.hashKey(playerID)).Field(playerDataVersionField).Build()
+	v, err := m.redis.Do(ctx, cmd).ToString()
+	if err != nil {
+		if rueidis.IsRedisNil(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("读取玩家数据版本失败: %w", err)
+	}
+	n, _ := strconv.Atoi(v)
+	return n, nil
+}
+
+// bumpVersion 数据变更后自增版本号。
+// 若自增失败返回错误，调用方应视为本次写入未完成（避免版本未变导致客户端拿到陈旧 304）。
+func (m *PlayerDataManager) bumpVersion(ctx context.Context, playerID int) error {
+	cmd := m.redis.B().Hincrby().Key(m.hashKey(playerID)).Field(playerDataVersionField).Increment(1).Build()
+	_, err := m.redis.Do(ctx, cmd).AsInt64()
+	if err != nil {
+		return fmt.Errorf("玩家数据版本自增失败: %w", err)
+	}
+	return nil
+}
+
 // ==================== 写操作（仅写 Redis，不写 SQL） ====================
 
 func (m *PlayerDataManager) SetDescription(ctx context.Context, playerID int, desc string) error {
@@ -206,7 +239,10 @@ func (m *PlayerDataManager) SetDescription(ctx context.Context, playerID int, de
 		return err
 	}
 	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue("description", desc).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetLevel(ctx context.Context, playerID int, level int) error {
@@ -214,7 +250,10 @@ func (m *PlayerDataManager) SetLevel(ctx context.Context, playerID int, level in
 		return err
 	}
 	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue("level", strconv.Itoa(level)).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetExp(ctx context.Context, playerID int, exp int) error {
@@ -222,7 +261,10 @@ func (m *PlayerDataManager) SetExp(ctx context.Context, playerID int, exp int) e
 		return err
 	}
 	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue("exp", strconv.Itoa(exp)).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) AddExp(ctx context.Context, playerID int, delta int) error {
@@ -230,8 +272,10 @@ func (m *PlayerDataManager) AddExp(ctx context.Context, playerID int, delta int)
 		return err
 	}
 	cmd := m.redis.B().Hincrby().Key(m.hashKey(playerID)).Field("exp").Increment(int64(delta)).Build()
-	_, err := m.redis.Do(ctx, cmd).AsInt64()
-	return err
+	if _, err := m.redis.Do(ctx, cmd).AsInt64(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetLocation(ctx context.Context, playerID int, loc domain.Location) error {
@@ -240,7 +284,10 @@ func (m *PlayerDataManager) SetLocation(ctx context.Context, playerID int, loc d
 	}
 	locBytes, _ := json.Marshal(loc)
 	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue("location", string(locBytes)).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetActive(ctx context.Context, playerID int, active bool) error {
@@ -248,7 +295,10 @@ func (m *PlayerDataManager) SetActive(ctx context.Context, playerID int, active 
 		return err
 	}
 	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue("is_active", strconv.FormatBool(active)).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetLeastActive(ctx context.Context, playerID int, activeType string, ip string, at time.Time) error {
@@ -259,7 +309,32 @@ func (m *PlayerDataManager) SetLeastActive(ctx context.Context, playerID int, ac
 		FieldValue("least_active_type", activeType).
 		FieldValue("least_active_ip", ip).
 		FieldValue("least_active_at", at.Format(time.RFC3339)).Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
+}
+
+func (m *PlayerDataManager) AddPlayer(ctx context.Context, player *domain.Player) error {
+	hset := m.redis.B().Hset().Key(m.hashKey(player.ID)).FieldValue().
+		FieldValue("description", player.Description).
+		FieldValue("level", strconv.Itoa(player.Level)).
+		FieldValue("exp", strconv.Itoa(player.Exp)).
+		FieldValue("is_active", strconv.FormatBool(player.IsActive)).
+		FieldValue("least_active_type", player.LeastActiveType).
+		FieldValue("least_active_ip", player.LeastActiveIP).
+		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
+		FieldValue("location", `{"x":0,"y":0,"map":""}`).
+		FieldValue(playerDataVersionField, "1"). // 初始版本号 1
+		// 状态机字段（与 global.Machine 对齐，仅缓存重建时初始化）
+		FieldValue(machineTeamField, "[]").
+		FieldValue(machineListField, "[]").
+		FieldValue(machineDoingField, strconv.Itoa(machineDoingNothing)).
+		FieldValue(machineDoingMapField, "{}").Build()
+	if err := m.redis.Do(ctx, hset).Error(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ==================== 道具操作（仅写 Redis） ====================
@@ -290,7 +365,10 @@ func (m *PlayerDataManager) AddItem(ctx context.Context, playerID int, itemID in
 		}
 		bytes, _ := json.Marshal(obj)
 		setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
-		return m.redis.Do(ctx, setCmd).Error()
+		if err := m.redis.Do(ctx, setCmd).Error(); err != nil {
+			return err
+		}
+		return m.bumpVersion(ctx, playerID)
 	}
 
 	// 新道具，需要查询道具名
@@ -309,7 +387,10 @@ func (m *PlayerDataManager) AddItem(ctx context.Context, playerID int, itemID in
 	}
 	bytes, _ := json.Marshal(obj)
 	setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
-	return m.redis.Do(ctx, setCmd).Error()
+	if err := m.redis.Do(ctx, setCmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) RemoveItem(ctx context.Context, playerID int, itemID int, num int) error {
@@ -336,13 +417,19 @@ func (m *PlayerDataManager) RemoveItem(ctx context.Context, playerID int, itemID
 	if obj.Num <= num {
 		// 数量不足或刚好，删除该道具
 		delCmd := m.redis.B().Hdel().Key(key).Field(bagField).Build()
-		return m.redis.Do(ctx, delCmd).Error()
+		if err := m.redis.Do(ctx, delCmd).Error(); err != nil {
+			return err
+		}
+		return m.bumpVersion(ctx, playerID)
 	}
 
 	obj.Num -= num
 	bytes, _ := json.Marshal(obj)
 	setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
-	return m.redis.Do(ctx, setCmd).Error()
+	if err := m.redis.Do(ctx, setCmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) SetItemCount(ctx context.Context, playerID int, itemID int, num int) error {
@@ -354,7 +441,10 @@ func (m *PlayerDataManager) SetItemCount(ctx context.Context, playerID int, item
 
 	if num <= 0 {
 		delCmd := m.redis.B().Hdel().Key(key).Field(bagField).Build()
-		return m.redis.Do(ctx, delCmd).Error()
+		if err := m.redis.Do(ctx, delCmd).Error(); err != nil {
+			return err
+		}
+		return m.bumpVersion(ctx, playerID)
 	}
 
 	// 读取已有道具以保留 name 和 attribute
@@ -383,7 +473,10 @@ func (m *PlayerDataManager) SetItemCount(ctx context.Context, playerID int, item
 	obj.Num = num
 	bytes, _ := json.Marshal(obj)
 	setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
-	return m.redis.Do(ctx, setCmd).Error()
+	if err := m.redis.Do(ctx, setCmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 func (m *PlayerDataManager) UpdateItemAttribute(ctx context.Context, playerID int, itemID int, attr map[string]string) error {
@@ -409,7 +502,10 @@ func (m *PlayerDataManager) UpdateItemAttribute(ctx context.Context, playerID in
 	obj.Attribute = attr
 	bytes, _ := json.Marshal(obj)
 	setCmd := m.redis.B().Hset().Key(key).FieldValue().FieldValue(bagField, string(bytes)).Build()
-	return m.redis.Do(ctx, setCmd).Error()
+	if err := m.redis.Do(ctx, setCmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 // ==================== 全局状态机字段（与 global.Machine 对齐） ====================
@@ -486,7 +582,10 @@ func (m *PlayerDataManager) SaveMachineState(ctx context.Context, playerID int, 
 		FieldValue(machineDoingField, strconv.Itoa(state.Doing)).
 		FieldValue(machineDoingMapField, string(doingMapBytes)).
 		Build()
-	return m.redis.Do(ctx, cmd).Error()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
 }
 
 // ==================== 用户-角色归属关系（user_characters 多对多） ====================

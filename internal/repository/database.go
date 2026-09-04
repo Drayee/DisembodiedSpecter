@@ -47,33 +47,24 @@ func ProvideDB(cfg *config.Config) (*gorm.DB, func(), error) {
 
 	// 2. 自动迁移：将全部 Go domain 模型同步到 SQL（建表 + 索引）
 	//    已存在的表只会做增量变更（新增列/索引），不会清空数据
-	if err := database.AutoMigrate(
-		&domain.User{},
-		&domain.Player{},
-		&domain.Item{},
-		&domain.PlayerItem{},
-		&domain.Email{},
-		&domain.Character{},
-		&domain.UserCharacter{}, // 用户-角色 多对多归属关系
-		&domain.Enemy{},
-		&domain.Tool{},
-		&domain.Skill{},
-	); err != nil {
-		sqlDB, _ := database.DB()
-		if sqlDB != nil {
-			_ = sqlDB.Close()
-		}
-		return nil, nil, fmt.Errorf("数据库自动迁移失败: %w", err)
-	}
-
-	// 2.1 移除 characters 表旧归属列（owner_number 已迁移到 user_characters 多对多表）
-	if database.Migrator().HasColumn(&domain.Character{}, "owner_number") {
-		if err := database.Migrator().DropColumn(&domain.Character{}, "owner_number"); err != nil {
+	if cfg.Database.Init {
+		if err := database.AutoMigrate(
+			&domain.User{},
+			&domain.Player{},
+			&domain.Item{},
+			&domain.PlayerItem{},
+			&domain.Email{},
+			&domain.Character{},
+			&domain.UserCharacter{},
+			&domain.Enemy{},
+			&domain.Tool{},
+			&domain.Skill{},
+		); err != nil {
 			sqlDB, _ := database.DB()
 			if sqlDB != nil {
 				_ = sqlDB.Close()
 			}
-			return nil, nil, fmt.Errorf("删除 characters.owner_number 列失败: %w", err)
+			return nil, nil, fmt.Errorf("数据库自动迁移失败: %w", err)
 		}
 	}
 

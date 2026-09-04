@@ -141,3 +141,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 	response.OKWithMsg(c, "退出登录成功", nil)
 }
+
+// ValidateToken 校验当前 token 是否有效
+// @Summary 校验 token 是否有效
+// @Description 校验 Authorization 中的 token（JWT 签名 + Redis 会话唯一码），
+// 有效返回 200；无效由 AuthRequired 中间件返回 401
+// @Tags 认证模块
+// @Produce json
+// @Success 200 {object} response.Result "有效 data: {"valid": true}"
+// @Failure 401 {object} response.Result "无效"
+// @Router /api/v2/token/check [get]
+func (h *AuthHandler) ValidateToken(c *gin.Context) {
+	response.OK(c, gin.H{"valid": true})
+}

@@ -185,6 +185,7 @@ func main() {
 	teamBytes, _ := json.Marshal([]int{character.ID})
 	doingMapBytes, _ := json.Marshal(map[string]string{"enemy_ids": fmt.Sprintf("[%d]", enemy.ID)})
 	hsetCmd := redisClient.B().Hset().Key(playerDataKey).FieldValue().
+		FieldValue("version", "1").
 		FieldValue("level", strconv.Itoa(player.Level)).
 		FieldValue("exp", strconv.Itoa(player.Exp)).
 		FieldValue("character_team", string(teamBytes)).

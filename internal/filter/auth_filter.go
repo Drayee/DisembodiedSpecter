@@ -22,6 +22,12 @@ func NewAuthFilter(cfg *config.Config, tokenManager *utils.TokenManager) *AuthFi
 
 func (tm *AuthFilter) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// WebSocket 路由（/api/ws/*）已由一次性 ws-code 校验保护，
+		// 浏览器/原生 WebSocket 无法在握手时携带自定义 Authorization 头，故豁免 Bearer 校验
+		if strings.HasPrefix(c.Request.URL.Path, "/api/ws/") {
+			c.Next()
+			return
+		}
 		whiteList := tm.cfg.Security.WhiteList
 		for _, item := range whiteList {
 			if i, _ := path.Match(item, c.Request.URL.Path); i {

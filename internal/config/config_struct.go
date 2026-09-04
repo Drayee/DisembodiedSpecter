@@ -20,10 +20,11 @@ type AppConfig struct {
 
 type DatabaseConfig struct {
 	Host     string
-	Port    int
+	Port     int
 	Username string
 	Password string
 	DBName   string
+	Init     bool
 }
 
 type JwtConfig struct {

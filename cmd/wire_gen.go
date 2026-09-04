@@ -36,7 +36,7 @@ func InitializeApp(cfg *config.Config, redisClient rueidis.Client) (*Init, func(
 	emailRepo := repository.NewEmailRepo(db)
 	mailManager := utils.NewMailManager(emailRepo, redisClient)
 	codeManager := utils.NewCodeManager(redisClient, mailManager)
-	authUseCase := service.NewAuthUseCase(userRepo, tokenManager, codeManager)
+	authUseCase := service.NewAuthUseCase(userRepo, tokenManager, codeManager, playerDataManager)
 	authHandler := handlers.NewAuthHandler(authUseCase)
 	cacheManager := utils.NewCacheManager(redisClient, cfg)
 	userUseCase := service.NewUserUseCase(redisClient, cacheManager, playerDataManager)

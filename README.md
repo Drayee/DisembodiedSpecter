@@ -151,7 +151,7 @@ exit                          退出战斗
 | POST | `/api/v1/refresh` | 刷新令牌 | 免 |
 | POST | `/api/v1/logout` | 登出（撤销双令牌） | 免 |
 | GET | `/api/v2/ws-code` | 获取 WebSocket 连接码（缓存，同窗口内返回同一个 code） | Bearer |
-| GET | `/api/v2/data` | 获取玩家数据 | Bearer |
+| GET | `/api/v2/data` | 获取玩家数据（支持 If-None-Match 条件请求，版本未变返回 304） | Bearer |
 | GET | `/api/ws/fight/:user_id/:ws_code` | 战斗 WebSocket（protobuf 消息） | ws-code |
 | GET | `/api/v3/admin/*` | 管理端：用户/玩家/邮箱/统计/游戏内容 CRUD | Bearer + admin |
 | GET | `/swagger/*any` | Swagger 文档 | 免 |
@@ -165,6 +165,8 @@ exit                          退出战斗
 ```
 
 - ws-code 写入 Redis 并带缓存：过期窗口内重复获取返回同一个 code；连接成功后即被消费删除
+- 玩家数据同步支持 **弱 ETag（`W/"version"`）条件请求**：玩家数据 Hash 维护 `version` 字段，每次写操作自增；
+  前端带 `If-None-Match` 请求 `/api/v2/data`，版本未变返回 `304`（省带宽 + 省 Redis 全量读取），变化时返回全量 + 新 ETag
 - 令牌校验：JWT 签名/类型/过期 + `subject` 与 Redis `jwt:unique:{userID}` 比对；每次登录/刷新替换唯一码使旧 token 立即失效（单端登录），登出删除唯一码；唯一码 TTL 取 refresh 有效期，避免压缩 token 实际寿命
 - 战斗/全局 WebSocket 也支持携带 `Authorization: Bearer <access_token>`（`/api/ws/*` 白名单仅匹配单段路径）
 
