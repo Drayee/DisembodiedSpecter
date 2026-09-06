@@ -35,6 +35,9 @@ const machineDoingNothing = 2
 // 作为弱 ETag（W/"version"）用于前后端条件同步（If-None-Match / 304）。
 const playerDataVersionField = "version"
 
+// storyProgressField 剧情进度字段：JSON 文本 {main, branches}（单人单档，游标见 docs/story-json-schema.md）。
+const storyProgressField = "story_progress"
+
 type PlayerDataManager struct {
 	redis      rueidis.Client
 	playerRepo repository.PlayerRepo
@@ -86,6 +89,9 @@ func (m *PlayerDataManager) parsePlayerData(fields map[string]string) *response.
 
 	if v, ok := fields["description"]; ok {
 		resp.Description = v
+	}
+	if v, ok := fields[storyProgressField]; ok {
+		resp.StoryProgress = v
 	}
 	if v, ok := fields["level"]; ok {
 		resp.Level, _ = strconv.Atoi(v)
@@ -159,6 +165,7 @@ func (m *PlayerDataManager) loadFromDB(ctx context.Context, playerID int) error 
 		FieldValue("least_active_ip", player.LeastActiveIP).
 		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
 		FieldValue("location", string(locBytes)).
+		FieldValue(storyProgressField, player.StoryProgress).
 		FieldValue(playerDataVersionField, "1"). // 初始版本号 1
 		// 状态机字段（与 global.Machine 对齐，仅缓存重建时初始化）
 		FieldValue(machineTeamField, string(teamBytes)).
@@ -315,6 +322,19 @@ func (m *PlayerDataManager) SetLeastActive(ctx context.Context, playerID int, ac
 	return m.bumpVersion(ctx, playerID)
 }
 
+// SaveStoryProgress 保存剧情进度（JSON 文本，仅写 Redis；由同步任务落 SQL）。
+// raw 由上层（global WS story.save 分发）做格式与长度校验后传入。
+func (m *PlayerDataManager) SaveStoryProgress(ctx context.Context, playerID int, raw string) error {
+	if err := m.ensureLoaded(ctx, playerID); err != nil {
+		return err
+	}
+	cmd := m.redis.B().Hset().Key(m.hashKey(playerID)).FieldValue().FieldValue(storyProgressField, raw).Build()
+	if err := m.redis.Do(ctx, cmd).Error(); err != nil {
+		return err
+	}
+	return m.bumpVersion(ctx, playerID)
+}
+
 func (m *PlayerDataManager) AddPlayer(ctx context.Context, player *domain.Player) error {
 	hset := m.redis.B().Hset().Key(m.hashKey(player.ID)).FieldValue().
 		FieldValue("description", player.Description).
@@ -325,6 +345,7 @@ func (m *PlayerDataManager) AddPlayer(ctx context.Context, player *domain.Player
 		FieldValue("least_active_ip", player.LeastActiveIP).
 		FieldValue("least_active_at", player.LeastActiveAt.Format(time.RFC3339)).
 		FieldValue("location", `{"x":0,"y":0,"map":""}`).
+		FieldValue(storyProgressField, "").
 		FieldValue(playerDataVersionField, "1"). // 初始版本号 1
 		// 状态机字段（与 global.Machine 对齐，仅缓存重建时初始化）
 		FieldValue(machineTeamField, "[]").
@@ -685,6 +706,7 @@ func (m *PlayerDataManager) SyncPlayerDataToDB(ctx context.Context, playerID int
 		Level:           data.Level,
 		Exp:             data.Exp,
 		Location:        data.Location,
+		StoryProgress:   data.StoryProgress,
 		IsActive:        data.IsActive,
 		LeastActiveType: data.LeastActiveType,
 		LeastActiveIP:   data.LeastActiveIP,

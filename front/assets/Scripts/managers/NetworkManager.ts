@@ -5,6 +5,7 @@ import { HttpClient, EtagResult } from 'db://assets/Scripts/api/http/HttpClient'
 import { WsClient } from 'db://assets/Scripts/api/websocket/WsClient';
 import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_message.js';
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
+import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
 const FightMessage = fightProto.FightMessage;
 
 const { ccclass } = _decorator;
@@ -38,6 +39,9 @@ export class NetworkManager extends Component {
     private dataEtagKey = 'game_data_etag';
 
     userId: number | null = null;
+
+    /** 剧情进度待上报 JSON（worldWs 未连接时暂存，连接后立即冲刷） */
+    private pendingStoryProgressJson: string | null = null;
 
     onLoad() {
         NetworkManager._instance = this;
@@ -230,9 +234,51 @@ export class NetworkManager extends Component {
         const host = this.serverURL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
         this.worldWs = new WsClient(`ws://${host}/api/ws/global/${userId}/${wsCode}`, { binary: true });
         this.worldWs.onMessage = onMessage;
+        this.worldWs.onOpen = () => {
+            console.log('[World] 全局连接已建立');
+            this.flushPendingStoryProgress();
+        };
+        this.worldWs.onText = (text) => this.handleWorldText(text);
         this.worldWs.connect();
         return this.worldWs;
     }
+
+    // ==================== 剧情进度（WS 上报） ====================
+
+    /**
+     * 上报剧情进度（整体覆盖，后端为权威）。
+     * worldWs 未连接时缓存最新一份，连接建立后自动冲刷。
+     */
+    public sendStoryProgress(progress: StoryProgress) {
+        this.pendingStoryProgressJson = JSON.stringify({ type: 'story.save', progress });
+        this.flushPendingStoryProgress();
+    }
+
+    private flushPendingStoryProgress() {
+        if (!this.pendingStoryProgressJson) return;
+        if (!this.worldWs.connected) return; // 保持待发，等待连接
+        if (this.worldWs.sendText(this.pendingStoryProgressJson)) {
+            console.log('[Story] 剧情进度已上报');
+            this.pendingStoryProgressJson = null;
+        }
+    }
+
+    private handleWorldText(text: string) {
+        try {
+            const j = JSON.parse(text);
+            if (j?.type === 'story.ack') {
+                console.log('[Story] 后端确认进度已保存');
+                this.onStoryAck?.();
+            } else {
+                console.log('[World] 收到全局文本消息', j);
+            }
+        } catch (e) {
+            console.warn('[World] 全局文本消息解析失败', text, e);
+        }
+    }
+
+    /** 剧情进度保存确认回调（可选） */
+    public onStoryAck?: () => void;
 
     /** 发送战斗消息（protobuf 编码） */
     public sendFightMessage(msg: typeof FightMessage): boolean {

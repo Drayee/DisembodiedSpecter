@@ -6,6 +6,7 @@ create table if not exists players
     level             bigint,
     exp               bigint,
     location          text,
+    story_progress    text,
     is_active         boolean,
     least_active_type text,
     least_active_ip   text,

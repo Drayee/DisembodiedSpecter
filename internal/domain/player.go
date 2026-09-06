@@ -14,6 +14,7 @@ type Player struct {
 	Level           int       `json:"level" gorm:"column:level"`
 	Exp             int       `json:"exp" gorm:"column:exp"`
 	Location        Location  `json:"location" gorm:"column:location;serializer:json"`
+	StoryProgress   string    `json:"story_progress" gorm:"column:story_progress"`
 	IsActive        bool      `json:"is_active" gorm:"column:is_active;index"`
 	LeastActiveType string    `json:"least_active_type" gorm:"column:least_active_type"`
 	LeastActiveIP   string    `json:"least_active_ip" gorm:"column:least_active_ip"`

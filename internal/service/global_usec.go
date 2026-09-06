@@ -6,8 +6,11 @@ import (
 	"DisembodiedSpecter/internal/service/global"
 	"DisembodiedSpecter/internal/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/coder/websocket"
@@ -103,9 +106,102 @@ func (g *GlobalUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			}
 			break
 		}
-		_ = msgType
-		_ = msg
-		// TODO: 在这里分发全局消息（移动 / 剧情 / 状态查询等），
-		// 通过 g.globalEngine.EnterState / SaveMachine 更新并持久化 Machine
+		if msgType != websocket.MessageText {
+			log.Printf("[Global] 忽略非文本消息 type=%d, userId %d", msgType, userID)
+			continue
+		}
+		if hErr := g.handleGlobalMessage(c, ws, userID, msg); hErr != nil {
+			log.Printf("[Global] 处理消息失败: %v, userId %d", hErr, userID)
+		}
 	}
+}
+
+// ==================== 全局消息分发 ====================
+
+// globalStoryProgress 剧情进度载荷：{ main, branches }，main=主线游标、branches=支线游标。
+type globalStoryProgress struct {
+	Main     *string            `json:"main"`
+	Branches map[string]*string `json:"branches"`
+}
+
+// globalClientMessage 客户端 → 服务端 全局消息信封。
+type globalClientMessage struct {
+	Type     string               `json:"type"`
+	Progress *globalStoryProgress `json:"progress"`
+}
+
+// cursorPartRe 游标/支线 key 的允许字符集：段地址数字点、分支字母、终态 .end。
+// 见 docs/story-json-schema.md 的地址规则。
+var cursorPartRe = regexp.MustCompile(`^[0-9A-Za-z._-]{1,64}$`)
+
+func validCursorPart(s string) bool {
+	return s != "" && len(s) <= 64 && cursorPartRe.MatchString(s)
+}
+
+func (g *GlobalUseCase) handleGlobalMessage(ctx context.Context, ws *websocket.Conn, userID int, raw []byte) error {
+	var msg globalClientMessage
+	if err := json.Unmarshal(raw, &msg); err != nil {
+		return fmt.Errorf("消息 JSON 解析失败: %w", err)
+	}
+	switch msg.Type {
+	case "story.save":
+		return g.handleStorySave(ctx, ws, userID, msg.Progress)
+	default:
+		return fmt.Errorf("未知全局消息类型: %q", msg.Type)
+	}
+}
+
+// handleStorySave 接收前端剧情进度 story.save，校验后写入玩家数据（Redis Hash，
+// 由同步任务落 SQL players.story_progress），随后回执 story.ack。
+func (g *GlobalUseCase) handleStorySave(ctx context.Context, ws *websocket.Conn, userID int, progress *globalStoryProgress) error {
+	if progress == nil {
+		return fmt.Errorf("story.save 缺少 progress 字段")
+	}
+
+	normalized := globalStoryProgress{Branches: map[string]*string{}}
+	if progress.Main != nil && strings.TrimSpace(*progress.Main) != "" {
+		main := strings.TrimSpace(*progress.Main)
+		if !validCursorPart(main) {
+			return fmt.Errorf("story.save main 游标非法: %q", main)
+		}
+		normalized.Main = &main
+	}
+	for key, val := range progress.Branches {
+		k := strings.TrimSpace(key)
+		if !validCursorPart(k) {
+			return fmt.Errorf("story.save 支线 key 非法: %q", k)
+		}
+		if val != nil && strings.TrimSpace(*val) != "" {
+			cursor := strings.TrimSpace(*val)
+			if !validCursorPart(cursor) {
+				return fmt.Errorf("story.save 支线游标非法: %q", cursor)
+			}
+			normalized.Branches[k] = &cursor
+		} else {
+			normalized.Branches[k] = nil
+		}
+	}
+
+	raw, err := json.Marshal(normalized)
+	if err != nil {
+		return fmt.Errorf("story.save 序列化失败: %w", err)
+	}
+	if len(raw) > 2048 {
+		return fmt.Errorf("story.save 载荷过长: %d bytes", len(raw))
+	}
+
+	if err := g.playerDataManager.SaveStoryProgress(ctx, userID, string(raw)); err != nil {
+		return fmt.Errorf("保存剧情进度失败: %w", err)
+	}
+
+	ack := struct {
+		Type string `json:"type"`
+		OK   bool   `json:"ok"`
+	}{Type: "story.ack", OK: true}
+	ackBytes, _ := json.Marshal(ack)
+	if err := ws.Write(ctx, websocket.MessageText, ackBytes); err != nil {
+		return fmt.Errorf("发送 story.ack 失败: %w", err)
+	}
+	log.Printf("[Global] 玩家 %d 剧情进度已保存: %s", userID, string(raw))
+	return nil
 }

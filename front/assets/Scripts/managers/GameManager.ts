@@ -4,6 +4,9 @@
 import { _decorator, Component } from 'cc';
 import { NetworkManager } from 'db://assets/Scripts/managers/NetworkManager';
 import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_message.js';
+import { StoryController } from 'db://assets/Scripts/story/StoryController';
+import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
+import { cloneProgress, emptyProgress, MAIN_START_ADDR, isTerminal } from 'db://assets/Scripts/story/StoryAddr';
 
 // 从命名空间中提取类型
 type FightMessage = fightProto.proto.FightMessage;
@@ -29,9 +32,14 @@ export class GameManager extends Component {
 
     public battleSnapshot: BattleSnapshot = { updatedAt: 0 };
 
+    /** 单人单档剧情进度（主线游标 + 支线游标；后端 WS 为权威） */
+    public storyProgress: StoryProgress = emptyProgress();
+
     onLoad() {
         GameManager._instance = this;
         (globalThis as any).GameManager = this;
+        // 剧情引擎每推进一个节点，都回调这里做内存镜像 + WS 上报
+        StoryController.instance.onCursor = (scope, cursor) => this.applyStoryCursor(scope, cursor);
     }
 
     static getInstance(): GameManager {
@@ -161,5 +169,84 @@ export class GameManager extends Component {
             lines.push(`[${i}] ${c.isMyCharacter ? '我方' : '敌方'} HP:${c.health} 攻:${c.attack.toFixed(1)} 防:${c.defense} buff:${c.buffs.length}`);
         });
         return lines.join('\n');
+    }
+
+    // ==================== 剧情进度 ====================
+
+    /** 剧情引擎推进回调：scope=null 主线，否则支线 key（如 "0.1"） */
+    private applyStoryCursor(scope: string | null, cursor: string) {
+        const p = cloneProgress(this.storyProgress);
+        if (scope) {
+            p.branches[scope] = cursor;
+        } else {
+            p.main = cursor;
+        }
+        this.setStoryProgress(p);
+    }
+
+    public getStoryProgress(): StoryProgress {
+        return cloneProgress(this.storyProgress);
+    }
+
+    /** 更新本地镜像并上报后端（global WS；未连接时由 NetworkManager 缓冲） */
+    public setStoryProgress(p: StoryProgress) {
+        this.storyProgress = cloneProgress(p);
+        const nm = NetworkManager.getInstance();
+        if (nm) {
+            nm.sendStoryProgress(cloneProgress(this.storyProgress));
+        }
+    }
+
+    /**
+     * 拉取玩家数据后用服务端进度覆盖本地镜像（服务端为权威）。
+     * data 为 GET /api/v2/data 的 data 对象。
+     * @returns 是否成功解析到服务端剧情进度
+     */
+    public ingestStoryFromServer(data: any): boolean {
+        const raw = data && typeof data === 'object' ? (data as any).story_progress : null;
+        if (typeof raw !== 'string' || !raw) return false;
+        try {
+            const parsed = JSON.parse(raw);
+            this.storyProgress = cloneProgress({ main: parsed?.main, branches: parsed?.branches });
+            return true;
+        } catch (e) {
+            console.warn('[GameManager] 服务端剧情进度解析失败', raw, e);
+            return false;
+        }
+    }
+
+    /** 重置主线进度（新游戏）；支线进度不受影响 */
+    public resetMainStory() {
+        const p = cloneProgress(this.storyProgress);
+        p.main = null;
+        this.setStoryProgress(p);
+    }
+
+    /** 主线是否还有可播内容（未开始 或 游标未到终态） */
+    public hasMainStoryRemaining(): boolean {
+        return !isTerminal(this.storyProgress.main);
+    }
+
+    /** 主线起点：已有进度则续播游标，否则从序章开始 */
+    public beginMainStory(): boolean {
+        const cursor = this.storyProgress.main || MAIN_START_ADDR;
+        return StoryController.instance.play(cursor);
+    }
+
+    /** 支线起点：续播该支线游标，无进度则从默认起点开始 */
+    public beginBranchStory(branchKey: string, defaultStart: string): boolean {
+        const cursor = this.storyProgress.branches[branchKey] || defaultStart;
+        return StoryController.instance.play(cursor);
+    }
+
+    /** 从任意地址开始（调试/世界交互入口使用） */
+    public beginStoryAt(address: string | null): boolean {
+        if (!address) return false;
+        return StoryController.instance.play(address);
+    }
+
+    /** 强行中止当前剧情（离开世界时调用） */
+    public abortStory() {
+        StoryController.instance.abort();
     }
 }
