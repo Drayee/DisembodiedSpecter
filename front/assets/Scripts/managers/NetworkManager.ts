@@ -4,9 +4,11 @@ import { _decorator, Component } from 'cc';
 import { HttpClient, EtagResult } from 'db://assets/Scripts/api/http/HttpClient';
 import { WsClient } from 'db://assets/Scripts/api/websocket/WsClient';
 import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_message.js';
+import * as globalProto from 'db://assets/Scripts/api/websocket/proto/global_message.js';
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
 import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
 const FightMessage = fightProto.FightMessage;
+const GlobalMessage = globalProto.proto.GlobalMessage;
 
 const { ccclass } = _decorator;
 
@@ -40,8 +42,8 @@ export class NetworkManager extends Component {
 
     userId: number | null = null;
 
-    /** 剧情进度待上报 JSON（worldWs 未连接时暂存，连接后立即冲刷） */
-    private pendingStoryProgressJson: string | null = null;
+    /** 待上报的全局消息二进制（worldWs 未连接时暂存最新一份，连接后冲刷） */
+    private pendingGlobalBytes: Uint8Array | null = null;
 
     onLoad() {
         NetworkManager._instance = this;
@@ -229,56 +231,93 @@ export class NetworkManager extends Component {
         return this.battleWs;
     }
 
-    /** 连接全局状态 WebSocket（后端路由未注册时仅占位） */
+    /** 连接全局状态 WebSocket：收发 binary GlobalMessage（走动/剧情进度/状态同步） */
     public connectWorldWS(userId: number, wsCode: string, onMessage?: (bytes: Uint8Array) => void): WsClient {
         const host = this.serverURL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
         this.worldWs = new WsClient(`ws://${host}/api/ws/global/${userId}/${wsCode}`, { binary: true });
-        this.worldWs.onMessage = onMessage;
+        this.worldWs.onMessage = (bytes) => {
+            onMessage?.(bytes);
+            this.handleGlobalBinary(bytes);
+        };
         this.worldWs.onOpen = () => {
             console.log('[World] 全局连接已建立');
-            this.flushPendingStoryProgress();
+            this.flushPendingGlobal();
         };
-        this.worldWs.onText = (text) => this.handleWorldText(text);
         this.worldWs.connect();
         return this.worldWs;
     }
 
-    // ==================== 剧情进度（WS 上报） ====================
+    // ==================== 全局消息（二进制 global_message） ====================
+
+    /** 收到服务端 S2C_SyncState（交给 GameManager 恢复剧情/位置状态） */
+    public onGlobalSyncState?: (state: any) => void;
+
+    /** 收到服务端 S2C_Ack */
+    public onGlobalAck?: (ack: any) => void;
 
     /**
-     * 上报剧情进度（整体覆盖，后端为权威）。
+     * 上报剧情进度（C2S_StoryProgress，整体覆盖，后端为权威）。
      * worldWs 未连接时缓存最新一份，连接建立后自动冲刷。
      */
     public sendStoryProgress(progress: StoryProgress) {
-        this.pendingStoryProgressJson = JSON.stringify({ type: 'story.save', progress });
-        this.flushPendingStoryProgress();
+        const msg = GlobalMessage.create({
+            storyProgress: {
+                progress: {
+                    main: progress.main || '',
+                    branches: progress.branches || {},
+                },
+            },
+        });
+        this.enqueueGlobal(GlobalMessage.encode(msg).finish());
     }
 
-    private flushPendingStoryProgress() {
-        if (!this.pendingStoryProgressJson) return;
+    /** 上报大世界走动（C2S_Move） */
+    public sendMove(mapName: string, x: number, y: number): boolean {
+        if (!this.worldWs.connected) {
+            console.warn('[World] 未连接，走动消息丢弃');
+            return false;
+        }
+        const msg = GlobalMessage.create({ move: { pos: { mapName, x, y } } });
+        return this.worldWs.sendBinary(GlobalMessage.encode(msg).finish());
+    }
+
+    /** 请求服务端补发一次 SyncState（连接建立后服务端已默认先推） */
+    public requestGlobalSync(): boolean {
+        if (!this.worldWs.connected) return false;
+        const msg = GlobalMessage.create({ syncRequest: {} });
+        return this.worldWs.sendBinary(GlobalMessage.encode(msg).finish());
+    }
+
+    private enqueueGlobal(bytes: Uint8Array) {
+        this.pendingGlobalBytes = bytes;
+        this.flushPendingGlobal();
+    }
+
+    private flushPendingGlobal() {
+        if (!this.pendingGlobalBytes) return;
         if (!this.worldWs.connected) return; // 保持待发，等待连接
-        if (this.worldWs.sendText(this.pendingStoryProgressJson)) {
-            console.log('[Story] 剧情进度已上报');
-            this.pendingStoryProgressJson = null;
+        if (this.worldWs.sendBinary(this.pendingGlobalBytes)) {
+            console.log('[World] 全局消息已发送（含剧情进度）');
+            this.pendingGlobalBytes = null;
         }
     }
 
-    private handleWorldText(text: string) {
+    private handleGlobalBinary(bytes: Uint8Array) {
         try {
-            const j = JSON.parse(text);
-            if (j?.type === 'story.ack') {
-                console.log('[Story] 后端确认进度已保存');
-                this.onStoryAck?.();
+            const msg = GlobalMessage.decode(bytes) as any;
+            if (msg.syncState) {
+                console.log('[World] 收到 SyncState', msg.syncState);
+                this.onGlobalSyncState?.(msg.syncState);
+            } else if (msg.ack) {
+                console.log(`[World] 收到 Ack ok=${!!msg.ack.ok} code=${msg.ack.code ?? 0} reason=${msg.ack.reason || ''}`);
+                this.onGlobalAck?.(msg.ack);
             } else {
-                console.log('[World] 收到全局文本消息', j);
+                console.log('[World] 收到未知全局消息', msg);
             }
         } catch (e) {
-            console.warn('[World] 全局文本消息解析失败', text, e);
+            console.warn('[World] 全局二进制消息解码失败', e);
         }
     }
-
-    /** 剧情进度保存确认回调（可选） */
-    public onStoryAck?: () => void;
 
     /** 发送战斗消息（protobuf 编码） */
     public sendFightMessage(msg: typeof FightMessage): boolean {

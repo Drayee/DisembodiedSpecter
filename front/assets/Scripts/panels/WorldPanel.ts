@@ -52,6 +52,7 @@ export class WorldPanel extends Component {
     private async afterWorldReady() {
         const gm = GameManager.getInstance();
         if (!gm) return;
+        gm.ensureNetworkHooks();
         // 以服务端进度为权威（单人单档）
         try {
             const data = await gm.syncPlayerData<any>();
@@ -174,6 +175,15 @@ export class WorldPanel extends Component {
         this.mkDockButton(dock, -260, -60, '主线 · 开始/继续', () => this.onMain());
         this.mkDockButton(dock, 0, -60, '支线 0.1 演示', () => this.onBranchDemo());
         this.mkDockButton(dock, 260, -60, '重置主线', () => this.onResetMain());
+        this.mkDockButton(dock, 0, -130, '上报移动测试', () => this.onMoveDebug());
+    }
+
+    /** 调试：上报一次大世界走动（正式移动逻辑由后续世界系统接入） */
+    private onMoveDebug() {
+        const gm = GameManager.getInstance();
+        if (!gm) return;
+        const ok = gm.moveTo('town', 16, 8);
+        this.showNotice(ok ? '已上报移动：town(16, 8)' : '上报移动失败：global WS 未连接');
     }
 
     /** 预加载白色贴图用于调试按钮底色（异步到达后自动回填） */

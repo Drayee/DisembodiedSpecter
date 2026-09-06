@@ -323,7 +323,7 @@ func (m *PlayerDataManager) SetLeastActive(ctx context.Context, playerID int, ac
 }
 
 // SaveStoryProgress 保存剧情进度（JSON 文本，仅写 Redis；由同步任务落 SQL）。
-// raw 由上层（global WS story.save 分发）做格式与长度校验后传入。
+// raw 由上层（global WS global_message.story_progress 消息分发）做格式与长度校验后传入。
 func (m *PlayerDataManager) SaveStoryProgress(ctx context.Context, playerID int, raw string) error {
 	if err := m.ensureLoaded(ctx, playerID); err != nil {
 		return err

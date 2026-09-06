@@ -33,7 +33,12 @@
 - 单人单档：`StoryProgress = { main: string|null, branches: { "0.1": string|null } }`
 - 游标含义 = “下一个待播放节点的地址”；`null` = 未开始。
 - 主线游标存于 `main`；各支线游标按 `篇.章` 前缀存于 `branches`。
-- 存储：内存镜像 + 本地（若离线）→ 通过 **global WebSocket**（`type:"story.save"`）上报后端 `players.story_progress`（JSON 文本列），一人一份，服务器为权威。
+- 存储：内存镜像 → 通过 **global WebSocket 二进制协议 `global_message.proto`**（见 `proto/global_message.proto`）上报后端：
+  - 上行 `C2S_StoryProgress`（progress = main + branches，字符串游标）
+  - 下行 `S2C_SyncState`（含 story，连接建立后服务端先推一次，客户端以服务端为准恢复）
+  - 下行 `S2C_Ack`（保存回执）
+  - 服务端校验后写入 `players.story_progress`（JSON 文本列，一人一份，服务器为权威）
+- 早期 JSON 文本版 `story.save`/`story.ack` 协议已废弃删除。
 
 ## 4. node（事件）结构
 

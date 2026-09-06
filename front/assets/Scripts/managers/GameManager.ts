@@ -35,11 +35,19 @@ export class GameManager extends Component {
     /** 单人单档剧情进度（主线游标 + 支线游标；后端 WS 为权威） */
     public storyProgress: StoryProgress = emptyProgress();
 
+    /** 大世界状态（来自 S2C_SyncState / 本地移动镜像）：doing 0剧情 1战斗 2无事 3移动 */
+    public worldState: { doing: number; doingMap: Record<string, string>; location: { map: string; x: number; y: number } | null } = {
+        doing: 2,
+        doingMap: {},
+        location: null,
+    };
+
     onLoad() {
         GameManager._instance = this;
         (globalThis as any).GameManager = this;
         // 剧情引擎每推进一个节点，都回调这里做内存镜像 + WS 上报
         StoryController.instance.onCursor = (scope, cursor) => this.applyStoryCursor(scope, cursor);
+        this.ensureNetworkHooks();
     }
 
     static getInstance(): GameManager {
@@ -172,6 +180,41 @@ export class GameManager extends Component {
     }
 
     // ==================== 剧情进度 ====================
+
+    /** 注册网络层 S2C_SyncState 回调（幂等；连接后用于恢复剧情/位置状态） */
+    public ensureNetworkHooks() {
+        const nm = NetworkManager.getInstance();
+        if (!nm) return;
+        nm.onGlobalSyncState = (st: any) => this.applyGlobalSyncState(st);
+    }
+
+    /** S2C_SyncState 到达：以服务端为准覆盖本地剧情游标与世界状态 */
+    private applyGlobalSyncState(st: any) {
+        if (!st) return;
+        if (st.story) {
+            const branches: Record<string, string | null> = {};
+            if (st.story.branches) {
+                for (const k of Object.keys(st.story.branches)) branches[k] = st.story.branches[k] || null;
+            }
+            this.storyProgress = cloneProgress({ main: st.story.main || null, branches });
+        }
+        this.worldState.doing = typeof st.doing === 'number' ? st.doing : this.worldState.doing;
+        if (st.doingMap && typeof st.doingMap === 'object') this.worldState.doingMap = st.doingMap;
+        if (st.location) {
+            this.worldState.location = { map: st.location.mapName || '', x: st.location.x || 0, y: st.location.y || 0 };
+        }
+    }
+
+    /** 上报大世界走动（C2S_Move）并同步本地 worldState */
+    public moveTo(mapName: string, x: number, y: number): boolean {
+        const nm = NetworkManager.getInstance();
+        if (!nm) return false;
+        if (!nm.sendMove(mapName, x, y)) return false;
+        this.worldState.doing = 3;
+        this.worldState.doingMap = { map: mapName, x: String(x), y: String(y) };
+        this.worldState.location = { map: mapName, x, y };
+        return true;
+    }
 
     /** 剧情引擎推进回调：scope=null 主线，否则支线 key（如 "0.1"） */
     private applyStoryCursor(scope: string | null, cursor: string) {
