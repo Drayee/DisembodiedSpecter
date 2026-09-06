@@ -104,7 +104,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 // @Param verifier_type query string true "验证类型（email）"
 // @Success 200 {object} response.Result "发送验证码成功"
 // @Failure 400 {object} response.Result "请求参数错误"
-// @Router /api/v1/send_verify_code [get]
+// @Router /api/v1/send-verify-code [post]
 func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	err := h.authService.SendVerifyCode(c, c.Param("verifier"), c.Param("verifier_type"))
 	if err != nil {

@@ -44,7 +44,7 @@ func (auc *AuthUseCase) Login(ctx context.Context, req *request.LoginReq) (*resp
 	return &response.LoginResp{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    auc.tokenManager.Expire,
+		UserID:       user.ID,
 	}, nil
 }
 
@@ -79,7 +79,7 @@ func (auc *AuthUseCase) Register(ctx context.Context, req *request.RegisterReq) 
 	return &response.LoginResp{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    auc.tokenManager.Expire,
+		UserID:       user.ID,
 	}, nil
 }
 
@@ -95,7 +95,7 @@ func (auc *AuthUseCase) Refresh(ctx context.Context, refreshToken string) (*resp
 	return &response.LoginResp{
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
-		ExpiresIn:    auc.tokenManager.Expire,
+		UserID:       -1,
 	}, nil
 }
 

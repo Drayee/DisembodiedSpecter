@@ -20,6 +20,7 @@ func NewRouter(authHandler *AuthHandler, userHandler *UserHandler, adminHandler 
 	r.POST("/api/v1/register", authHandler.Register)
 	r.POST("/api/v1/refresh", authHandler.Refresh)
 	r.POST("/api/v1/logout", authHandler.Logout)
+	r.POST("/api/v1/verify-code", authHandler.SendVerifyCode)
 
 	// 用户路由（需认证）
 	r.GET("/api/v2/ws-code", userHandler.WSCode)
