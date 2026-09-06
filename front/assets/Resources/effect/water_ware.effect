@@ -1,0 +1,87 @@
+// water_wave.effect
+// Effect Syntax Guide: https://docs.cocos.com/creator/manual/zh/shader/index.html
+
+CCEffect %{
+  techniques:
+  - name: opaque
+    passes:
+    - vert: vs
+      frag: fs
+      properties:
+        u_speed:      { value: 0.5, editor: { slide: true, range: [0.0, 2.0] } }
+        u_waveWidth:  { value: 80.0, editor: { slide: true, range: [10.0, 200.0] } }
+        u_maxRadius:  { value: 0.8, editor: { slide: true, range: [0.1, 1.5] } }
+        u_opacity:    { value: 0.6, editor: { slide: true, range: [0.0, 1.0] } }
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+}%
+
+CCProgram vs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-global>
+  in vec3 a_position;
+  in vec2 a_texCoord;
+  out vec2 uv;
+  void main() {
+    uv = a_texCoord;
+    gl_Position = cc_matViewProj * vec4(a_position, 1.0);
+  }
+}%
+
+CCProgram fs %{
+  precision highp float;
+  #include <builtin/uniforms/cc-global>
+
+  in vec2 uv;
+  layout(location = 0) out vec4 fragColor;
+
+  uniform sampler2D cc_spriteTexture;
+
+  uniform Constants {
+    float u_time;
+    float u_speed;
+    float u_waveWidth;
+    float u_maxRadius;
+    float u_opacity;
+  };
+
+  void main() {
+    vec2 centers[5];
+    centers[0] = vec2(0.2, 0.3);
+    centers[1] = vec2(0.8, 0.6);
+    centers[2] = vec2(0.4, 0.8);
+    centers[3] = vec2(0.7, 0.2);
+    centers[4] = vec2(0.1, 0.9);
+
+    float offsets[5];
+    offsets[0] = 0.0;
+    offsets[1] = 1.2;
+    offsets[2] = 2.5;
+    offsets[3] = 3.7;
+    offsets[4] = 4.1;
+
+    float sum = 0.0;
+    for (int i = 0; i < 5; i++) {
+      float dist = distance(uv, centers[i]);
+      float radius = mod(u_time * u_speed + offsets[i], u_maxRadius);
+      float ring = 1.0 - abs(dist - radius) * u_waveWidth;
+      ring = clamp(ring, 0.0, 1.0);
+      float fade = 1.0 - dist / u_maxRadius;
+      fade = clamp(fade, 0.0, 1.0);
+      sum += ring * fade;
+    }
+
+    float alpha = clamp(sum / 5.0 * u_opacity, 0.0, 1.0);
+    vec4 tex = texture(cc_spriteTexture, uv);
+    vec3 white = vec3(1.0, 1.0, 1.0);
+    // 用更激进的混合：波纹越亮，越覆盖背景
+    float blendFactor = alpha;  // 或者使用 alpha * 1.5 并 clamp
+    fragColor = vec4(mix(tex.rgb, white, blendFactor), tex.a);
+  }
+}%

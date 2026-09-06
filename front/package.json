@@ -1,0 +1,10 @@
+{
+  "name": "DisembodiedSpecter",
+  "uuid": "f1a34a4b-42b5-4470-992c-c20f4b8aaf3f",
+  "creator": {
+    "version": "3.8.8"
+  },
+  "devDependencies": {
+    "protobufjs-cli": "^2.6.2"
+  }
+}
