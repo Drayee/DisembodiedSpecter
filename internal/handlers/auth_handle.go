@@ -106,7 +106,12 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 // @Failure 400 {object} response.Result "请求参数错误"
 // @Router /api/v1/send-verify-code [post]
 func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
-	err := h.authService.SendVerifyCode(c, c.Param("verifier"), c.Param("verifier_type"))
+	var req request.VerifyCodeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailInvalidParam(c, err.Error())
+		return
+	}
+	err := h.authService.SendVerifyCode(c, req.Verifier, req.VerifierType)
 	if err != nil {
 		response.FailInvalidParam(c, err.Error())
 		return

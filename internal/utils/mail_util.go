@@ -69,6 +69,20 @@ func (e *MailManager) GetAllUsableEmails(ctx context.Context) error {
 		}
 		if email.Status == 1 {
 			usableNum++
+			if b, err := e.redisClient.Do(ctx, e.redisClient.B().Hexists().Key(fmt.Sprintf("public:usable_email:%d", usableNum)).Field("host").Build()).AsBool(); err == nil || !b {
+				hincrCmd := e.redisClient.B().Hset().Key(fmt.Sprintf("public:usable_email:%d", usableNum)).
+					FieldValue().
+					FieldValue("host", email.Host).
+					FieldValue("port", strconv.Itoa(email.Port)).
+					FieldValue("user", email.User).
+					FieldValue("pass", email.Pass).
+					FieldValue("max_count", strconv.Itoa(email.MaxCount)).
+					FieldValue("count", "0").Build()
+				if err := e.redisClient.Do(ctx, hincrCmd).Error(); err != nil {
+					return err
+				}
+				log.Printf("添加可用邮箱: %s", email.Host)
+			}
 		} else if email.UpdatedAt.AddDate(0, 0, 1).Before(time.Now()) {
 			usableNum++
 			hincrCmd := e.redisClient.B().Hset().Key(fmt.Sprintf("public:usable_email:%d", usableNum)).
@@ -144,6 +158,7 @@ func (e *MailManager) SendEmail(ctx context.Context, email Email) error {
 				continue
 			}
 			e.usableEmailNum--
+			return nil
 		}
 		if err := e.GetAllUsableEmails(ctx); err != nil {
 			return err

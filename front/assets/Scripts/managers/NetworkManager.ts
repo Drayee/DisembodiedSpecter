@@ -7,7 +7,7 @@ import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_messa
 import * as globalProto from 'db://assets/Scripts/api/websocket/proto/global_message.js';
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
 import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
-const FightMessage = fightProto.FightMessage;
+const FightMessage = fightProto.proto.FightMessage;
 const GlobalMessage = globalProto.proto.GlobalMessage;
 
 const { ccclass } = _decorator;
@@ -66,17 +66,19 @@ export class NetworkManager extends Component {
         return this.refreshToken;
     }
 
-    public saveTokens(access: string, refresh: string) {
+    public saveTokens(access: string, refresh: string,id: number) {
         this.accessToken = access;
         this.refreshToken = refresh;
-        saveJSON(this.tokenKey, { access, refresh });
+        this.userId = id;
+        saveJSON(this.tokenKey, { access, refresh, id});
     }
 
     public loadTokens(): boolean {
-        const data = loadJSON<{ access: string; refresh: string }>(this.tokenKey);
+        const data = loadJSON<{ access: string; refresh: string; id: number}>(this.tokenKey);
         if (data?.access && data?.refresh) {
             this.accessToken = data.access;
             this.refreshToken = data.refresh;
+            this.userId = data.id
             return true;
         }
         return false;
@@ -85,6 +87,7 @@ export class NetworkManager extends Component {
     public clearTokens() {
         this.accessToken = '';
         this.refreshToken = '';
+        this.userId = null;
         removeKey(this.tokenKey);
         removeKey(this.dataEtagKey);
     }
@@ -133,15 +136,14 @@ export class NetworkManager extends Component {
     public async login(username: string, password: string): Promise<LoginData> {
         const res = await this.http.post<LoginData>('/api/v1/login', { username, password });
         if (res.code === 0 && res.data) {
-            this.saveTokens(res.data.access_token, res.data.refresh_token);
-            this.userId = res.data.user_id;
+            this.saveTokens(res.data.access_token, res.data.refresh_token, res.data.user_id);
             return res.data;
         }
         throw new Error(res.message || '登录失败');
     }
 
     public async sendVerifyCode(email: string): Promise<void> {
-        const res = await this.http.post('/api/v1/verify-code', { email });
+        const res = await this.http.post('/api/v1/verify-code', { verifier_type: 'email', verifier: email });
         if (res.code === 0 && res.data) {
             throw new Error(res.message || '发送验证码失败');
         }
@@ -150,8 +152,7 @@ export class NetworkManager extends Component {
     public async register(name: string, password: string, email: string, code: string): Promise<LoginData> {
         const res = await this.http.post<LoginData>('/api/v1/register', { name, password, email, code });
         if (res.code === 0 && res.data) {
-            this.saveTokens(res.data.access_token, res.data.refresh_token);
-            this.userId = res.data.user_id;
+            this.saveTokens(res.data.access_token, res.data.refresh_token, res.data.user_id);
             return res.data;
         }
         throw new Error(res.message || '注册失败');
@@ -174,7 +175,7 @@ export class NetworkManager extends Component {
         try {
             const res = await this.http.post<LoginData>('/api/v1/refresh', { refresh_token: this.refreshToken });
             if (res.code === 0 && res.data) {
-                this.saveTokens(res.data.access_token, res.data.refresh_token);
+                this.saveTokens(res.data.access_token, res.data.refresh_token, res.data.user_id);
                 return true;
             }
         } catch (e) {

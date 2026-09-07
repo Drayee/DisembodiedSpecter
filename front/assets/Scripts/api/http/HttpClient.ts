@@ -2,6 +2,7 @@
 // 基于 Cocos Creator 内置 XMLHttpRequest 的 HTTP 客户端（跨 Web / 原生平台）。
 // 后端统一响应体: { code: 0 成功 / 非 0 失败, message, data }
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
+import {NetworkManager} from "db://assets/Scripts/managers/NetworkManager";
 
 export interface ApiResponse<T = any> {
     code: number;
@@ -41,13 +42,11 @@ export class HttpClient {
     // ==================== Token 获取（由 NetworkManager 注入） ====================
 
     private getAccessToken(): string {
-        const nm = (globalThis as any).NetworkManager;
-        return nm?.getInstance?.()?.getAccessToken?.() || '';
+        return NetworkManager.getInstance().getAccessToken() || '';
     }
 
     private getRefreshToken(): string {
-        const nm = (globalThis as any).NetworkManager;
-        return nm?.getInstance?.()?.getRefreshToken?.() || '';
+        return NetworkManager.getInstance().getRefreshToken() || '';
     }
 
     // ==================== 核心请求（XHR） ====================
@@ -61,6 +60,7 @@ export class HttpClient {
             xhr.setRequestHeader('Content-Type', 'application/json');
 
             const token = this.getAccessToken();
+            console.log(token);
             if (token) {
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
             }

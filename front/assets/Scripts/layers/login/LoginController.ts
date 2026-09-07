@@ -144,6 +144,8 @@ export class LoginController extends Component {
                     }
                     this.getCaptcha(email);
                 } else {
+                    this.FirstInput.string = '';
+                    this.SecondInput.string = '';
                     this.nowStatus = Status.SET_PASSWORD;
                 }
                 break;
@@ -155,7 +157,7 @@ export class LoginController extends Component {
                     return;
                 }
                 this.showStatus('注册中...', false);
-                this.networkManager.register(username, password, email, this.tempCode)
+                this.networkManager.register(username, password, this.captchaEmail, this.tempCode)
                     .then(() => {
                         this.onLoginSuccess(username);
                     }).catch((err) => {

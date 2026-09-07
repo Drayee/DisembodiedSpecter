@@ -15,3 +15,8 @@ type RegisterReq struct {
 type RefreshReq struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
+
+type VerifyCodeReq struct {
+	VerifierType string `json:"verifier_type" binding:"required,oneof=email phone"`
+	Verifier     string `json:"verifier" binding:"required,min=6,max=20"`
+}
