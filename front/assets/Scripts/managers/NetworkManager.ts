@@ -3,12 +3,11 @@
 import { _decorator, Component } from 'cc';
 import { HttpClient, EtagResult } from 'db://assets/Scripts/api/http/HttpClient';
 import { WsClient } from 'db://assets/Scripts/api/websocket/WsClient';
-import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_message.js';
-import * as globalProto from 'db://assets/Scripts/api/websocket/proto/global_message.js';
+import * as messages from '../api/websocket/proto/messages.js';
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
 import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
-const FightMessage = fightProto.proto.FightMessage;
-const GlobalMessage = globalProto.proto.GlobalMessage;
+const FightMessage = messages.proto.FightMessage;
+const GlobalMessage = messages.proto.GlobalMessage;
 
 const { ccclass } = _decorator;
 
@@ -212,7 +211,7 @@ export class NetworkManager extends Component {
      * @param wsCode
      * @param onFightMessage 收到战斗消息（已解码为 FightMessage）的回调
      */
-    public connectBattleWS(userId: number, wsCode: string, onFightMessage?: (msg: typeof FightMessage) => void): WsClient {
+    public connectBattleWS(userId: number, wsCode: string, onFightMessage?: (msg: InstanceType<typeof FightMessage>) => void): WsClient {
         const host = this.serverURL.replace(/^https?:\/\//, '').replace(/\/+$/, '');
         this.battleWs = new WsClient(`ws://${host}/api/ws/fight/${userId}/${wsCode}`, {
             reconnect: true,
@@ -321,7 +320,7 @@ export class NetworkManager extends Component {
     }
 
     /** 发送战斗消息（protobuf 编码） */
-    public sendFightMessage(msg: typeof FightMessage): boolean {
+    public sendFightMessage(msg: InstanceType<typeof FightMessage>): boolean {
         const bytes = FightMessage.encode(msg).finish();
         return this.battleWs.sendBinary(bytes);
     }

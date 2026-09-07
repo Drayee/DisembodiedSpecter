@@ -3,14 +3,14 @@
 // 渲染战斗状态 → 出招 / 切阶段 / 请求同步 / 退出。
 import { _decorator, Component } from 'cc';
 import { NetworkManager } from 'db://assets/Scripts/managers/NetworkManager';
-import * as fightProto from 'db://assets/Scripts/api/websocket/proto/fight_message.js';
+import * as messages from '../api/websocket/proto/messages.js';
 import { StoryController } from 'db://assets/Scripts/story/StoryController';
 import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
 import { cloneProgress, emptyProgress, MAIN_START_ADDR, isTerminal } from 'db://assets/Scripts/story/StoryAddr';
 
 // 从命名空间中提取类型
-type FightMessage = fightProto.proto.FightMessage;
-type FightStatus = fightProto.proto.FightStatus;
+type FightMessage = InstanceType<typeof messages.proto.FightMessage>;
+type FightStatus = InstanceType<typeof messages.proto.FightStatus>;
 
 // 定义阶段枚举（使用 protobuf 生成的枚举值）
 const FightPhase = {
@@ -60,16 +60,16 @@ export class GameManager extends Component {
      * 构造“选择技能”消息
      */
     private buildChoseSkill(skills: { skillId: number; targetId: number; characterId: number }[]): FightMessage {
-        const c2s = fightProto.C2S_ChoseSkills.create({ skills });
-        return fightProto.FightMessage.create({ choseSkill: c2s });
+        const c2s = messages.proto.C2S_ChoseSkills.create({ skills });
+        return messages.proto.FightMessage.create({ choseSkill: c2s });
     }
 
     /**
      * 构造“切换阶段”消息
      */
     private buildSwitchPhase(phase: number): FightMessage {
-        const c2s = fightProto.C2S_SwitchPhase.create({ phase });
-        return fightProto.FightMessage.create({ switchPhase: c2s });
+        const c2s = messages.proto.C2S_SwitchPhase.create({ phase });
+        return messages.proto.FightMessage.create({ switchPhase: c2s });
     }
 
     /**
@@ -77,8 +77,8 @@ export class GameManager extends Component {
      */
     private buildSyncRequest(): FightMessage {
         // 如果需要填充 timestamp 等，可在此添加
-        const sync = fightProto.Msg_SyncFightStatus.create({});
-        return fightProto.FightMessage.create({ syncFightStatus: sync });
+        const sync = messages.proto.Msg_SyncFightStatus.create({});
+        return messages.proto.FightMessage.create({ syncFightStatus: sync });
     }
 
     // ==================== 战斗流程 ====================
@@ -114,7 +114,7 @@ export class GameManager extends Component {
     }
 
     public handleFightMessage(msg: FightMessage) {
-        const status = msg.syncFightStatus?.status;
+        const status = msg.syncFightStatus?.status as FightStatus | undefined;  // ① 断言
         if (status) {
             this.battleSnapshot = { status, updatedAt: Date.now() };
             this.onBattleStatus?.(status);
