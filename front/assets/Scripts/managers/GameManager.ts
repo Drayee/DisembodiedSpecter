@@ -3,10 +3,14 @@
 // 渲染战斗状态 → 出招 / 切阶段 / 请求同步 / 退出。
 import { _decorator, Component } from 'cc';
 import { NetworkManager } from 'db://assets/Scripts/managers/NetworkManager';
-import * as messages from '../api/websocket/proto/messages.js';
+import * as messagesNS from '../api/websocket/proto/messages.js';
 import { StoryController } from 'db://assets/Scripts/story/StoryController';
 import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
 import { cloneProgress, emptyProgress, MAIN_START_ADDR, isTerminal } from 'db://assets/Scripts/story/StoryAddr';
+
+// Cocos 把 assets 下的 CJS .js 资产统一包装成“仅 default 导出”的模块（default === module.exports），
+// 命名空间上拿不到 proto，因此统一从 default 取 $root（其 .proto 属性才是消息命名空间）。
+const messages: typeof messagesNS = ((messagesNS as { default?: typeof messagesNS }).default ?? messagesNS);
 
 // 从命名空间中提取类型
 type FightMessage = InstanceType<typeof messages.proto.FightMessage>;
