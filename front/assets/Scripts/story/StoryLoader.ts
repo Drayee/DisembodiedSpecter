@@ -1,5 +1,5 @@
 // StoryLoader.ts
-// 按段加载剧情 JSON（Resources/story/data/{篇}.{章}.{片}.{段}.json）并做内存缓存。
+// 按段加载剧情 JSON（resources/story/data/{篇}.{章}.{片}.{段}.json）并做内存缓存。
 import { JsonAsset, resources } from 'cc';
 import { StoryNode, StorySegment } from './StoryTypes';
 

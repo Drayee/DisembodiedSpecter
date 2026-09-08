@@ -1,0 +1,65 @@
+// global_message.proto
+// 非战斗（大世界）全局消息协议：走动、剧情进度同步、状态下推等。
+// 与战斗协议（fight_message.proto）并列：信封同样是双向的 GlobalMessage，
+// 客户端上行 move / story_progress，服务端下行 sync_state / ack。
+syntax = "proto3";
+
+package proto;
+option go_package = "./pd";
+
+// 大世界 2D 坐标
+message WorldPos {
+  string map_name = 1; // 地图标识（如 "town"、"wild"）
+  int32  x = 2;        // x 坐标
+  int32  y = 3;        // y 坐标
+}
+
+// 剧情进度（单人单档；游标地址见 docs/story-json-schema.md）
+message StoryProgressData {
+  string main = 1;                 // 主线游标；"" = 主线未开始/已重置
+  map<string, string> branches = 2; // 支线：key = 支线前缀（如 "0.1"），值 "" = 该支线未开始
+}
+
+// C2S：大世界走动（客户端上报新位置）
+message C2S_Move {
+  WorldPos pos = 1;
+}
+
+// C2S：同步剧情进度
+message C2S_StoryProgress {
+  StoryProgressData progress = 1;
+}
+
+// C2S：请求服务端下发一次 SyncState（备用；默认连接即推）
+message C2S_SyncRequest {}
+
+// S2C：玩家全局状态快照（连接建立后先推一次）
+message S2C_SyncState {
+  int32 doing = 1;                 // 正在做的事（0 剧情 / 1 战斗 / 2 无事 / 3 移动）
+  map<string, string> doing_map = 2; // 正在做的事的详情（如移动坐标）
+  int32 level = 3;
+  int32 exp = 4;
+  WorldPos location = 5;           // 玩家当前位置
+  StoryProgressData story = 6;     // 剧情进度
+}
+
+// S2C：通用回执
+message S2C_Ack {
+  bool ok = 1;
+  uint32 code = 2; // 0 = 成功；非 0 = 错误码（暂未细分）
+  string reason = 3;
+}
+
+// 顶层消息包装器（Envelope，双向）
+message GlobalMessage {
+  uint64 sequence_id = 1; // 消息序号
+  int64  timestamp = 2;   // 消息发送时间戳
+
+  oneof payload {
+    C2S_Move move = 3;             // 客户端：走动
+    C2S_StoryProgress story_progress = 4; // 客户端：剧情进度
+    C2S_SyncRequest sync_request = 5;     // 客户端：请求同步
+    S2C_SyncState sync_state = 6;         // 服务端：状态快照
+    S2C_Ack ack = 7;                      // 服务端：回执
+  }
+}

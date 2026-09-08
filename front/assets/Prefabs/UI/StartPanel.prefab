@@ -159,7 +159,7 @@
       "__id__": 6
     },
     "_customMaterial": {
-      "__uuid__": "fb152f3f-99c8-4cd7-91dc-2b4fef11f2cf",
+      "__uuid__": "c9c8a24e-25d0-44c6-b984-3fba76c2f17b",
       "__expectedType__": "cc.Material"
     },
     "_srcBlendFactor": 2,
@@ -172,12 +172,12 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "3c3041a9-79cd-47fd-96e7-2e63d18f4266@f9941",
+      "__uuid__": "e8d7621d-5532-402c-bd6a-360fe15d9e75@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
     "_fillType": 0,
-    "_sizeMode": 1,
+    "_sizeMode": 0,
     "_fillCenter": {
       "__type__": "cc.Vec2",
       "x": 0,
@@ -207,7 +207,7 @@
       "__id__": 8
     },
     "waveMat": {
-      "__uuid__": "fb152f3f-99c8-4cd7-91dc-2b4fef11f2cf",
+      "__uuid__": "c9c8a24e-25d0-44c6-b984-3fba76c2f17b",
       "__expectedType__": "cc.Material"
     },
     "_id": ""
@@ -225,6 +225,8 @@
       "__id__": 0
     },
     "fileId": "c3lcHFy0JI5Z67MStbyVTB",
+    "instance": null,
+    "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
   },
   {
@@ -294,7 +296,7 @@
     },
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 139.99331153388823,
+      "width": 139.99260840998687,
       "height": 50.400000000000006
     },
     "_anchorPoint": {
@@ -333,14 +335,14 @@
     "_string": "点 击 任 意 处 开 始",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
-    "_actualFontSize": 26.28125,
+    "_actualFontSize": 23.78125,
     "_fontSize": 20,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
     "_overflow": 0,
     "_enableWrapText": true,
     "_font": {
-      "__uuid__": "a1451c7e-3275-465a-87b4-fc93a3f70ab7",
+      "__uuid__": "b81c622b-4c4c-4216-829d-84264ea9afab",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,
@@ -409,6 +411,8 @@
       "__id__": 0
     },
     "fileId": "a2FXISRXBGWq12MiBf7rsK",
+    "instance": null,
+    "targetOverrides": null,
     "nestedPrefabInstanceRoots": null
   },
   {
@@ -512,12 +516,12 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "0d47aab5-570c-40d1-802e-3c25808e5704@f9941",
+      "__uuid__": "8d734fc1-35a1-4a10-9ab8-f8038638030c@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
     "_fillType": 0,
-    "_sizeMode": 1,
+    "_sizeMode": 0,
     "_fillCenter": {
       "__type__": "cc.Vec2",
       "x": 0,

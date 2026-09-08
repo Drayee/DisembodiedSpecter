@@ -2,7 +2,7 @@
 // 剧情数据模型定义。
 //
 // 数据约定：
-//   - 数据目录：assets/Resources/story/data（段文件会被按需加载）
+//   - 数据目录：assets/resources/story/data（段文件会被按需加载）
 //   - 地址规则：篇.章.片.段.节点[.分支]，例：
 //       1.0.0.1.1     主线（篇 1、章 0、片 0、段 1）的第 1 个节点
 //       1.0.0.1.3.a   同一段节点 3 的分支 a 变体（选项跳转目标）
@@ -15,7 +15,7 @@
 /** 剧情节点（事件）类型 */
 export type StoryNodeType = 'dialogue' | 'narration' | 'choice' | 'stage' | 'action';
 
-/** 演出指令内容（key 对应 Resources/story/image、story/video 下的资源名，缺失时组件自动跳过） */
+/** 演出指令内容（key 对应 resources/story/image、story/video 下的资源名，缺失时组件自动跳过） */
 export interface StoryStageSpec {
     /** 背景图 key → story/image/{key}/spriteFrame */
     bg?: string;

@@ -2,7 +2,14 @@
 // 基于 Cocos Creator 内置 XMLHttpRequest 的 HTTP 客户端（跨 Web / 原生平台）。
 // 后端统一响应体: { code: 0 成功 / 非 0 失败, message, data }
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
-import {NetworkManager} from "db://assets/Scripts/managers/NetworkManager";
+
+export interface TokenProvider {
+    getAccessToken(): string;
+    getRefreshToken(): string;
+    saveTokens(access: string, refresh: string, userId?: number): void;
+    clearTokens(): void;
+    redirectToLogin?(): void;
+}
 
 export interface ApiResponse<T = any> {
     code: number;
@@ -32,21 +39,13 @@ export interface RequestOptions {
 export class HttpClient {
     private readonly baseURL: string;
     private readonly timeout: number;
+    private tokenProvider: TokenProvider;
     private refreshing = false;
 
-    constructor(baseURL: string = 'http://localhost:8080', timeout: number = 15000) {
+    constructor(baseURL: string, timeout: number = 15000, tokenProvider: TokenProvider) {
         this.baseURL = baseURL.replace(/\/+$/, '');
         this.timeout = timeout;
-    }
-
-    // ==================== Token 获取（由 NetworkManager 注入） ====================
-
-    private getAccessToken(): string {
-        return NetworkManager.getInstance().getAccessToken() || '';
-    }
-
-    private getRefreshToken(): string {
-        return NetworkManager.getInstance().getRefreshToken() || '';
+        this.tokenProvider = tokenProvider;
     }
 
     // ==================== 核心请求（XHR） ====================
@@ -59,7 +58,7 @@ export class HttpClient {
             xhr.responseType = 'text';
             xhr.setRequestHeader('Content-Type', 'application/json');
 
-            const token = this.getAccessToken();
+            const token = this.tokenProvider.getAccessToken();
             console.log(token);
             if (token) {
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -137,7 +136,7 @@ export class HttpClient {
 
     // 刷新 Token（内部使用，避免循环刷新）
     private async refreshToken(): Promise<boolean> {
-        const rt = this.getRefreshToken();
+        const rt = this.tokenProvider.getRefreshToken();
         if (!rt) return false;
         try {
             const res = await this.request<{ access_token: string; refresh_token: string }>(
@@ -155,8 +154,8 @@ export class HttpClient {
 
     // 刷新失败 → 清 Token 并回登录界面
     private redirectToLogin() {
-        const nm = (globalThis as any).NetworkManager?.getInstance?.();
-        nm?.clearTokens?.();
+        this.tokenProvider.clearTokens();
+        this.tokenProvider.redirectToLogin?.();
         const uiMgr = (globalThis as any).UIManager?.getInstance?.();
         if (uiMgr?.openPanel) {
             uiMgr.openPanel('LoginPanel', { overlay: true });
@@ -196,7 +195,7 @@ export class HttpClient {
             xhr.open('GET', this.baseURL + url, true);
             xhr.timeout = this.timeout;
             xhr.responseType = 'text';
-            const token = this.getAccessToken();
+            const token = this.tokenProvider.getAccessToken();
             if (token) {
                 xhr.setRequestHeader('Authorization', `Bearer ${token}`);
             }

@@ -2,8 +2,13 @@
   "ver": "1.2.0",
   "importer": "directory",
   "imported": true,
-  "uuid": "dd0d3481-fadb-44b9-9603-c3ec1c30c787",
+  "uuid": "e6517d3a-fc4c-482e-ae15-5e78b19290b3",
   "files": [],
   "subMetas": {},
-  "userData": {}
+  "userData": {
+    "isBundle": true,
+    "bundleConfigID": "default",
+    "bundleName": "resources",
+    "priority": 8
+  }
 }

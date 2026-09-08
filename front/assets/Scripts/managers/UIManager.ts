@@ -7,13 +7,6 @@ import { _decorator, Component, Node, Prefab, instantiate, director, assetManage
 import {TooltipManager} from "db://assets/Scripts/managers/TooltipManager";
 const { ccclass, property } = _decorator;
 
-/** 面板预制体 UUID 注册表 */
-export const PANEL_UUIDS: Record<string, string> = {
-    StartPanel: '740e469f-fe3c-42b4-a2e6-f07fcdaf0ee2',
-    LoginPanel: 'b4ca1aea-d1ee-428e-9f75-ece1b234820f',
-    WorldPanel: '4e3801d9-722c-4e98-b5e3-c87e37558c71',
-};
-
 /** UI 面板所在的 Asset Bundle（在编辑器中把 assets/Prefabs/UI 配置为 Bundle，名称填 ui） */
 const PANEL_BUNDLE = 'ui';
 let uiBundlePromise: Promise<AssetManager.Bundle> | null = null;
@@ -91,16 +84,11 @@ export class UIManager extends Component {
      */
     public openPanel(name: string, options?: OpenPanelOptions) {
         const overlay = options?.overlay ?? false;
-        const uuid = PANEL_UUIDS[name];
-        if (!uuid) {
-            console.error(`[UIManager] 未知面板: ${name}`);
-            return;
-        }
         ensurePanelBundle().then((bundle) => {
             if (!overlay) {
                 this.clearAll();
             }
-            bundle.load(uuid, (err, asset) => {
+            bundle.load(name, Prefab, (err, asset) => {
                 if (err || !(asset instanceof Prefab)) {
                     console.error(`[UIManager] 加载面板失败: ${name}`, err);
                     return;

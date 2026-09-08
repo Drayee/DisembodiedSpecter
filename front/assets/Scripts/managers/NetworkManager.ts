@@ -47,8 +47,8 @@ export class NetworkManager extends Component {
 
     onLoad() {
         NetworkManager._instance = this;
-        this.http = new HttpClient(this.serverURL);
         this.loadTokens();
+        this.http = new HttpClient(this.serverURL,15000,this);
         (globalThis as any).NetworkManager = this;
     }
 

@@ -479,12 +479,12 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "29a77824-6625-4306-97f9-96e98450de0a@f9941",
+      "__uuid__": "3dd92bff-cbc0-43f0-96f5-71cfecc554b1@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
     "_fillType": 0,
-    "_sizeMode": 2,
+    "_sizeMode": 0,
     "_fillCenter": {
       "__type__": "cc.Vec2",
       "x": 0,
@@ -884,12 +884,12 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "13ca4eac-c114-4da4-8286-5bac724989f2@f9941",
+      "__uuid__": "1981d49f-8826-4f29-9b00-b4d7c6bec4a6@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 0,
     "_fillType": 0,
-    "_sizeMode": 1,
+    "_sizeMode": 0,
     "_fillCenter": {
       "__type__": "cc.Vec2",
       "x": 0,
@@ -1338,7 +1338,7 @@
       "b": 187,
       "a": 255
     },
-    "_string": "Enter text here...",
+    "_string": "解明,铭刻",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
     "_actualFontSize": 21.8125,
@@ -4337,7 +4337,7 @@
     "_overflow": 0,
     "_enableWrapText": true,
     "_font": {
-      "__uuid__": "8cad8ff6-355a-40ec-895a-28789f51a54a",
+      "__uuid__": "16e7c59f-24db-42eb-8c7c-551fa1c6fc77",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,
@@ -4659,7 +4659,7 @@
       "a": 255
     },
     "_spriteFrame": {
-      "__uuid__": "ae1adeca-418f-4771-81f7-914a51790974@f9941",
+      "__uuid__": "42216b27-7e47-440e-bf5c-dff3570c8f3f@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
     "_type": 1,
@@ -4724,22 +4724,10 @@
       "b": 124,
       "a": 255
     },
-    "_normalSprite": {
-      "__uuid__": "ae1adeca-418f-4771-81f7-914a51790974@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
-    "_hoverSprite": {
-      "__uuid__": "20835ba4-6145-4fbc-a58a-051ce700aa3e@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
-    "_pressedSprite": {
-      "__uuid__": "544e49d6-3f05-4fa8-9a9e-091f98fc2ce8@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
-    "_disabledSprite": {
-      "__uuid__": "951249e0-9f16-456d-8b85-a6ca954da16b@f9941",
-      "__expectedType__": "cc.SpriteFrame"
-    },
+    "_normalSprite": null,
+    "_hoverSprite": null,
+    "_pressedSprite": null,
+    "_disabledSprite": null,
     "_duration": 0.1,
     "_zoomScale": 1.2,
     "_target": {
@@ -4829,11 +4817,11 @@
     },
     "stateFrames": [
       {
-        "__uuid__": "29a77824-6625-4306-97f9-96e98450de0a@f9941",
+        "__uuid__": "3dd92bff-cbc0-43f0-96f5-71cfecc554b1@f9941",
         "__expectedType__": "cc.SpriteFrame"
       },
       {
-        "__uuid__": "4160a773-ab5b-4a30-9053-9947390c6256@f9941",
+        "__uuid__": "3f62b0e6-493b-4ff0-a6ee-63bab5b8010d@f9941",
         "__expectedType__": "cc.SpriteFrame"
       }
     ],

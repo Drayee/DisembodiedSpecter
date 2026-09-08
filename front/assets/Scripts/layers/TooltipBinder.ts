@@ -8,10 +8,10 @@ export class TooltipBinder extends Component {
     @property({ tooltip: '提示文字' })
     public text: string = '提示';
 
-    @property({ type: Color, tooltip: '背景色（可透明）' })
+    @property({tooltip: '背景色（可透明）' })
     public bgColor: Color = new Color(50, 50, 50, 220);
 
-    @property({ type: Color, tooltip: '文字颜色' })
+    @property({tooltip: '文字颜色' })
     public textColor: Color = new Color(255, 255, 255, 255);
 
     @property({ tooltip: '字体大小' })

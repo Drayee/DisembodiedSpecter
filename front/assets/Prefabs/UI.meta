@@ -7,6 +7,19 @@
   "subMetas": {},
   "userData": {
     "isBundle": true,
-    "bundleName": "ui"
+    "bundleName": "ui",
+    "bundleFilterConfig": [
+      {
+        "range": "include",
+        "type": "url",
+        "patchOption": {
+          "patchType": "glob",
+          "value": "db://assets/Prefabs/UI/**/*"
+        },
+        "assets": [
+          ""
+        ]
+      }
+    ]
   }
 }
