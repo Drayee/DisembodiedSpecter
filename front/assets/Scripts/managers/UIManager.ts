@@ -1,9 +1,9 @@
 // UIManager.ts
-// UI 面板管理：按 UUID 加载预制体（不依赖 Resources 目录，不移动项目结构），
+// UI 面板管理：按 UUID 加载预制体（不依赖 resources 目录，不移动项目结构），
 // 支持两种打开方式：
 //   - 切换式（overlay=false）：清空当前所有面板后显示（如 进入 WorldPanel）
 //   - 弹窗式（overlay=true）：在当前面板之上叠加，不摧毁下层（如 在 StartPanel 上弹出 LoginPanel）
-import { _decorator, Component, Node, Prefab, instantiate, director, assetManager, Canvas} from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, director, assetManager, Canvas, Bundle } from 'cc';
 import {TooltipManager} from "db://assets/Scripts/managers/TooltipManager";
 const { ccclass, property } = _decorator;
 
@@ -13,6 +13,26 @@ export const PANEL_UUIDS: Record<string, string> = {
     LoginPanel: 'b4ca1aea-d1ee-428e-9f75-ece1b234820f',
     WorldPanel: '4e3801d9-722c-4e98-b5e3-c87e37558c71',
 };
+
+/** UI 面板所在的 Asset Bundle（在编辑器中把 assets/Prefabs/UI 配置为 Bundle，名称填 ui） */
+const PANEL_BUNDLE = 'ui';
+let uiBundlePromise: Promise<Bundle> | null = null;
+
+function ensurePanelBundle(): Promise<Bundle> {
+    if (!uiBundlePromise) {
+        uiBundlePromise = new Promise((resolve, reject) => {
+            assetManager.loadBundle(PANEL_BUNDLE, (err, bundle) => {
+                if (err) {
+                    uiBundlePromise = null;
+                    reject(new Error(`加载 Bundle(${PANEL_BUNDLE}) 失败: ${err.message || err}`));
+                } else {
+                    resolve(bundle);
+                }
+            });
+        });
+    }
+    return uiBundlePromise;
+}
 
 export interface OpenPanelOptions {
     /** true=弹窗叠加（保留下层面板）；false=切换（清空全部） */
@@ -76,15 +96,19 @@ export class UIManager extends Component {
             console.error(`[UIManager] 未知面板: ${name}`);
             return;
         }
-        if (!overlay) {
-            this.clearAll();
-        }
-        assetManager.loadAny({ uuid }, (err, asset) => {
-            if (err || !(asset instanceof Prefab)) {
-                console.error(`[UIManager] 加载面板失败: ${name}`, err);
-                return;
+        ensurePanelBundle().then((bundle) => {
+            if (!overlay) {
+                this.clearAll();
             }
-            this.pushPanel(instantiate(asset as Prefab));
+            bundle.load(uuid, (err, asset) => {
+                if (err || !(asset instanceof Prefab)) {
+                    console.error(`[UIManager] 加载面板失败: ${name}`, err);
+                    return;
+                }
+                this.pushPanel(instantiate(asset as Prefab));
+            });
+        }).catch((err) => {
+            console.error(`[UIManager] 加载面板失败: ${name}`, err);
         });
     }
 
