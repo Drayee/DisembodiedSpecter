@@ -3,11 +3,11 @@
 // 支持两种打开方式：
 //   - 切换式（overlay=false）：清空当前所有面板后显示（如 进入 WorldPanel）
 //   - 弹窗式（overlay=true）：在当前面板之上叠加，不摧毁下层（如 在 StartPanel 上弹出 LoginPanel）
-import { _decorator, Component, Node, Prefab, instantiate, director, assetManager, Canvas, Bundle } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, director, assetManager, Canvas, AssetManager  } from 'cc';
 import {TooltipManager} from "db://assets/Scripts/managers/TooltipManager";
 const { ccclass, property } = _decorator;
 
-/** 面板预制体 UUID 注册表（Prefabs/UI 下，未随项目结构移动） */
+/** 面板预制体 UUID 注册表 */
 export const PANEL_UUIDS: Record<string, string> = {
     StartPanel: '740e469f-fe3c-42b4-a2e6-f07fcdaf0ee2',
     LoginPanel: 'b4ca1aea-d1ee-428e-9f75-ece1b234820f',
@@ -16,9 +16,9 @@ export const PANEL_UUIDS: Record<string, string> = {
 
 /** UI 面板所在的 Asset Bundle（在编辑器中把 assets/Prefabs/UI 配置为 Bundle，名称填 ui） */
 const PANEL_BUNDLE = 'ui';
-let uiBundlePromise: Promise<Bundle> | null = null;
+let uiBundlePromise: Promise<AssetManager.Bundle> | null = null;
 
-function ensurePanelBundle(): Promise<Bundle> {
+function ensurePanelBundle(): Promise<AssetManager.Bundle> {
     if (!uiBundlePromise) {
         uiBundlePromise = new Promise((resolve, reject) => {
             assetManager.loadBundle(PANEL_BUNDLE, (err, bundle) => {
