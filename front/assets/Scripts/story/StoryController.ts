@@ -24,6 +24,8 @@ export class StoryController {
     public onCursor?: StoryCursorSink;
     /** 一段剧情结束/中止（由调用方刷新 UI 状态） */
     public onEnded?: () => void;
+    /** 播放状态回调：true=覆盖层已建立并开始播放，false=已拆除（结束/中止/异常） */
+    public onPlayback?: (playing: boolean) => void;
 
     private token = 0;
     private overlay: Node | null = null;
@@ -89,6 +91,11 @@ export class StoryController {
         }
         this.overlay = overlay;
         this.panel = panel;
+        try {
+            this.onPlayback?.(true);
+        } catch (e) {
+            console.error('[Story] 播放状态回调异常', e);
+        }
 
         try {
             let cur: ParsedAddr | null = start;
@@ -177,6 +184,11 @@ export class StoryController {
             this.onEnded?.();
         } catch (e) {
             console.error('[Story] 结束回调异常', e);
+        }
+        try {
+            this.onPlayback?.(false);
+        } catch (e) {
+            console.error('[Story] 播放状态回调异常', e);
         }
     }
 }

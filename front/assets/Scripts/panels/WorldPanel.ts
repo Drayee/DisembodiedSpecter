@@ -182,6 +182,10 @@ export class WorldPanel extends Component {
     private onMoveDebug() {
         const gm = GameManager.getInstance();
         if (!gm) return;
+        if (gm.isWorldLocked()) {
+            this.showNotice('剧情播放中，世界移动已锁定');
+            return;
+        }
         const ok = gm.moveTo('town', 16, 8);
         this.showNotice(ok ? '已上报移动：town(16, 8)' : '上报移动失败：global WS 未连接');
     }

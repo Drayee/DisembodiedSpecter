@@ -34,6 +34,10 @@ export interface BattleSnapshot {
 export class GameManager extends Component {
     private static _instance: GameManager;
 
+    /** 世界交互锁状态（剧情等全屏演出播放中为 true） */
+    private _worldLocked = false;
+    private _worldLockReason: string | null = null;
+
     public battleSnapshot: BattleSnapshot = { updatedAt: 0 };
 
     /** 单人单档剧情进度（主线游标 + 支线游标；后端 WS 为权威） */
@@ -51,6 +55,8 @@ export class GameManager extends Component {
         (globalThis as any).GameManager = this;
         // 剧情引擎每推进一个节点，都回调这里做内存镜像 + WS 上报
         StoryController.instance.onCursor = (scope, cursor) => this.applyStoryCursor(scope, cursor);
+        // 剧情全屏播放期间锁定世界交互，结束/中止后自动解锁
+        StoryController.instance.onPlayback = (playing) => this.setWorldLock('story', playing);
         this.ensureNetworkHooks();
     }
 
@@ -183,6 +189,27 @@ export class GameManager extends Component {
         return lines.join('\n');
     }
 
+    // ==================== 世界交互锁 ====================
+
+    /**
+     * 剧情等全屏演出播放期间锁定大世界交互（移动等）。
+     * reason 标识锁来源；解锁时必须传入同一 reason，避免误解除他人之锁。
+     */
+    public setWorldLock(reason: string, locked: boolean) {
+        if (locked) {
+            this._worldLocked = true;
+            this._worldLockReason = reason;
+        } else if (this._worldLockReason === reason) {
+            this._worldLocked = false;
+            this._worldLockReason = null;
+        }
+    }
+
+    /** 世界交互当前是否被锁（未来所有世界操作统一检查此闸口） */
+    public isWorldLocked(): boolean {
+        return this._worldLocked;
+    }
+
     // ==================== 剧情进度 ====================
 
     /** 注册网络层 S2C_SyncState 回调（幂等；连接后用于恢复剧情/位置状态） */
@@ -211,6 +238,10 @@ export class GameManager extends Component {
 
     /** 上报大世界走动（C2S_Move）并同步本地 worldState */
     public moveTo(mapName: string, x: number, y: number): boolean {
+        if (this._worldLocked) {
+            console.warn('[GameManager] 剧情播放中（世界锁），拒绝移动上报');
+            return false;
+        }
         const nm = NetworkManager.getInstance();
         if (!nm) return false;
         if (!nm.sendMove(mapName, x, y)) return false;
