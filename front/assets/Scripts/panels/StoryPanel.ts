@@ -3,8 +3,8 @@
 // （编辑器已配好 UITransform 与本脚本组件）。
 //
 // 所有可见节点都在编辑器中排布，本脚本只按“约定角色”绑定并驱动它们：
-//   Background  = 暗幕/底图（仅视觉，逻辑不触碰）
-//   CGDisplay   = 舞台背景 CG（stage.bg 切图 / 显示隐藏，Sprite）
+//   Background  = 底部背景（stage.bg 的照片/动画帧，Sprite，位于最底层）
+//   CGDisplay   = 顶部 CG 叠加（stage.cg 的图片/动画帧，Sprite，位于最顶层）
 //   Person      = 立绘区容器；其子节点 P1~P8 为多人立绘槽位（Sprite）
 //   Text > Label= 对白/旁白正文（打字机）
 //   NameLabel   = 说话人名字
@@ -33,7 +33,8 @@ const DIM_ALPHA = 120;      // 非当前说话者压暗透明度
 @ccclass('StoryPanel')
 export class StoryPanel extends Component {
     // 编辑器角色节点（绑定得到，可能为 null → 功能降级）
-    private bgArt: Sprite | null = null;         // CGDisplay
+    private bgSprite: Sprite | null = null;      // Background（底部背景）
+    private cgSprite: Sprite | null = null;      // CGDisplay（顶部 CG）
     private slots: { node: Node; sprite: Sprite }[] = []; // Person/P1..P8（下标 0 对应 P1）
     private nameLabel: Label | null = null;
     private textLabel: Label | null = null;
@@ -54,6 +55,9 @@ export class StoryPanel extends Component {
 
     /** 立绘槽位版本号：每次展示/重置自增，异步贴图只接受最新版本，避免串图 */
     private avatarEpoch = 0;
+
+    /** 舞台资源版本号：每次 stage 节点自增，异步背景/CG 只接受最新版本 */
+    private stageEpoch = 0;
 
     // ==================== 初始化 ====================
 
@@ -76,9 +80,13 @@ export class StoryPanel extends Component {
         const root = this.node;
         if (!root || !root.isValid) return;
 
-        const cg = this.findNodeByName('CGDisplay');
-        this.bgArt = cg ? (cg.getComponent(Sprite) ?? cg.getComponentInChildren(Sprite)) : null;
-        if (!this.bgArt) console.warn('[StoryPanel] 缺少角色节点 CGDisplay(Sprite)：舞台背景不可用');
+        const bgN = this.findNodeByName('Background');
+        this.bgSprite = bgN ? (bgN.getComponent(Sprite) ?? bgN.getComponentInChildren(Sprite)) : null;
+        if (!this.bgSprite) console.warn('[StoryPanel] 缺少角色节点 Background(Sprite)：底部背景不可用');
+
+        const cgN = this.findNodeByName('CGDisplay');
+        this.cgSprite = cgN ? (cgN.getComponent(Sprite) ?? cgN.getComponentInChildren(Sprite)) : null;
+        if (!this.cgSprite) console.warn('[StoryPanel] 缺少角色节点 CGDisplay(Sprite)：顶部 CG 不可用');
 
         // Person → P1~P8 槽位（按数字排序，保证 slot 下标稳定）
         const person = this.findNodeByName('Person');
@@ -401,26 +409,37 @@ export class StoryPanel extends Component {
     private applyStage(node: StoryNode) {
         const stage = node.stage;
         if (!stage) return;
+        this.stageEpoch++;
+        const epoch = this.stageEpoch;
         if (stage.video) {
             console.warn(`[StoryPanel] 视频演出尚未支持，跳过 video=${stage.video}`);
         }
-        if (stage.bg) {
-            if (!this.bgArt) return;
-            resources.load(`story/image/${stage.bg}/spriteFrame`, SpriteFrame, (err, sf) => {
-                if (!this.bgArt || !this.isValid) return;
-                if (err || !sf) {
-                    console.warn(`[StoryPanel] 背景资源缺失，跳过 bg=${stage.bg}`);
-                    return;
-                }
-                this.bgArt.spriteFrame = sf;
-                this.bgArt.node.active = true;
-            });
-        }
+        // bg → Background（底部背景）；cg → CGDisplay（顶部 CG）；字段缺省=保持上一幕，'' = 隐藏
+        if (stage.bg !== undefined) this.setStageSprite(this.bgSprite, 'Background', stage.bg, epoch);
+        if (stage.cg !== undefined) this.setStageSprite(this.cgSprite, 'CGDisplay', stage.cg, epoch);
         if (stage.avatars) {
             this.showAvatars(stage.avatars, undefined);
         } else if (stage.avatar) {
             this.showAvatars([{ key: stage.avatar }], undefined);
         }
+    }
+
+    /** key 为空串 → 隐藏该舞台层；否则异步加载 spriteFrame 并显示（版本不一致则忽略）。 */
+    private setStageSprite(sprite: Sprite | null, nodeName: string, key: string, epoch: number) {
+        if (!sprite) {
+            if (key) console.warn(`[StoryPanel] ${nodeName} 不可用，无法设置 ${key}`);
+            return;
+        }
+        if (!key) {
+            sprite.node.active = false;
+            sprite.spriteFrame = null;
+            return;
+        }
+        resources.load(`story/image/${key}/spriteFrame`, SpriteFrame, (err, sf) => {
+            if (err || !sf || epoch !== this.stageEpoch || !this.isValid || !sprite.isValid) return;
+            sprite.spriteFrame = sf;
+            sprite.node.active = true;
+        });
     }
 
     // ==================== 点击推进 ====================

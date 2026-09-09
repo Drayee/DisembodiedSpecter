@@ -15,10 +15,15 @@
 /** 剧情节点（事件）类型 */
 export type StoryNodeType = 'dialogue' | 'narration' | 'choice' | 'stage' | 'action';
 
-/** 演出指令内容（key 对应 resources/story/image、story/video 下的资源名，缺失时组件自动跳过） */
+/**
+ * 演出指令内容（key 对应 resources/story/image、story/video 下的资源名，缺失时组件自动跳过）。
+ * bg/cg 取值约定：有值 = 加载并显示该层；'' = 隐藏该层；字段缺省 = 保持上一幕不变。
+ */
 export interface StoryStageSpec {
-    /** 背景图 key → story/image/{key}/spriteFrame */
+    /** 底部背景（照片/动画）key → story/image/{key}/spriteFrame */
     bg?: string;
+    /** 顶部 CG（叠加在最上层）key → story/image/{key}/spriteFrame */
+    cg?: string;
     /** 立绘 key → story/image/{key}/spriteFrame（旧版单立绘，兼容保留） */
     avatar?: string;
     /** 多人立绘（P1~P8 槽位，同时显示多个人物） */
