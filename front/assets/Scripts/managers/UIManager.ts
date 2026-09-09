@@ -108,6 +108,46 @@ export class UIManager extends Component {
         }
     }
 
+    /**
+     * 从指定 Asset Bundle 按资源路径打开面板（无需 uuid 注册表），返回实例化并已入栈的节点。
+     * @param bundleName Bundle 名（如 'ui'）
+     * @param assetPath  相对 Bundle 根的路径（如 'StoryPanel'）
+     * @param options    overlay=true 不清下层；false 清空全部
+     */
+    public openPanelByPath(bundleName: string, assetPath: string, options?: OpenPanelOptions): Promise<Node | null> {
+        const overlay = options?.overlay ?? false;
+        return new Promise<Node | null>((resolve) => {
+            assetManager.loadBundle(bundleName, (err, bundle) => {
+                if (err || !bundle) {
+                    console.error(`[UIManager] 加载 Bundle(${bundleName}) 失败`, err);
+                    resolve(null);
+                    return;
+                }
+                bundle.load(assetPath, Prefab, (err2, prefab) => {
+                    if (err2 || !(prefab instanceof Prefab)) {
+                        console.error(`[UIManager] Bundle(${bundleName}) 中加载 ${assetPath} 失败`, err2);
+                        resolve(null);
+                        return;
+                    }
+                    if (!overlay) {
+                        this.clearAll();
+                    }
+                    const node = instantiate(prefab as Prefab);
+                    this.pushPanel(node);
+                    resolve(node);
+                });
+            });
+        });
+    }
+
+    /** 关闭并销毁指定面板节点（从栈中移除）；幂等，节点无效时忽略 */
+    public closePanelNode(node: Node | null) {
+        if (!node || !node.isValid) return;
+        const i = this._panels.indexOf(node);
+        if (i >= 0) this._panels.splice(i, 1);
+        node.destroy();
+    }
+
     /** 关闭并清空全部面板 */
     public clearAll() {
         for (const p of this._panels) {

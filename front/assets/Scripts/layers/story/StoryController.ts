@@ -1,8 +1,10 @@
 // StoryController.ts
 // 剧情引擎（状态机）：加载段 JSON → 从游标地址逐 node 推进 → 选项/演出/结束分发，
 // 每推进一个节点都把新游标通过 onCursor 回调交给 GameManager（内存镜像 + WS 上报后端）。
-// 本类是纯逻辑控制器，不依赖场景节点；UI 由 StoryPanel（StoryOverlay）承担。
-import { Node, UITransform } from 'cc';
+// 本类是纯逻辑控制器，不创建场景节点；UI 由 StoryPanel 预制体（assets/Prefabs/UI/StoryPanel.prefab）
+// 承担——播放时经 UIManager.openPanelByPath('ui', 'StoryPanel', { overlay: true }) 打开，
+// 不清除下层面板（如 WorldPanel），结束/中止时关闭并回调 onPlayback(false) 释放世界锁。
+import { Node } from 'cc';
 import { UIManager } from 'db://assets/Scripts/managers/UIManager';
 import { StoryPanel, StoryAdvance } from 'db://assets/Scripts/panels/StoryPanel';
 import { ParsedAddr, parseAddr, scopeKeyOf } from './StoryAddr';
@@ -11,6 +13,10 @@ import { StoryNode, StorySegment } from './StoryTypes';
 
 /** 游标推进回调：scope=null 表示主线；否则为支线 key（如 "0.1"） */
 export type StoryCursorSink = (scope: string | null, cursor: string) => void;
+
+/** StoryPanel 预制体所在 Bundle 与资源路径 */
+const STORY_BUNDLE = 'ui';
+const STORY_PREFAB_PATH = 'StoryPanel';
 
 export class StoryController {
     private static _instance: StoryController | null = null;
@@ -24,7 +30,7 @@ export class StoryController {
     public onCursor?: StoryCursorSink;
     /** 一段剧情结束/中止（由调用方刷新 UI 状态） */
     public onEnded?: () => void;
-    /** 播放状态回调：true=覆盖层已建立并开始播放，false=已拆除（结束/中止/异常） */
+    /** 播放状态回调：true=面板已打开并开始播放，false=已关闭（结束/中止/异常） */
     public onPlayback?: (playing: boolean) => void;
 
     private token = 0;
@@ -69,33 +75,31 @@ export class StoryController {
 
     private async run(tok: number, start: ParsedAddr) {
         const ui = UIManager.getInstance();
-        const host = ui?.uiRoot ?? null;
-        if (!host) {
+        if (!ui) {
             console.error('[Story] UIManager 未初始化，无法打开剧情界面');
             return;
         }
-        const hostT = host.getComponent(UITransform);
-        const w = hostT?.width ?? 1280;
-        const h = hostT?.height ?? 720;
 
-        const overlay = new Node('StoryOverlay');
-        host.addChild(overlay);
-        const ot = overlay.addComponent(UITransform);
-        ot.setContentSize(w, h);
-        const panel = overlay.addComponent(StoryPanel);
-
-        await panel.ensureReady();
-        if (tok !== this.token) {
-            overlay.destroy();
+        // 以全屏面板方式打开预制体（overlay=true：不清除下层 WorldPanel 等）
+        const node = await ui.openPanelByPath(STORY_BUNDLE, STORY_PREFAB_PATH, { overlay: true });
+        if (!node || !node.isValid) {
+            console.error(`[Story] StoryPanel 打开失败（Bundle=${STORY_BUNDLE} 路径=${STORY_PREFAB_PATH}）`);
             return;
         }
-        this.overlay = overlay;
-        this.panel = panel;
-        try {
-            this.onPlayback?.(true);
-        } catch (e) {
-            console.error('[Story] 播放状态回调异常', e);
+
+        let panel = node.getComponent(StoryPanel);
+        if (!panel) {
+            console.warn('[Story] StoryPanel 预制体根节点缺少 StoryPanel 组件，运行时补充');
+            panel = node.addComponent(StoryPanel);
         }
+        await panel.ensureReady();
+        if (tok !== this.token || !node.isValid) {
+            ui.closePanelNode(node);
+            return;
+        }
+        this.overlay = node;
+        this.panel = panel;
+        this.emitPlayback(true);
 
         try {
             let cur: ParsedAddr | null = start;
@@ -106,26 +110,34 @@ export class StoryController {
                     console.error(`[Story] 剧情推进超过 ${MAX_STEPS} 步，疑似地址成环，强制终止`);
                     break;
                 }
+                if (!panel.node || !panel.node.isValid) {
+                    console.warn('[Story] 剧情面板已关闭，终止播放');
+                    break;
+                }
                 const seg: StorySegment | null = await loadSegment(cur.file);
                 if (tok !== this.token) break;
                 if (!seg) {
                     console.error(`[Story] 段文件不存在或格式错误: ${cur.file}`);
                     break;
                 }
-                const node: StoryNode | null = nodeById(seg, cur.key);
-                if (!node) {
+                const snode: StoryNode | null = nodeById(seg, cur.key);
+                if (!snode) {
                     console.error(`[Story] 节点不存在: ${cur.file}.${cur.key}`);
                     break;
                 }
 
                 // action 节点不展示界面；其余类型等待玩家操作
                 let adv: StoryAdvance | null = null;
-                if (node.type !== 'action') {
-                    adv = await panel.present(node);
+                if (snode.type !== 'action') {
+                    adv = await panel.present(snode);
                     if (tok !== this.token) break;
+                    if (!panel.node || !panel.node.isValid) {
+                        console.warn('[Story] 剧情面板在等待操作时被关闭，终止播放');
+                        break;
+                    }
                 }
 
-                const next = this.computeNext(node, seg, cur, adv);
+                const next = this.computeNext(snode, seg, cur, adv);
                 if (!next) {
                     // 无后续目标 → 本次剧情完结，游标进入 {file}.end
                     const terminal = `${cur.file}.end`;
@@ -174,9 +186,18 @@ export class StoryController {
         }
     }
 
+    private emitPlayback(playing: boolean) {
+        try {
+            this.onPlayback?.(playing);
+        } catch (e) {
+            console.error('[Story] 播放状态回调异常', e);
+        }
+    }
+
     private teardown() {
-        if (this.overlay && this.overlay.isValid) {
-            this.overlay.destroy();
+        const ui = UIManager.getInstance();
+        if (this.overlay && this.overlay.isValid && ui) {
+            ui.closePanelNode(this.overlay);
         }
         this.overlay = null;
         this.panel = null;
@@ -185,10 +206,6 @@ export class StoryController {
         } catch (e) {
             console.error('[Story] 结束回调异常', e);
         }
-        try {
-            this.onPlayback?.(false);
-        } catch (e) {
-            console.error('[Story] 播放状态回调异常', e);
-        }
+        this.emitPlayback(false);
     }
 }

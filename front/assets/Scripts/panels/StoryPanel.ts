@@ -1,9 +1,19 @@
 // StoryPanel.ts
-// 剧情表现层：挂载在 StoryOverlay 节点上，全屏叠加于 UIRoot。
-// 功能：对话框 + 说话人名字 + 逐字打字机 + 选项按钮 + 背景/立绘切换。
-// 说明：UI 全部运行时构建（不依赖编辑器绑定），图片资源缺失自动降级隐藏。
+// 剧情表现层（预制体驱动版）：挂载于 assets/Prefabs/UI/StoryPanel.prefab 根节点
+// （编辑器已配好 UITransform 与本脚本组件）。
+//
+// 所有可见节点都在编辑器中排布，本脚本只按“约定角色”绑定并驱动它们：
+//   Background  = 暗幕/底图（仅视觉，逻辑不触碰）
+//   CGDisplay   = 舞台背景 CG（stage.bg 切图 / 显示隐藏，Sprite）
+//   Person      = 说话人立绘/头像（Sprite，可位于自身或其子级）
+//   Text > Label= 对白/旁白正文（打字机）
+//   NameLabel   = 说话人名字
+//   HintLabel   = “打字中… / 点击继续”提示
+//   ChoiceRoot  = 选项按钮容器（容器在编辑器建好；按钮数量不定，运行时生成到其中）
+//
+// 说明：角色节点缺失时仅告警降级、不自动补建（以编辑器配置为准）；图片资源缺失自动降级隐藏。
 import { _decorator, Color, Component, EventTouch, Label, Node, Sprite, SpriteFrame, UITransform, resources } from 'cc';
-import { StoryNode } from '../story/StoryTypes';
+import { StoryNode } from 'db://assets/Scripts/layers/story/StoryTypes';
 
 const { ccclass } = _decorator;
 
@@ -14,14 +24,15 @@ const TYPE_INTERVAL = 0.02; // 打字机逐字间隔（秒）
 
 @ccclass('StoryPanel')
 export class StoryPanel extends Component {
-    private whiteSf: SpriteFrame | null = null;
-
-    private bgArt: Sprite | null = null;       // 舞台背景（stage.bg）
-    private avatarArt: Sprite | null = null;   // 说话人立绘/头像
+    // 编辑器角色节点（绑定得到，可能为 null → 功能降级）
+    private bgArt: Sprite | null = null;         // CGDisplay
+    private avatarArt: Sprite | null = null;     // Person（自身或子级上的 Sprite）
     private nameLabel: Label | null = null;
     private textLabel: Label | null = null;
     private hintLabel: Label | null = null;
     private choiceRoot: Node | null = null;
+
+    private whiteSf: SpriteFrame | null = null;  // 用于选项按钮底色（缺失则按钮透明、仅文字）
 
     private resolver: ((r: StoryAdvance) => void) | null = null;
     private readyPromise: Promise<void> | null = null;
@@ -35,86 +46,82 @@ export class StoryPanel extends Component {
 
     // ==================== 初始化 ====================
 
-    /** 加载白色贴图并搭建 UI；幂等。 */
+    /** 绑定编辑器节点 + 白色贴图；幂等。present() 前必须完成。 */
     public ensureReady(): Promise<void> {
         if (!this.readyPromise) {
-            this.readyPromise = this.buildUI();
+            this.readyPromise = this.init();
         }
         return this.readyPromise;
     }
 
-    private buildUI(): Promise<void> {
+    private async init(): Promise<void> {
+        this.bindNodes();
+        this.bindTap();
+        await this.loadWhite();
+    }
+
+    /** 按约定名绑定角色节点；缺失时告警，不阻断运行。 */
+    private bindNodes() {
+        const root = this.node;
+        if (!root || !root.isValid) return;
+
+        const cg = this.findNodeByName('CGDisplay');
+        this.bgArt = cg ? (cg.getComponent(Sprite) ?? cg.getComponentInChildren(Sprite)) : null;
+        if (!this.bgArt) console.warn('[StoryPanel] 缺少角色节点 CGDisplay(Sprite)：舞台背景不可用');
+
+        const person = this.findNodeByName('Person');
+        this.avatarArt = person ? (person.getComponent(Sprite) ?? person.getComponentInChildren(Sprite)) : null;
+        if (!this.avatarArt) console.warn('[StoryPanel] 缺少角色节点 Person(Sprite)：说话人立绘不可用');
+
+        const textN = this.findNodeByName('Text');
+        this.textLabel = textN ? (textN.getComponent(Label) ?? textN.getComponentInChildren(Label)) : null;
+        if (!this.textLabel) console.error('[StoryPanel] 缺少角色节点 Text>Label：对白无法显示');
+
+        const nameN = this.findNodeByName('NameLabel');
+        this.nameLabel = nameN ? (nameN.getComponent(Label) ?? nameN.getComponentInChildren(Label)) : null;
+        if (!this.nameLabel) console.warn('[StoryPanel] 缺少角色节点 NameLabel：说话人名字不可用');
+
+        const hintN = this.findNodeByName('HintLabel');
+        this.hintLabel = hintN ? (hintN.getComponent(Label) ?? hintN.getComponentInChildren(Label)) : null;
+        if (!this.hintLabel) console.warn('[StoryPanel] 缺少角色节点 HintLabel：操作提示不可用');
+
+        this.choiceRoot = this.findNodeByName('ChoiceRoot');
+        if (!this.choiceRoot) console.warn('[StoryPanel] 缺少角色节点 ChoiceRoot：选项按钮不可用');
+    }
+
+    /** 深度优先按节点名查找（编辑器里 NameLabel/HintLabel/ChoiceRoot 位于 Content 下）。 */
+    private findNodeByName(name: string): Node | null {
+        if (!this.node) return null;
+        return this.searchNode(this.node, name);
+    }
+
+    private searchNode(n: Node, name: string): Node | null {
+        for (const c of n.children) {
+            if (c.name === name) return c;
+            const hit = this.searchNode(c, name);
+            if (hit) return hit;
+        }
+        return null;
+    }
+
+    /** 根节点点击推进（StoryPanel 全屏，挡住下层世界交互）。 */
+    private bindTap() {
+        if (!this.node) return;
+        this.node.off(Node.EventType.TOUCH_END, this.onRootTap, this);
+        this.node.on(Node.EventType.TOUCH_END, this.onRootTap, this);
+    }
+
+    private loadWhite(): Promise<void> {
         return new Promise<void>((resolve) => {
             resources.load('image/white/spriteFrame', SpriteFrame, (err, sf) => {
                 if (err || !sf) {
-                    console.warn('[StoryPanel] 白色贴图加载失败（背景将透明）', err);
+                    console.warn('[StoryPanel] 白色贴图加载失败（选项按钮将无底色）', err);
                 } else {
                     this.whiteSf = sf;
                 }
-                this.createNodes();
                 resolve();
             });
         });
-    }
-
-    private createNodes() {
-        const root = this.node;
-        const t = root.getComponent(UITransform);
-        const w = t ? t.width : 1280;
-        const h = t ? t.height : 720;
-
-        // 1. 全屏暗幕（盖住大世界）
-        const dim = this.mkSprite(root, 'Dim', w, h, new Color(0, 0, 0, 180));
-        dim.node.setPosition(0, 0);
-
-        // 2. 舞台背景（默认透明，stage.bg 切换）
-        const bg = this.mkSprite(root, 'BgArt', w, h, new Color(255, 255, 255, 255));
-        bg.node.setPosition(0, 0);
-        bg.node.active = false;
-        this.bgArt = bg;
-
-        // 3. 底部对话框
-        const panelW = w * 0.92;
-        const panelH = h * 0.26;
-        const panelY = -h / 2 + panelH / 2 + 18;
-        const panel = this.mkSprite(root, 'DialogBox', panelW, panelH, new Color(8, 10, 16, 235));
-        panel.node.setPosition(0, panelY);
-
-        // 说话人名字（对话框左上）
-        this.nameLabel = this.mkLabel(panel.node, 'NameLabel', '', 24, new Color(255, 214, 130, 255), panelW * 0.9);
-        this.nameLabel.node.setPosition(-panelW / 2 + 40, panelH / 2 - 26);
-        this.nameLabel.horizontalAlign = Label.HorizontalAlign.LEFT;
-        this.nameLabel.node.active = false;
-
-        // 正文（对话框内）
-        this.textLabel = this.mkLabel(panel.node, 'TextLabel', '', 26, new Color(238, 238, 238, 255), panelW * 0.9);
-        this.textLabel.node.setPosition(0, -4);
-        this.textLabel.verticalAlign = Label.VerticalAlign.CENTER;
-
-        // 提示（右下角）
-        this.hintLabel = this.mkLabel(panel.node, 'HintLabel', '点击继续 ▾', 16, new Color(150, 150, 150, 255), 220);
-        this.hintLabel.node.setPosition(panelW / 2 - 120, -panelH / 2 + 18);
-        this.hintLabel.horizontalAlign = Label.HorizontalAlign.RIGHT;
-
-        // 4. 说话人立绘/头像（对话框上方左侧，默认隐藏）
-        const avatarSize = Math.min(w * 0.2, h * 0.26);
-        const avatarN = new Node('AvatarArt');
-        root.addChild(avatarN);
-        avatarN.setPosition(-w * 0.3, panelY + panelH / 2 + avatarSize / 2 + 24);
-        const at = avatarN.addComponent(UITransform);
-        at.setContentSize(avatarSize, avatarSize);
-        this.avatarArt = avatarN.addComponent(Sprite);
-        this.avatarArt.sizeMode = Sprite.SizeMode.CUSTOM;
-        this.avatarArt.type = Sprite.Type.SIMPLE;
-        avatarN.active = false;
-
-        // 5. 选项容器（屏幕中部，默认隐藏）
-        this.choiceRoot = new Node('ChoiceRoot');
-        root.addChild(this.choiceRoot);
-        this.choiceRoot.active = false;
-
-        // 6. 点击推进
-        root.on(Node.EventType.TOUCH_END, this.onRootTap, this);
     }
 
     // ==================== 展示 ====================
@@ -225,7 +232,12 @@ export class StoryPanel extends Component {
     // ==================== 选项 ====================
 
     private showChoices() {
-        if (!this.choiceRoot) return;
+        if (!this.choiceRoot) {
+            // 无选项容器：按普通文本处理（点击继续）
+            console.warn('[StoryPanel] 缺少 ChoiceRoot，选项将按点击继续处理');
+            this.choiceMode = false;
+            return;
+        }
         this.clearChoices();
         const opts = this.pendingOptions || [];
         if (opts.length === 0) {
@@ -233,17 +245,18 @@ export class StoryPanel extends Component {
             this.choiceMode = false;
             return;
         }
-        this.choiceRoot.active = true;
-        const t = this.node.getComponent(UITransform);
-        const w = t ? t.width : 1280;
+        const host = this.choiceRoot;
+        host.active = true;
+        const t = host.getComponent(UITransform) ?? this.node.getComponent(UITransform);
+        const w = t?.width ?? 1280;
         const btnW = Math.min(w * 0.7, 720);
         const btnH = 62;
         const gap = 12;
         const startY = ((opts.length - 1) * (btnH + gap)) / 2;
         opts.forEach((opt, i) => {
-            const btn = this.mkSprite(this.choiceRoot!, `Option${i}`, btnW, btnH, new Color(20, 26, 40, 235));
+            const btn = this.mkOptionButton(host, `Option${i}`, btnW, btnH, new Color(20, 26, 40, 235));
             btn.node.setPosition(0, startY - i * (btnH + gap));
-            const lb = this.mkLabel(btn.node, 'Text', opt.text, 24, new Color(240, 240, 240, 255), btnW - 40);
+            const lb = this.mkOptionLabel(btn.node, opt.text, btnW - 40);
             lb.node.setPosition(0, 0);
             const idx = i;
             btn.node.on(Node.EventType.TOUCH_END, (ev: EventTouch) => {
@@ -273,6 +286,7 @@ export class StoryPanel extends Component {
             this.hideAvatar();
             return;
         }
+        if (!this.avatarArt) return;
         resources.load(`story/image/${key}/spriteFrame`, SpriteFrame, (err, sf) => {
             if (!this.avatarArt || !this.isValid) return;
             if (err || !sf) {
@@ -295,6 +309,7 @@ export class StoryPanel extends Component {
             console.warn(`[StoryPanel] 视频演出尚未支持，跳过 video=${stage.video}`);
         }
         if (stage.bg) {
+            if (!this.bgArt) return;
             resources.load(`story/image/${stage.bg}/spriteFrame`, SpriteFrame, (err, sf) => {
                 if (!this.bgArt || !this.isValid) return;
                 if (err || !sf) {
@@ -339,9 +354,9 @@ export class StoryPanel extends Component {
         r?.({ kind: 'next' }); // 唤醒等待中的引擎循环（token 会拦下旧会话）
     }
 
-    // ==================== 构建辅助 ====================
+    // ==================== 选项构建辅助（仅选项按钮动态生成） ====================
 
-    private mkSprite(parent: Node, name: string, w: number, h: number, color?: Color): Sprite {
+    private mkOptionButton(parent: Node, name: string, w: number, h: number, color: Color): Sprite {
         const n = new Node(name);
         parent.addChild(n);
         const t = n.addComponent(UITransform);
@@ -350,20 +365,20 @@ export class StoryPanel extends Component {
         s.sizeMode = Sprite.SizeMode.CUSTOM;
         s.type = Sprite.Type.SIMPLE;
         if (this.whiteSf) s.spriteFrame = this.whiteSf;
-        if (color) s.color = color;
+        s.color = color;
         return s;
     }
 
-    private mkLabel(parent: Node, name: string, str: string, size: number, color: Color, wrapW: number): Label {
-        const n = new Node(name);
+    private mkOptionLabel(parent: Node, str: string, wrapW: number): Label {
+        const n = new Node('Text');
         parent.addChild(n);
         const t = n.addComponent(UITransform);
-        t.setContentSize(wrapW, size * 2.4);
+        t.setContentSize(wrapW, 62);
         const lb = n.addComponent(Label);
         lb.string = str;
-        lb.fontSize = size;
-        lb.lineHeight = Math.round(size * 1.5);
-        lb.color = color;
+        lb.fontSize = 24;
+        lb.lineHeight = Math.round(24 * 1.5);
+        lb.color = new Color(240, 240, 240, 255);
         lb.overflow = Label.Overflow.SHRINK;
         lb.enableWrapText = true;
         lb.horizontalAlign = Label.HorizontalAlign.CENTER;
