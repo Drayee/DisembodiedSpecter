@@ -25,6 +25,7 @@ func NewRouter(authHandler *AuthHandler, userHandler *UserHandler, adminHandler 
 	// 用户路由（需认证）
 	r.GET("/api/v2/ws-code", userHandler.WSCode)
 	r.GET("/api/v2/data", userHandler.GetData)
+	r.GET("/api/v2/user/id", userHandler.GetId)
 	r.GET("/api/v2/token/check", authHandler.ValidateToken)
 
 	// 战斗路由（无需认证，通过 ws-code 校验）

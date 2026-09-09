@@ -104,17 +104,24 @@ export class NetworkManager extends Component {
      * 3. 后端判定无效（过期/被顶替/已登出）→ 用 refresh 刷新一次再校验
      */
     public async validateTokens(): Promise<TokenStatus> {
+        let valid: boolean = false;
         if (!this.hasTokens()) {
-            return 'invalid';
+            valid = false;
         }
         if (await this.checkTokenWithServer()) {
-            return 'valid';
+            valid = true;
         }
         const ok = await this.refreshAccessToken();
         if (!ok) {
-            return 'invalid';
+            valid = false;
         }
-        return (await this.checkTokenWithServer()) ? 'valid' : 'invalid';
+        if (!valid && (await this.checkTokenWithServer())) {
+            valid = true;
+        }
+        if (valid && !this.userId){
+            this.userId = await this.getUserId();
+        }
+        return valid ? 'valid' : 'invalid';
     }
 
     /** 请求后端校验 token 是否有效（noAutoRefresh：401 时不自动刷新/不跳登录） */
@@ -201,6 +208,15 @@ export class NetworkManager extends Component {
             saveJSON(this.dataEtagKey, res.etag);
         }
         return res;
+    }
+
+    /** 获取当前登录用户 ID */
+    public async getUserId(): Promise<number> {
+        const res = await this.http.get<{ id: number }>(`/api/v2/users/id`);
+        if (res.code === 0 && res.data) {
+            return res.data.id;
+        }
+        throw new Error(res.message || '获取用户ID失败');
     }
 
     // ==================== WebSocket ====================

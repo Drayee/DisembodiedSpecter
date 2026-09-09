@@ -62,3 +62,9 @@ func (u *UserUseCase) GetDataVersion(c *gin.Context) (int, error) {
 	userID := val.(int)
 	return u.PlayerDataManager.GetPlayerDataVersion(c, userID)
 }
+
+func (u *UserUseCase) GetUserId(ctx *gin.Context) int64 {
+	val, _ := ctx.Get("userID")
+	userID := val.(int)
+	return int64(userID)
+}

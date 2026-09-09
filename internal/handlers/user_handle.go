@@ -72,6 +72,18 @@ func (u *UserHandler) GetData(c *gin.Context) {
 	response.OK(c, data)
 }
 
+// GetId 获取当前登录用户 ID
+// @Summary 获取当前登录用户 ID
+// @Description 获取当前登录用户的 ID
+// @Tags 用户模块
+// @Produce json
+// @Success 200 {object} response.Result "成功返回当前登录用户 ID"
+// @Failure 401 {object} response.Result "未登录"
+// @Router /api/v2/user/id [get]
+func (u *UserHandler) GetId(c *gin.Context) {
+	response.OK(c, u.userService.GetUserId(c))
+}
+
 // etagMatches 判断 If-None-Match 头是否包含指定 ETag（逗号分隔列表，忽略空白）
 func etagMatches(header string, etag string) bool {
 	if header == "" {

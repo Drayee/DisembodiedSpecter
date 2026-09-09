@@ -102,3 +102,7 @@ func (auc *AuthUseCase) Refresh(ctx context.Context, refreshToken string) (*resp
 func (auc *AuthUseCase) Logout(ctx context.Context, accessToken string, refreshToken string) error {
 	return auc.tokenManager.RevokeSession(ctx, accessToken, refreshToken)
 }
+
+func (auc *AuthUseCase) GetUserId(ctx context.Context) int64 {
+	return auc.tokenManager.GetUserId(ctx)
+}
