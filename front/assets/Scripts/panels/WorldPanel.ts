@@ -10,8 +10,8 @@ import { _decorator, Color, Component, Label, Node, Sprite, SpriteFrame, UITrans
 import { NetworkManager } from 'db://assets/Scripts/managers/NetworkManager';
 import { GameManager } from 'db://assets/Scripts/managers/GameManager';
 import { UIManager } from 'db://assets/Scripts/managers/UIManager';
-import { StoryController } from 'db://assets/Scripts/story/StoryController';
-import { MAIN_START_ADDR, isTerminal } from 'db://assets/Scripts/story/StoryAddr';
+import { StoryController } from 'db://assets/Scripts/layers/story/StoryController';
+import { MAIN_START_ADDR, isTerminal } from 'db://assets/Scripts/layers/story/StoryAddr';
 const { ccclass } = _decorator;
 
 /** 主线未开始时进入世界是否自动播放序章（验收用） */

@@ -5,7 +5,7 @@ import { HttpClient, EtagResult } from 'db://assets/Scripts/api/http/HttpClient'
 import { WsClient } from 'db://assets/Scripts/api/websocket/WsClient';
 import * as messagesNS from '../api/websocket/proto/messages.js';
 import { saveJSON, loadJSON, removeKey } from 'db://assets/Scripts/utils/Storage';
-import { StoryProgress } from 'db://assets/Scripts/story/StoryTypes';
+import { StoryProgress } from 'db://assets/Scripts/layers/story/StoryTypes';
 const messages: typeof messagesNS = ((messagesNS as { default?: typeof messagesNS }).default ?? messagesNS);
 const FightMessage = messages.proto.FightMessage;
 const GlobalMessage = messages.proto.GlobalMessage;
