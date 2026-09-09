@@ -5,15 +5,22 @@
 // 所有可见节点都在编辑器中排布，本脚本只按“约定角色”绑定并驱动它们：
 //   Background  = 暗幕/底图（仅视觉，逻辑不触碰）
 //   CGDisplay   = 舞台背景 CG（stage.bg 切图 / 显示隐藏，Sprite）
-//   Person      = 说话人立绘/头像（Sprite，可位于自身或其子级）
+//   Person      = 立绘区容器；其子节点 P1~P8 为多人立绘槽位（Sprite）
 //   Text > Label= 对白/旁白正文（打字机）
 //   NameLabel   = 说话人名字
 //   HintLabel   = “打字中… / 点击继续”提示
 //   ChoiceRoot  = 选项按钮容器（容器在编辑器建好；按钮数量不定，运行时生成到其中）
 //
+// 多人立绘数据（node.avatars / stage.avatars）：
+//   [{ slot?:1..8, key, x?, facing?:1|-1, name? }]
+//   - 未给 x：1 个时居中；多个按出现顺序“左、右、左、右…”交替排开
+//   - 给了 x：按 x + facing 摆放（不参与自动排布）
+//   - name === node.speaker 的槽位全亮，其余压暗
+// 旧字段 avatar（单立绘 key）仍兼容，等效于无 x 的单个条目。
+//
 // 说明：角色节点缺失时仅告警降级、不自动补建（以编辑器配置为准）；图片资源缺失自动降级隐藏。
 import { _decorator, Color, Component, EventTouch, Label, Node, Sprite, SpriteFrame, UITransform, resources } from 'cc';
-import { StoryNode } from 'db://assets/Scripts/layers/story/StoryTypes';
+import { StoryAvatarEntry, StoryNode } from 'db://assets/Scripts/layers/story/StoryTypes';
 
 const { ccclass } = _decorator;
 
@@ -21,12 +28,13 @@ const { ccclass } = _decorator;
 export type StoryAdvance = { kind: 'next' } | { kind: 'option'; index: number };
 
 const TYPE_INTERVAL = 0.02; // 打字机逐字间隔（秒）
+const DIM_ALPHA = 120;      // 非当前说话者压暗透明度
 
 @ccclass('StoryPanel')
 export class StoryPanel extends Component {
     // 编辑器角色节点（绑定得到，可能为 null → 功能降级）
     private bgArt: Sprite | null = null;         // CGDisplay
-    private avatarArt: Sprite | null = null;     // Person（自身或子级上的 Sprite）
+    private slots: { node: Node; sprite: Sprite }[] = []; // Person/P1..P8（下标 0 对应 P1）
     private nameLabel: Label | null = null;
     private textLabel: Label | null = null;
     private hintLabel: Label | null = null;
@@ -43,6 +51,9 @@ export class StoryPanel extends Component {
 
     private choiceMode = false;
     private pendingOptions: StoryNode['options'] | null = null;
+
+    /** 立绘槽位版本号：每次展示/重置自增，异步贴图只接受最新版本，避免串图 */
+    private avatarEpoch = 0;
 
     // ==================== 初始化 ====================
 
@@ -69,9 +80,29 @@ export class StoryPanel extends Component {
         this.bgArt = cg ? (cg.getComponent(Sprite) ?? cg.getComponentInChildren(Sprite)) : null;
         if (!this.bgArt) console.warn('[StoryPanel] 缺少角色节点 CGDisplay(Sprite)：舞台背景不可用');
 
+        // Person → P1~P8 槽位（按数字排序，保证 slot 下标稳定）
         const person = this.findNodeByName('Person');
-        this.avatarArt = person ? (person.getComponent(Sprite) ?? person.getComponentInChildren(Sprite)) : null;
-        if (!this.avatarArt) console.warn('[StoryPanel] 缺少角色节点 Person(Sprite)：说话人立绘不可用');
+        this.slots = [];
+        if (person) {
+            const ps: { idx: number; node: Node; sprite: Sprite | null }[] = [];
+            for (const c of person.children) {
+                const m = /^P(\d+)$/.exec(c.name);
+                if (!m) continue;
+                const sprite = c.getComponent(Sprite) ?? c.getComponentInChildren(Sprite);
+                if (!sprite) {
+                    console.warn(`[StoryPanel] 槽位 ${c.name} 缺少 Sprite 组件，已忽略`);
+                    continue;
+                }
+                ps.push({ idx: Number(m[1]), node: c, sprite });
+            }
+            ps.sort((a, b) => a.idx - b.idx);
+            for (const p of ps) {
+                this.slots[p.idx - 1] = { node: p.node, sprite: p.sprite };
+            }
+            if (this.slots.length === 0) console.warn('[StoryPanel] Person 下没有可用的 P1~P8(Sprite) 槽位：多人立绘不可用');
+        } else {
+            console.warn('[StoryPanel] 缺少角色节点 Person：多人立绘不可用');
+        }
 
         const textN = this.findNodeByName('Text');
         this.textLabel = textN ? (textN.getComponent(Label) ?? textN.getComponentInChildren(Label)) : null;
@@ -141,19 +172,23 @@ export class StoryPanel extends Component {
                         this.nameLabel.node.active = !!node.speaker;
                         this.nameLabel.string = node.speaker || '';
                     }
-                    this.tryShowAvatar(node.avatar);
+                    if (node.avatars) {
+                        this.showAvatars(node.avatars, node.speaker);
+                    } else {
+                        this.showAvatars(node.avatar ? [{ key: node.avatar }] : [], node.speaker);
+                    }
                     this.startTyping(node.text || '', null);
                     break;
                 }
                 case 'narration': {
                     if (this.nameLabel) this.nameLabel.node.active = false;
-                    this.hideAvatar();
+                    this.hideAvatars();
                     this.startTyping(node.text || '', null);
                     break;
                 }
                 case 'choice': {
                     if (this.nameLabel) this.nameLabel.node.active = false;
-                    this.hideAvatar();
+                    this.hideAvatars();
                     this.choiceMode = true;
                     this.pendingOptions = node.options || [];
                     this.startTyping(node.text || '（请选择）', () => this.showChoices());
@@ -172,6 +207,88 @@ export class StoryPanel extends Component {
                 }
             }
         });
+    }
+
+    // ==================== 多人立绘 ====================
+
+    private showAvatars(entries: StoryAvatarEntry[], speaker: string | undefined) {
+        this.avatarEpoch++;
+        const epoch = this.avatarEpoch;
+        for (const slot of this.slots) {
+            if (!slot) continue;
+            slot.node.active = false;
+            slot.node.setScale(1, 1, 1);
+            this.setSpriteAlpha(slot.sprite, 255);
+            slot.sprite.spriteFrame = null;
+        }
+        if (!entries || entries.length === 0 || this.slots.length === 0) return;
+
+        // 1) 分配槽位：显式 slot 优先，其余按出现顺序取空闲
+        const used = new Set<number>();
+        const plans: { idx: number; key: string; x?: number; facing: number; name?: string }[] = [];
+        entries.forEach((e) => {
+            let slotNo = e.slot;
+            if (slotNo == null) {
+                for (let s = 1; s <= this.slots.length; s++) {
+                    if (!used.has(s) && this.slots[s - 1]) { slotNo = s; break; }
+                }
+            }
+            if (slotNo == null || slotNo < 1 || slotNo > this.slots.length || !this.slots[slotNo - 1]) {
+                console.warn(`[StoryPanel] 忽略无效立绘槽位 slot=${e.slot} key=${e.key}`);
+                return;
+            }
+            used.add(slotNo);
+            plans.push({ idx: slotNo - 1, key: e.key, x: e.x, facing: e.facing ?? 1, name: e.name });
+        });
+
+        // 2) 无 x 的条目自动排布：1 个居中；多个“左、右、左、右…”向外排开
+        const auto = plans.filter((p) => p.x == null);
+        if (auto.length === 1) {
+            auto[0].x = 0;
+        } else {
+            auto.forEach((p, j) => {
+                const side = j % 2 === 0 ? -1 : 1;
+                const pair = Math.floor(j / 2);
+                p.x = side * (190 + pair * 300);
+            });
+        }
+
+        // 3) 摆放 + 异步切图 + 说话者高亮
+        const speaking = !!speaker;
+        plans.forEach((p) => {
+            const slot = this.slots[p.idx];
+            slot.node.active = true;
+            slot.node.setPosition(p.x!, slot.node.position.y, slot.node.position.z);
+            slot.node.setScale(p.facing, p.facing, 1);
+            const isSpeaker = speaking && !!p.name && p.name === speaker;
+            this.setSpriteAlpha(slot.sprite, isSpeaker ? 255 : DIM_ALPHA);
+            this.loadSlotSprite(slot, p.key, epoch);
+        });
+    }
+
+    private loadSlotSprite(slot: { node: Node; sprite: Sprite }, key: string, epoch: number) {
+        resources.load(`story/image/${key}/spriteFrame`, SpriteFrame, (err, sf) => {
+            if (err || !sf || epoch !== this.avatarEpoch || !this.isValid || !slot.node.isValid) return;
+            if (!slot.node.active) return;
+            slot.sprite.spriteFrame = sf;
+        });
+    }
+
+    private setSpriteAlpha(sprite: Sprite, alpha: number) {
+        const c = sprite.color.clone();
+        c.a = alpha;
+        sprite.color = c;
+    }
+
+    private hideAvatars() {
+        this.avatarEpoch++;
+        for (const slot of this.slots) {
+            if (!slot) continue;
+            slot.node.active = false;
+            slot.node.setScale(1, 1, 1);
+            this.setSpriteAlpha(slot.sprite, 255);
+            slot.sprite.spriteFrame = null;
+        }
     }
 
     // ==================== 打字机 ====================
@@ -281,27 +398,6 @@ export class StoryPanel extends Component {
 
     // ==================== 演出资源 ====================
 
-    private tryShowAvatar(key: string | undefined) {
-        if (!key) {
-            this.hideAvatar();
-            return;
-        }
-        if (!this.avatarArt) return;
-        resources.load(`story/image/${key}/spriteFrame`, SpriteFrame, (err, sf) => {
-            if (!this.avatarArt || !this.isValid) return;
-            if (err || !sf) {
-                this.hideAvatar();
-                return;
-            }
-            this.avatarArt.spriteFrame = sf;
-            this.avatarArt.node.active = true;
-        });
-    }
-
-    private hideAvatar() {
-        if (this.avatarArt) this.avatarArt.node.active = false;
-    }
-
     private applyStage(node: StoryNode) {
         const stage = node.stage;
         if (!stage) return;
@@ -320,7 +416,11 @@ export class StoryPanel extends Component {
                 this.bgArt.node.active = true;
             });
         }
-        if (stage.avatar) this.tryShowAvatar(stage.avatar);
+        if (stage.avatars) {
+            this.showAvatars(stage.avatars, undefined);
+        } else if (stage.avatar) {
+            this.showAvatars([{ key: stage.avatar }], undefined);
+        }
     }
 
     // ==================== 点击推进 ====================
@@ -343,11 +443,12 @@ export class StoryPanel extends Component {
         this.choiceMode = false;
         this.pendingOptions = null;
         this.clearChoices();
-        this.hideAvatar();
+        this.hideAvatars();
     }
 
     protected onDestroy() {
         this.stopTyping();
+        this.avatarEpoch++;
         if (this.node) this.node.off(Node.EventType.TOUCH_END, this.onRootTap, this);
         const r = this.resolver;
         this.resolver = null;

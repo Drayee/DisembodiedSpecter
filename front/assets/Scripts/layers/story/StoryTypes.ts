@@ -19,10 +19,32 @@ export type StoryNodeType = 'dialogue' | 'narration' | 'choice' | 'stage' | 'act
 export interface StoryStageSpec {
     /** 背景图 key → story/image/{key}/spriteFrame */
     bg?: string;
-    /** 立绘 key → story/image/{key}/spriteFrame */
+    /** 立绘 key → story/image/{key}/spriteFrame（旧版单立绘，兼容保留） */
     avatar?: string;
+    /** 多人立绘（P1~P8 槽位，同时显示多个人物） */
+    avatars?: StoryAvatarEntry[];
     /** 预留：过场视频 key → story/video/{key}（v1 未实现视频播放） */
     video?: string;
+}
+
+/**
+ * 多人立绘条目（对应 StoryPanel 预制体 Person 下的 P1~P8 子节点）。
+ * 布局规则：
+ *   - 未给 x：单人生成时居中；多人按出现顺序“左、右、左、右…”左右交替排开；
+ *   - 给了 x：按 x（相对 Person 中心的横向偏移）与 facing 摆放，不参与自动排布；
+ *   - name 与当前节点 speaker 相同 → 该槽位高亮（其余压暗）。
+ */
+export interface StoryAvatarEntry {
+    /** P 槽位 1..8；缺省按出现顺序自动分配空闲槽位 */
+    slot?: number;
+    /** 立绘 key → resources/story/image/{key}/spriteFrame */
+    key: string;
+    /** 相对 Person 中心的横向偏移 x（可选，覆盖自动排布） */
+    x?: number;
+    /** 朝向：1=正向(默认)，-1=水平镜像 */
+    facing?: number;
+    /** 角色名：与 node.speaker 相等时作为当前说话者高亮 */
+    name?: string;
 }
 
 /** 选项（choice 节点） */
@@ -47,6 +69,8 @@ export interface StoryNode {
     type: StoryNodeType;
     speaker?: string;
     avatar?: string;
+    /** 多人立绘（同时显示多个 P1~P8 槽位；与 avatar 二选一，优先本字段） */
+    avatars?: StoryAvatarEntry[];
     text?: string;
     options?: StoryOption[];
     /** 当前节点完成后的下一完整地址；缺省 = 段内顺序下一节点 */
