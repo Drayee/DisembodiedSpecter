@@ -1890,7 +1890,7 @@
   {
     "__type__": "cc.Node",
     "_name": "CaptchaGetWindow",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 1
@@ -1950,7 +1950,7 @@
   {
     "__type__": "cc.Node",
     "_name": "PhotoCaptcha",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 74
@@ -2131,7 +2131,7 @@
   {
     "__type__": "cc.Node",
     "_name": "PhotoCaptchaInput",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 74
@@ -2191,7 +2191,7 @@
   {
     "__type__": "cc.Node",
     "_name": "TEXT_LABEL",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 83
@@ -2350,7 +2350,7 @@
   {
     "__type__": "cc.Node",
     "_name": "PLACEHOLDER_LABEL",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 83
@@ -2633,7 +2633,7 @@
   {
     "__type__": "cc.Node",
     "_name": "SureButton",
-    "_objFlags": 0,
+    "_objFlags": 512,
     "__editorExtras__": {},
     "_parent": {
       "__id__": 74
@@ -3227,14 +3227,17 @@
     "_string": "",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
-    "_actualFontSize": 40,
+    "_actualFontSize": 23.78125,
     "_fontSize": 20,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
     "_overflow": 1,
     "_enableWrapText": false,
-    "_font": null,
-    "_isSystemFontUsed": true,
+    "_font": {
+      "__uuid__": "16e7c59f-24db-42eb-8c7c-551fa1c6fc77",
+      "__expectedType__": "cc.TTFFont"
+    },
+    "_isSystemFontUsed": false,
     "_spacingX": 0,
     "_isItalic": false,
     "_isBold": false,
@@ -3393,7 +3396,7 @@
     "_overflow": 1,
     "_enableWrapText": false,
     "_font": {
-      "__uuid__": "8cad8ff6-355a-40ec-895a-28789f51a54a",
+      "__uuid__": "16e7c59f-24db-42eb-8c7c-551fa1c6fc77",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,
@@ -3771,14 +3774,17 @@
     "_string": "",
     "_horizontalAlign": 0,
     "_verticalAlign": 1,
-    "_actualFontSize": 40,
+    "_actualFontSize": 23.78125,
     "_fontSize": 20,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
     "_overflow": 1,
     "_enableWrapText": false,
-    "_font": null,
-    "_isSystemFontUsed": true,
+    "_font": {
+      "__uuid__": "16e7c59f-24db-42eb-8c7c-551fa1c6fc77",
+      "__expectedType__": "cc.TTFFont"
+    },
+    "_isSystemFontUsed": false,
     "_spacingX": 0,
     "_isItalic": false,
     "_isBold": false,
@@ -3937,7 +3943,7 @@
     "_overflow": 1,
     "_enableWrapText": false,
     "_font": {
-      "__uuid__": "8cad8ff6-355a-40ec-895a-28789f51a54a",
+      "__uuid__": "16e7c59f-24db-42eb-8c7c-551fa1c6fc77",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,

@@ -40,7 +40,7 @@ export class NetworkManager extends Component {
     private tokenKey = 'game_token';
     private dataEtagKey = 'game_data_etag';
 
-    userId: number | null = null;
+    public userId: number | null = null;
 
     /** 待上报的全局消息二进制（worldWs 未连接时暂存最新一份，连接后冲刷） */
     private pendingGlobalBytes: Uint8Array | null = null;
@@ -118,7 +118,7 @@ export class NetworkManager extends Component {
         if (!valid && (await this.checkTokenWithServer())) {
             valid = true;
         }
-        if (valid && !this.userId){
+        if (valid && (!this.userId || this.userId <= 0)){
             this.userId = await this.getUserId();
         }
         return valid ? 'valid' : 'invalid';
@@ -212,9 +212,10 @@ export class NetworkManager extends Component {
 
     /** 获取当前登录用户 ID */
     public async getUserId(): Promise<number> {
-        const res = await this.http.get<{ id: number }>(`/api/v2/users/id`);
-        if (res.code === 0 && res.data) {
-            return res.data.id;
+        const res = await this.http.get<number>('/api/v2/user/id');  // 泛型改为 number
+        if (res.code === 0 && res.data !== undefined) {
+            this.saveTokens(this.accessToken, this.refreshToken, res.data); // 注意此处存的是 res.data
+            return res.data;
         }
         throw new Error(res.message || '获取用户ID失败');
     }

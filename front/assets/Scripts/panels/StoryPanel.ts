@@ -19,7 +19,7 @@
 // 旧字段 avatar（单立绘 key）仍兼容，等效于无 x 的单个条目。
 //
 // 说明：角色节点缺失时仅告警降级、不自动补建（以编辑器配置为准）；图片资源缺失自动降级隐藏。
-import { _decorator, Color, Component, EventTouch, Label, Node, Sprite, SpriteFrame, UITransform, resources } from 'cc';
+import { _decorator, Color, Component, EventTouch, Label, RichText, Node, Sprite, SpriteFrame, UITransform, resources } from 'cc';
 import { StoryAvatarEntry, StoryNode } from 'db://assets/Scripts/layers/story/StoryTypes';
 
 const { ccclass } = _decorator;
@@ -37,7 +37,7 @@ export class StoryPanel extends Component {
     private cgSprite: Sprite | null = null;      // CGDisplay（顶部 CG）
     private slots: { node: Node; sprite: Sprite }[] = []; // Person/P1..P8（下标 0 对应 P1）
     private nameLabel: Label | null = null;
-    private textLabel: Label | null = null;
+    private textLabel: RichText | null = null;
     private hintLabel: Label | null = null;
     private choiceRoot: Node | null = null;
 
@@ -113,8 +113,8 @@ export class StoryPanel extends Component {
         }
 
         const textN = this.findNodeByName('Text');
-        this.textLabel = textN ? (textN.getComponent(Label) ?? textN.getComponentInChildren(Label)) : null;
-        if (!this.textLabel) console.error('[StoryPanel] 缺少角色节点 Text>Label：对白无法显示');
+        this.textLabel = textN ? (textN.getComponent(RichText) ?? textN.getComponentInChildren(RichText)) : null;
+        if (!this.textLabel) console.error('[StoryPanel] 缺少角色节点 Text>RichText：对白无法显示');
 
         const nameN = this.findNodeByName('NameLabel');
         this.nameLabel = nameN ? (nameN.getComponent(Label) ?? nameN.getComponentInChildren(Label)) : null;

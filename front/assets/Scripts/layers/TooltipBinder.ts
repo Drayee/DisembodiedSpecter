@@ -44,7 +44,7 @@ export class TooltipBinder extends Component {
 
         this.delayTimer = setTimeout(() => {
             if (this.isHovering) {
-                const worldPos = event.getLocation().toVec3();
+                const worldPos = event.getUILocation().toVec3();
                 mgr.show(
                     this.text,
                     worldPos,

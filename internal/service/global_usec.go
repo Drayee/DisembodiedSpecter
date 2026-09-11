@@ -43,6 +43,7 @@ func NewGlobalUseCase(gameContentManager *utils.GameContentManager, playerDataMa
 		playerDataManager:  playerDataManager,
 		globalEngine:       globalEngine,
 		redis:              redis,
+		player:             map[int]struct{}{},
 		key:                fmt.Sprintf("%s:ws-code", cfg.Cache.BaseKey),
 		stateKey:           "global-state",
 	}
@@ -99,6 +100,7 @@ func (g *GlobalUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 
 	// 断开时：写回状态机、移除在线实例、设置玩家数据 2 天过期
 	defer func() {
+		delete(g.player, userID)
 		disconnectCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if sErr := g.globalEngine.Disconnect(disconnectCtx, userID); sErr != nil {
