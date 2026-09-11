@@ -6,11 +6,11 @@ import {
     addAvatar, addOption, runLint, selectIssue, newProject, saveLocal, notify,
 } from './store.js';
 import {
-    NODE_TYPES, TYPE_LABEL, SLOT_MAX, emptyAvatar, emptyOption, isLegalFile, nodeRows, parseCsv, csvOf,
+    NODE_TYPES, TYPE_LABEL, SLOT_MAX, emptyAvatar, emptyOption, isLegalFile, nodeRows,
 } from './model.js';
 import {
     addAssetFromFile, exportProjectZip, importProjectZip, getAssetUrl, idbGetAsset, idbPutAsset,
-    idbDeleteKey, dropAssetUrl, downloadText, projectToJsonFiles, downloadBlob,
+    idbDeleteKey, dropAssetUrl, downloadText, projectToJsonFiles, downloadBlob, csvOf, parseCsv,
 } from './io.js';
 
 // ==================== 顶部工具栏 ====================
