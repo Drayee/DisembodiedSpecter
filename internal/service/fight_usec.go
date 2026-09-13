@@ -27,11 +27,6 @@ import (
 // maxFightMessageSize 单条战斗消息上限（防内存 DoS）
 const maxFightMessageSize = 1 << 20 // 1MB
 
-// battleSettleDelay 技能/敌方行动发布 pubsub 事件后、读取状态前的结算等待：
-// 伤害/治疗/buff 由各战斗位的监听 goroutine 异步应用，需等待其落地后再做
-// 胜负判定与状态同步，避免下发滞后一拍的数值。
-const battleSettleDelay = 20 * time.Millisecond
-
 type FightUseCase struct {
 	redis         rueidis.Client
 	fighter       map[int]struct{}
@@ -215,7 +210,10 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			if err := fightEngine.RunSkillStart(skills, battlePubSub, machine); err != nil {
 				log.Printf("技能执行失败: %v, userId %d", err, userID)
 			}
-			time.Sleep(battleSettleDelay) // 等待监听器结算完成
+			// 同步一次：等所有已发布事件被监听器响应并结算完（收到即结算，此处只是读值前的等待）
+			if !fightEngine.WaitSettled(machine) {
+				log.Printf("本回合事件未能全部结算，仍继续推进, userId %d", userID)
+			}
 			machine.Round++
 			machine.CharacterUsedSkill = map[int]int{} // 本回合技能记录已用完，重置
 			// 胜负判定
@@ -244,7 +242,10 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				case structs.OtherRound:
 					// 敌方回合：调用 enemy 行动（底层监听器已在战斗开始时启动）
 					fu.runEnemyRound(machine, battlePubSub)
-					time.Sleep(battleSettleDelay) // 等待监听器结算完成
+					// 同步一次：等敌方事件被响应并结算完（不再是固定睡眠）
+					if !fightEngine.WaitSettled(machine) {
+						log.Printf("敌方回合事件未能全部结算，仍继续推进, userId %d", userID)
+					}
 					if ended, win := machine.CheckBattleEnd(); ended {
 						machine.Ended = true
 						machine.PlayerWin = win

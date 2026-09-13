@@ -170,10 +170,12 @@ func buildBuffs(buffs []*structs.Buff) []*pd.Buff {
 
 // actingSelfCharacterID 返回当前行动的我方角色 ID；
 // 未标记行动角色（CharacterSite 为空或没有 IsMainActionCharacter）时返回 -1。
+// 用 CharacterIDs（与 CharacterState 同长同序）而非 SelfCharacterIDs：
+// 后者是配置列表，加载失败的角色不占位，按下标取会取到错误的角色。
 func actingSelfCharacterID(machine *structs.Machine) int {
 	for i, site := range machine.CharacterSite {
-		if site != nil && site.IsMainActionCharacter && i < machine.SelfCharacterNumber && i < len(machine.SelfCharacterIDs) {
-			return machine.SelfCharacterIDs[i]
+		if site != nil && site.IsMainActionCharacter && i < machine.SelfCharacterNumber && i < len(machine.CharacterIDs) {
+			return machine.CharacterIDs[i]
 		}
 	}
 	return -1

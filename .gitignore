@@ -22,6 +22,9 @@ config.yaml
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# Local Go build cache (used when the default GOCACHE is not writable)
+.gocache/
+
 # Go workspace file
 go.work
 go.work.sum

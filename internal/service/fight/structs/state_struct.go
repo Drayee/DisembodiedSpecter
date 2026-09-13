@@ -27,6 +27,16 @@ type Machine struct {
 	CharacterSite       []*Site           // 角色位置(包括敌方角色和我方角色)
 	SelfCharacterNumber int               // 我的角色数
 
+	// CharacterIDs 战斗位索引 → 角色/NPC DB ID，与 CharacterState 严格同长同序。
+	// 与 SelfCharacterIDs / EnemyCharacterIDs 的区别：后两者是"配置的 ID 列表"，
+	// 加载失败的角色不会进入 CharacterState，用它们按下标取值会错位。
+	// actuator 的角色行为分派、行动角色判定都必须用 CharacterIDs。
+	CharacterIDs []int
+
+	// Reaction 本场战斗的反应版本闸门：监听器收到事件后由它协调"反应者先打点、
+	// actuator 最后结算"。不要每场战斗之外复用实例，统一用 Gate() 获取。
+	Reaction *ReactionGate
+
 	// 队伍与对战 NPC 的 ID 列表（由 NewMachine 加载）
 	SelfCharacterIDs  []int // 我方队伍角色 ID 列表（来自玩家数据的 character_team）
 	EnemyCharacterIDs []int // 对方 NPC 角色 ID 列表（来自 DoingMap 的 enemy_id / enemy_ids）
@@ -120,6 +130,7 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 		CharacterUsedSkill:  map[int]int{},
 		Counters:            map[string]float32{},
 		LastStateNumber:     Waiting,
+		Reaction:            NewReactionGate(),
 	}
 
 	// 1+2. 从玩家数据（Redis Hash）读取状态机字段：队伍角色 ID + DoingMap
@@ -140,6 +151,10 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 		idx := len(machine.CharacterState)
 		machine.CharacterState = append(machine.CharacterState,
 			&CharacterState{Health: character.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+		// CharacterIDs 只在状态真正入列时才追加，保证与 CharacterState 严格同长同序：
+		// 加载失败被 continue 跳过的角色不占位，否则 SelfCharacterIDs[i] 会与
+		// CharacterState[i] 错位，导致按索引取到错误的角色。
+		machine.CharacterIDs = append(machine.CharacterIDs, cid)
 		machine.SelfCharacterIndex[cid] = idx
 	}
 	machine.SelfCharacterNumber = len(machine.CharacterState)
@@ -154,6 +169,7 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 		idx := len(machine.CharacterState)
 		machine.CharacterState = append(machine.CharacterState,
 			&CharacterState{Health: enemy.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+		machine.CharacterIDs = append(machine.CharacterIDs, eid)
 		machine.EnemyCharacterIndex[eid] = idx
 	}
 

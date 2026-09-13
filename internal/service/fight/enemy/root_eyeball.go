@@ -22,7 +22,8 @@ func (a *EnemyManager) Action1Run(machine *structs.Machine, pubSub *gochannel.Go
 		Other:    "",
 	})
 	mess := message.NewMessage(watermill.NewUUID(), jsonBytes)
-	if err := pubSub.Publish("fight-attack", mess); err != nil {
+	// 打上反应版本戳后发布：actuator 会等反应者处理完再结算
+	if err := machine.PublishEvent(pubSub, "fight-attack", mess); err != nil {
 		return err
 	}
 	return nil
