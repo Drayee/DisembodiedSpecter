@@ -83,11 +83,15 @@ export class GameManager extends Component {
     }
 
     /**
-     * 构造“请求同步”消息（通常包含一个空 syncFightStatus）
+     * 构造“请求同步”消息：把本地镜像的权威状态回带，让服务端做逐字段比对。
+     * 没带状态（或状态过期）时服务端会判定 needSync 并重发权威状态——
+     * 这正是"客户端状态不一致时由服务端纠正"的入口。
      */
     private buildSyncRequest(): FightMessage {
-        // 如果需要填充 timestamp 等，可在此添加
-        const sync = messages.proto.Msg_SyncFightStatus.create({});
+        const sync = messages.proto.Msg_SyncFightStatus.create({
+            status: this.battleSnapshot.status ?? undefined,
+            timestamp: Date.now(),
+        });
         return messages.proto.FightMessage.create({ syncFightStatus: sync });
     }
 
@@ -123,7 +127,19 @@ export class GameManager extends Component {
         return true;
     }
 
+    /**
+     * 处理一条战斗消息。
+     * 服务端战斗通道上有两类下行消息，顺序保证是「先日志、后状态」：
+     *   - fightLogs：本批一次性事件（出手/伤害/治疗/buff/回合/结束）→ 交给表现层回放动画；
+     *   - syncFightStatus：权威状态快照 → 由表现层在演出播完后落地对齐。
+     */
     public handleFightMessage(msg: FightMessage) {
+        const logs = msg.fightLogs?.logs as any[] | undefined;
+        if (logs && logs.length > 0) {
+            this.onFightLogs?.(logs);
+            return; // 日志批次与状态批次是两条独立消息，这里不当作状态处理
+        }
+
         const status = msg.syncFightStatus?.status as FightStatus | undefined;  // ① 断言
         if (status) {
             this.battleSnapshot = { status, updatedAt: Date.now() };
@@ -133,12 +149,33 @@ export class GameManager extends Component {
 
     public onBattleStatus?: (status: FightStatus) => void;
 
+    /** 收到服务端战斗日志批次（表现层按顺序回放演出） */
+    public onFightLogs?: (logs: any[]) => void;
+
     // ==================== 玩家操作 ====================
 
     public useSkill(skillId: number, characterId: number, targetIndex: number): boolean {
         const nm = NetworkManager.getInstance();
         if (!nm) return false;
         const msg = this.buildChoseSkill([{ skillId, targetId: targetIndex, characterId }]);
+        return nm.sendFightMessage(msg);
+    }
+
+    /**
+     * 一次性提交本回合全部角色的技能（一条消息 = 本回合的全部行动）。
+     *
+     * 为什么必须一起提交：服务端把一条 C2S_ChoseSkills 当作"本回合的行动"整体校验并执行，
+     * 处理完立刻进入 MyRound；若分两次提交，第二条会被
+     * "当前状态（1）不允许选择技能"拒绝。所以前端的技能选择要先攒好再发。
+     */
+    public useSkills(skills: { skillId: number; characterId: number; targetIndex: number }[]): boolean {
+        const nm = NetworkManager.getInstance();
+        if (!nm || !skills || skills.length === 0) return false;
+        const msg = this.buildChoseSkill(skills.map((s) => ({
+            skillId: s.skillId,
+            targetId: s.targetIndex,
+            characterId: s.characterId,
+        })));
         return nm.sendFightMessage(msg);
     }
 

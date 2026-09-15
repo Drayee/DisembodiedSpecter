@@ -1,0 +1,29 @@
+{
+  "_comment": "战斗展示配置：按角色/敌人 DB ID 决定前端演出用的名字、颜色、缩放与可选技能。仅影响表现，不参与任何结算——数值全部来自服务端下发的战斗日志与权威状态。改这个文件不需要动任何代码。",
+  "_comment_fields": {
+    "characters/enemies[dbID]": "{ name 展示名, color [r,g,b] 占位体颜色, scale 缩放, skills 技能按钮列表（仅我方用） }",
+    "skills[].target": "enemy=选敌方目标 / ally=选我方目标 / self=自身",
+    "defaultSkills": "配置里查不到该角色时使用的兜底技能列表"
+  },
+  "fallbackColor": [200, 200, 200],
+  "characters": {
+    "1": {
+      "name": "见习剑士",
+      "color": [110, 170, 250],
+      "scale": 1,
+      "skills": [
+        { "id": 1, "name": "初击", "target": "enemy" }
+      ]
+    }
+  },
+  "enemies": {
+    "1": {
+      "name": "根眼怪",
+      "color": [200, 95, 95],
+      "scale": 0.92
+    }
+  },
+  "defaultSkills": [
+    { "id": 1, "name": "攻击", "target": "enemy" }
+  ]
+}

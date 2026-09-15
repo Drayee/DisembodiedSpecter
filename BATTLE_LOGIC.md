@@ -38,6 +38,8 @@ Machine (structs/state_struct.go) —— 权威战斗状态
 
 - 服务器持有**权威状态**（`Machine`），客户端上报的状态仅用于比对，不一致时由服务器下发纠正。
 - 底层结算（扣血/加血/buff）通过 **pubsub 事件** 由各战斗位的 `Actuator` 监听器异步执行。
+- 每次下发权威状态前，服务器先把"本批执行日志"（`S2C_FightLogs`）发给客户端；
+  客户端据此回放演出动画，**不参与任何结算**（前端接入见 `docs/fight-frontend-setup.md`）。
 
 ## 战斗状态机
 
@@ -82,9 +84,40 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 | `C2S_UseTool` | 使用道具（预留） |
 | `C2S_SwitchPhase` | `START_PHASE` / `EXIT_FIGHT` / `RETURN_PREV_PHASE` |
 | `Msg_SyncFightStatus` | 客户端上报战斗状态，服务器比对后决定是否下发权威状态 |
+| `S2C_FightLogs{ logs[] }` | **服务端 → 客户端**的战斗日志（一次性的执行事件流，见下节） |
 
 > 关键约定：**`target_id` 是战斗位索引**（0..N-1，我方在前、敌方在后，与 `FightStatus.characters` 数组下标一致），
 > 不是角色/敌人 DB ID。`character_id` 是角色 DB ID，服务器通过 `SelfCharacterIndex` 映射校验其在本场战斗中。
+
+### 战斗日志通道（S2C_FightLogs）
+
+状态（`FightStatus`）回答"现在什么样"，日志回答"刚刚发生了什么"，两者互补、不可互相替代：
+
+- **状态**是快照，可随时重发覆盖，用于对齐最终数值；
+- **日志**是增量事件，下发一次即清空（`Machine.DrainLogs`），供客户端回放演出。
+
+下发顺序固定为 **先日志、后状态**（`FightUseCase.sendFightStatus` 内部先调 `flushFightLogs`），
+因此客户端总能"先按日志演完动画、再把权威状态落位"，血条与飘字不会与数值错位。
+
+| 日志类型 | 记录位置 | 关键字段 |
+|---|---|---|
+| `LOG_CAST` | `FightEngine.RunSkillStart`（技能）/ `FightUseCase.runEnemyRound`（敌方行动） | `source`、`target`、`skill_id` |
+| `LOG_ATTACK` | `actuator.AttackModule`（伤害结算唯一收口） | `value`=实际伤害、`hp_before/hp_after` |
+| `LOG_RECOVER` | `actuator.RecoverModule` | `value`=实际恢复量、`hp_before/hp_after` |
+| `LOG_DEATH` | 同伤害结算（血量由正跨到 0 时追加一条） | `target` |
+| `LOG_BUFF_ADD` / `LOG_BUFF_REMOVE` | `buff.AddBuff` / `LossBuff`·`RemoveBuff`·`handleTick` | `buff_id` |
+| `LOG_ROUND` | `FightUseCase`（我方回合结束、敌方回合收尾） | `round`、`state_number` |
+| `LOG_END` | 胜负判定后 | `value` 1=胜利 0=失败 |
+
+设计要点：
+
+- **只在结算收口处埋点**：伤害/治疗都在 `actuator/module.go` 记账，因此默认结算与角色定制行为
+  （`Character<N>AttackListener` 等）**自动全覆盖**，不需要逐个技能补日志；
+- **数值取血量差**：各伤害类型（普通/真实/雷/火）与防御减免口径不同，用"结算前后血量差"记账
+  既不重复计算，也不会与结算逻辑产生分歧；
+- **锁约定**：`Machine.Logs` 只由独立的 `LogMu` 保护，**不用 `Machine.Mu`**
+  （结算路径在持 `Mu` 的区间里记账，共用一把锁会自锁死）。顺序只能是 `Mu → LogMu`；
+- 前端消费方式见 `docs/fight-frontend-setup.md`。
 
 ## 技能校验规则（CheckChoseSkill）
 
@@ -161,6 +194,7 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 | 逻辑 | 技能使用记录永不重置 → 无法进入下一回合 | 每回合结束后重置 `CharacterUsedSkill`、`Round++` |
 | 逻辑 | `LastTimeFight = machine` 自引用 | 移除自引用，改用 `LastStateNumber` 快照恢复 |
 | 健壮 | 伤害无下限 | 伤害扣减后 `Health` 钳制到 ≥ 0 |
+| 健壮 | 伤害无下限（**实为只钳了伤害值**） | 补上结算后 `Health` 钳制到 ≥ 0（`actuator.AttackModule`）；否则负血量会经下发状态与战斗日志的 `hp_after` 漏到前端 |
 | 健壮 | 消息无大小限制 | 限制单条消息 1MB |
 
 ## 已知限制与 TODO
@@ -169,5 +203,8 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 - **结算时序**：结算是"收到事件即结算"（各战斗位 actuator 负责），主循环在胜负判定与状态同步前调用 `FightEngine.WaitSettled` 等事件全部落地；原先固定睡眠 20ms 的 `battleSettleDelay` 已移除，改为"待结算事件归零 + 空闲确认"，无事可等时立即返回；
 - **回合回滚**：`RETURN_PREV_PHASE` 仅恢复上一状态编号，未实现完整快照回滚；
 - **技能实现不完整**：当前仅 `Skill1Init`/`Skill2Listener`/`Action1Run` 有实现，其余技能待补充；
+- **技能表未下发**：协议里没有"某角色拥有哪些技能"，服务端只校验技能是否存在/归属；
+  前端技能按钮暂时取自展示配置表 `front/assets/resources/fight/battle.json`，
+  彻底解决应在 `FightStatus` 里补我方角色的技能列表（或加内容查询接口）；
 - **行动角色标记**：`CharacterSite.IsMainActionCharacter` 尚未在战斗初始化时填充，行动角色限制检查暂未生效；
 - **玩家间对战（PVP）**：`battleSession.Player2ID` 目前恒为 -1，仅支持玩家 vs NPC。

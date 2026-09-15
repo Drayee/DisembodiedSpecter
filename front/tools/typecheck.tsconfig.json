@@ -1,0 +1,29 @@
+{
+  // 前端类型检查用的独立 tsconfig（不参与 Cocos 构建，仅供命令行 tsc 使用）。
+  // 用法（在 front/ 目录下）：
+  //   node "C:\ProgramData\cocos\editors\Creator\3.8.8\resources\app.asar.unpacked\node_modules\typescript\lib\tsc.js" -p tools/typecheck.tsconfig.json
+  // files 里指向 Cocos 编辑器自带的引擎声明（cc.d.ts）：换机器/换编辑器版本时改这一条路径。
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "ES2015",
+    "strict": false,
+    "experimentalDecorators": true,
+    "moduleResolution": "node",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": [],
+    "lib": ["ES2017", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "db://assets/*": ["../assets/*"]
+    }
+  },
+  "files": [
+    "C:/ProgramData/cocos/editors/Creator/3.8.8/resources/resources/3d/engine/bin/.declarations/cc.d.ts"
+  ],
+  "include": [
+    "../assets/Scripts/**/*.ts"
+  ]
+}
