@@ -39,7 +39,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.LoginReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.LoginReq"
                         }
                     }
                 ],
@@ -49,13 +49,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Result"
+                                    "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/response.LoginResp"
+                                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.LoginResp"
                                         }
                                     }
                                 }
@@ -65,7 +65,7 @@ const docTemplate = `{
                     "400": {
                         "description": "请求参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -91,7 +91,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.RefreshReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.RefreshReq"
                         }
                     }
                 ],
@@ -99,13 +99,13 @@ const docTemplate = `{
                     "200": {
                         "description": "退出登录成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     },
                     "400": {
                         "description": "请求参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -131,7 +131,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.RefreshReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.RefreshReq"
                         }
                     }
                 ],
@@ -139,13 +139,13 @@ const docTemplate = `{
                     "200": {
                         "description": "成功返回新的双令牌",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     },
                     "400": {
                         "description": "请求参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -171,7 +171,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.RegisterReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.RegisterReq"
                         }
                     }
                 ],
@@ -181,13 +181,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.Result"
+                                    "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/response.LoginResp"
+                                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.LoginResp"
                                         }
                                     }
                                 }
@@ -197,14 +197,14 @@ const docTemplate = `{
                     "400": {
                         "description": "请求参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
             }
         },
-        "/api/v1/send_verify_code": {
-            "get": {
+        "/api/v1/send-verify-code": {
+            "post": {
                 "description": "发送验证码到指定邮箱",
                 "consumes": [
                     "application/json"
@@ -236,13 +236,13 @@ const docTemplate = `{
                     "200": {
                         "description": "发送验证码成功",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     },
                     "400": {
                         "description": "请求参数错误",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -250,7 +250,7 @@ const docTemplate = `{
         },
         "/api/v2/data": {
             "get": {
-                "description": "获取用户数据，包括邮箱、状态等",
+                "description": "获取用户数据，包括邮箱、状态等。支持 If-None-Match 条件请求：",
                 "consumes": [
                     "application/json"
                 ],
@@ -261,17 +261,80 @@ const docTemplate = `{
                     "用户"
                 ],
                 "summary": "获取用户数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "缓存校验值（弱 ETag）",
+                        "name": "If-None-Match",
+                        "in": "header"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "成功 data: 用户数据对象",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
+                    },
+                    "304": {
+                        "description": "数据未变化"
                     },
                     "500": {
                         "description": "失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/token/check": {
+            "get": {
+                "description": "校验 Authorization 中的 token（JWT 签名 + Redis 会话唯一码），",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证模块"
+                ],
+                "summary": "校验 token 是否有效",
+                "responses": {
+                    "200": {
+                        "description": "有效 data: {\"valid\": true}",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    },
+                    "401": {
+                        "description": "无效",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/user/id": {
+            "get": {
+                "description": "获取当前登录用户的 ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户模块"
+                ],
+                "summary": "获取当前登录用户 ID",
+                "responses": {
+                    "200": {
+                        "description": "成功返回当前登录用户 ID",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    },
+                    "401": {
+                        "description": "未登录",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -294,13 +357,13 @@ const docTemplate = `{
                     "200": {
                         "description": "成功 data: {\"wsCode\": \"123456\"}",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     },
                     "500": {
                         "description": "失败",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -319,7 +382,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -351,7 +414,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateEmailReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateEmailReq"
                         }
                     }
                 ],
@@ -359,7 +422,141 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v3/admin/game/buffs": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理员-游戏内容-Buff"
+                ],
+                "summary": "创建buff",
+                "parameters": [
+                    {
+                        "description": "buff信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateBuffReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v3/admin/game/buffs/list": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理员-游戏内容-Buff"
+                ],
+                "summary": "buff列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v3/admin/game/buffs/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理员-游戏内容-Buff"
+                ],
+                "summary": "buff详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "BuffID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理员-游戏内容-Buff"
+                ],
+                "summary": "修改buff",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "BuffID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "buff信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateBuffReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -384,7 +581,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminCreateCharacterReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateCharacterReq"
                         }
                     }
                 ],
@@ -392,7 +589,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -427,7 +624,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -455,7 +652,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -485,7 +682,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateCharacterReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateCharacterReq"
                         }
                     }
                 ],
@@ -493,7 +690,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -518,7 +715,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminCreateEnemyReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateEnemyReq"
                         }
                     }
                 ],
@@ -526,7 +723,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -561,7 +758,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -589,7 +786,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -619,7 +816,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateEnemyReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateEnemyReq"
                         }
                     }
                 ],
@@ -627,7 +824,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -652,7 +849,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminCreateSkillReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateSkillReq"
                         }
                     }
                 ],
@@ -660,7 +857,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -695,7 +892,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -723,7 +920,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -753,7 +950,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateSkillReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateSkillReq"
                         }
                     }
                 ],
@@ -761,7 +958,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -786,7 +983,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminCreateToolReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateToolReq"
                         }
                     }
                 ],
@@ -794,7 +991,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -829,7 +1026,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -857,7 +1054,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -887,7 +1084,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateToolReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateToolReq"
                         }
                     }
                 ],
@@ -895,7 +1092,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -930,7 +1127,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -958,7 +1155,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -986,7 +1183,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1018,7 +1215,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdatePlayerExpReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerExpReq"
                         }
                     }
                 ],
@@ -1026,7 +1223,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1058,7 +1255,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdatePlayerLevelReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerLevelReq"
                         }
                     }
                 ],
@@ -1066,7 +1263,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1094,7 +1291,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1113,7 +1310,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1132,7 +1329,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1151,7 +1348,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1186,7 +1383,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1214,7 +1411,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1242,7 +1439,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1274,7 +1471,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.AdminUpdateRoleReq"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateRoleReq"
                         }
                     }
                 ],
@@ -1282,7 +1479,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/response.Result"
+                            "$ref": "#/definitions/DisembodiedSpecter_internal_dto_response.Result"
                         }
                     }
                 }
@@ -1290,7 +1487,45 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "request.AdminCreateCharacterReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminCreateBuffReq": {
+            "type": "object",
+            "required": [
+                "loss_way",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "default_duration": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "description": {
+                    "type": "string"
+                },
+                "loss_way": {
+                    "type": "string",
+                    "enum": [
+                        "time",
+                        "action",
+                        "none",
+                        "listener"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "value_change",
+                        "percent_change",
+                        "listener",
+                        "tag"
+                    ]
+                }
+            }
+        },
+        "DisembodiedSpecter_internal_dto_request.AdminCreateCharacterReq": {
             "type": "object",
             "required": [
                 "health",
@@ -1317,7 +1552,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminCreateEnemyReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminCreateEnemyReq": {
             "type": "object",
             "required": [
                 "health",
@@ -1340,7 +1575,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminCreateSkillReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminCreateSkillReq": {
             "type": "object",
             "required": [
                 "character_id",
@@ -1363,7 +1598,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminCreateToolReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminCreateToolReq": {
             "type": "object",
             "required": [
                 "name"
@@ -1377,7 +1612,40 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateCharacterReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateBuffReq": {
+            "type": "object",
+            "properties": {
+                "default_duration": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "description": {
+                    "type": "string"
+                },
+                "loss_way": {
+                    "type": "string",
+                    "enum": [
+                        "time",
+                        "action",
+                        "none",
+                        "listener"
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "value_change",
+                        "percent_change",
+                        "listener",
+                        "tag"
+                    ]
+                }
+            }
+        },
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateCharacterReq": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1399,7 +1667,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateEmailReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateEmailReq": {
             "type": "object",
             "properties": {
                 "host": {
@@ -1422,7 +1690,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateEnemyReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateEnemyReq": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1440,7 +1708,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdatePlayerExpReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerExpReq": {
             "type": "object",
             "required": [
                 "exp"
@@ -1452,7 +1720,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdatePlayerLevelReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerLevelReq": {
             "type": "object",
             "required": [
                 "level"
@@ -1464,7 +1732,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateRoleReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateRoleReq": {
             "type": "object",
             "required": [
                 "role"
@@ -1479,7 +1747,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateSkillReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateSkillReq": {
             "type": "object",
             "properties": {
                 "character_id": {
@@ -1497,7 +1765,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.AdminUpdateToolReq": {
+        "DisembodiedSpecter_internal_dto_request.AdminUpdateToolReq": {
             "type": "object",
             "properties": {
                 "description": {
@@ -1508,7 +1776,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.LoginReq": {
+        "DisembodiedSpecter_internal_dto_request.LoginReq": {
             "type": "object",
             "required": [
                 "password",
@@ -1523,7 +1791,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.RefreshReq": {
+        "DisembodiedSpecter_internal_dto_request.RefreshReq": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -1534,7 +1802,7 @@ const docTemplate = `{
                 }
             }
         },
-        "request.RegisterReq": {
+        "DisembodiedSpecter_internal_dto_request.RegisterReq": {
             "type": "object",
             "required": [
                 "code",
@@ -1564,21 +1832,21 @@ const docTemplate = `{
                 }
             }
         },
-        "response.LoginResp": {
+        "DisembodiedSpecter_internal_dto_response.LoginResp": {
             "type": "object",
             "properties": {
                 "access_token": {
                     "type": "string"
                 },
-                "expires_in": {
-                    "type": "integer"
-                },
                 "refresh_token": {
                     "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
-        "response.Result": {
+        "DisembodiedSpecter_internal_dto_response.Result": {
             "type": "object",
             "properties": {
                 "code": {

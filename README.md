@@ -22,7 +22,7 @@ WebSocket 战斗系统与全局状态机，数据采用 **Redis Hash 缓存 + �
 
 - **双令牌认证**：Access Token（短期）+ Refresh Token（长期）；Redis 记录**每用户一个会话唯一码（版本号）**，JWT 的 subject 携带该码——重新登录即顶替旧 token，登出即全端失效（单端登录），且同一用户不会在 Redis 中积累多个 key
 - **玩家数据缓存**：`PlayerDataManager` 以 Redis Hash 按字段缓存玩家数据（cache-aside），写操作只写 Redis，由定时调度器同步回 SQL
-- **游戏内容管理**：角色 / 敌人 / 道具 / 技能 统一由 `GameContentManager` 管理（Redis 缓存 + SQL 同步），并提供管理端 CRUD
+- **游戏内容管理**：角色 / 敌人 / 道具 / 技能 / Buff 统一由 `GameContentManager` 管理（Redis 缓存 + SQL 同步），并提供管理端 CRUD
 - **战斗系统**：WebSocket 接入，服务器权威状态机（技能校验 → 技能执行 → 敌方行动 → 胜负判定），pubsub 事件驱动底层伤害/治疗/buff 结算
 - **全局状态机**：玩家在线状态（剧情/战斗/无事/移动）与角色队伍持久化，与玩家数据共用同一 Redis Hash
 - **同步调度器**：`SyncScheduler` 周期性将 Redis 数据全量同步到 SQL（间隔可配置）
@@ -187,16 +187,16 @@ Key:  private:player:data:{playerID}   (HASH)
 
 ### 游戏内容（Redis Hash + SQL）
 
-角色/敌人/道具/技能共用 `GameContentManager`，同一套 cache-aside 模式；
+角色/敌人/道具/技能/Buff 共用 `GameContentManager`，同一套 cache-aside 模式；
 ID 由 Redis INCR 生成，管理端 CRUD 只写 Redis，由调度器同步到 SQL。
 
 ### 数据表与索引
 
 服务启动时 `AutoMigrate` 全量建表：`users`、`players`、`items`、`player_items`、`emails`、
-`characters`、`user_characters`（用户-角色多对多归属）、`enemies`、`tools`、`skills`。关键索引：
+`characters`、`user_characters`（用户-角色多对多归属）、`enemies`、`tools`、`skills`、`buffs`。关键索引：
 
 - `users.name` / `users.email`（唯一）
-- `characters.name` / `enemies.name` / `tools.name` / `skills.name`（唯一）
+- `characters.name` / `enemies.name` / `tools.name` / `skills.name` / `buffs.name`（唯一）
 - `user_characters` 复合主键 `(user_id, character_id)` + `character_id` 索引（归属双向查询）
   - 字段：`is_in_team`（是否在出战队伍，索引）、`level`（角色等级，预留）
 - `skills.character_id`（角色技能组查询）
@@ -214,8 +214,9 @@ ID 由 Redis INCR 生成，管理端 CRUD 只写 Redis，由调度器同步到 S
 - 服务器持有权威状态（`Machine`），客户端上报状态不一致时服务器下发纠正
 - 状态机：`Waiting（等待选择）→ MyRound（我方技能执行）→ OtherRound（敌方回合）→ Waiting`
 - 技能校验：技能归属角色、角色在本场队伍、目标为合法战斗位索引、同角色本回合不可重复用技能、阶段门控
-- 技能执行三阶段：`Init（主行动者）→ Listener（从行动者）→ Run（终结）`，反射注册缺失方法自动跳过
-- 底层结算：pubsub 事件驱动各战斗位 `Actuator` 监听器（攻击/治疗/buff），带锁保护与血量下限
+- 技能执行三阶段：`Listener（武装本回合监听器）→ Init（主行动者）→ Run（终结）`，反射注册缺失方法自动跳过
+- 回合边界：监听器每回合武装、回合结束真退订（回合之间相互独立）；敌方回合用本回合技能集合重新武装
+- 底层结算：pubsub 事件驱动各战斗位 `Actuator` 监听器（攻击/治疗/buff），事件经反应版本闸门保证"结算晚于所有反应者"
 - 敌方回合：前端 `START_PHASE` 触发各敌方 `Action{id}Run`
 - 胜负判定：我方全灭失败 / 敌方全灭胜利；`EXIT_FIGHT` 退出、`RETURN_PREV_PHASE` 回退阶段
 

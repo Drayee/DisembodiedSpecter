@@ -1,6 +1,34 @@
 basePath: /
 definitions:
-  request.AdminCreateCharacterReq:
+  DisembodiedSpecter_internal_dto_request.AdminCreateBuffReq:
+    properties:
+      default_duration:
+        minimum: 0
+        type: integer
+      description:
+        type: string
+      loss_way:
+        enum:
+        - time
+        - action
+        - none
+        - listener
+        type: string
+      name:
+        type: string
+      type:
+        enum:
+        - value_change
+        - percent_change
+        - listener
+        - tag
+        type: string
+    required:
+    - loss_way
+    - name
+    - type
+    type: object
+  DisembodiedSpecter_internal_dto_request.AdminCreateCharacterReq:
     properties:
       description:
         type: string
@@ -19,7 +47,7 @@ definitions:
     - name
     - type
     type: object
-  request.AdminCreateEnemyReq:
+  DisembodiedSpecter_internal_dto_request.AdminCreateEnemyReq:
     properties:
       description:
         type: string
@@ -35,7 +63,7 @@ definitions:
     - name
     - type
     type: object
-  request.AdminCreateSkillReq:
+  DisembodiedSpecter_internal_dto_request.AdminCreateSkillReq:
     properties:
       character_id:
         minimum: 1
@@ -51,7 +79,7 @@ definitions:
     - name
     - type
     type: object
-  request.AdminCreateToolReq:
+  DisembodiedSpecter_internal_dto_request.AdminCreateToolReq:
     properties:
       description:
         type: string
@@ -60,7 +88,31 @@ definitions:
     required:
     - name
     type: object
-  request.AdminUpdateCharacterReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateBuffReq:
+    properties:
+      default_duration:
+        minimum: 0
+        type: integer
+      description:
+        type: string
+      loss_way:
+        enum:
+        - time
+        - action
+        - none
+        - listener
+        type: string
+      name:
+        type: string
+      type:
+        enum:
+        - value_change
+        - percent_change
+        - listener
+        - tag
+        type: string
+    type: object
+  DisembodiedSpecter_internal_dto_request.AdminUpdateCharacterReq:
     properties:
       description:
         type: string
@@ -75,7 +127,7 @@ definitions:
       type:
         type: string
     type: object
-  request.AdminUpdateEmailReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateEmailReq:
     properties:
       host:
         type: string
@@ -90,7 +142,7 @@ definitions:
       user:
         type: string
     type: object
-  request.AdminUpdateEnemyReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateEnemyReq:
     properties:
       description:
         type: string
@@ -102,7 +154,7 @@ definitions:
       type:
         type: string
     type: object
-  request.AdminUpdatePlayerExpReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerExpReq:
     properties:
       exp:
         minimum: 0
@@ -110,7 +162,7 @@ definitions:
     required:
     - exp
     type: object
-  request.AdminUpdatePlayerLevelReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerLevelReq:
     properties:
       level:
         minimum: 0
@@ -118,7 +170,7 @@ definitions:
     required:
     - level
     type: object
-  request.AdminUpdateRoleReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateRoleReq:
     properties:
       role:
         enum:
@@ -128,7 +180,7 @@ definitions:
     required:
     - role
     type: object
-  request.AdminUpdateSkillReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateSkillReq:
     properties:
       character_id:
         minimum: 1
@@ -140,14 +192,14 @@ definitions:
       type:
         type: string
     type: object
-  request.AdminUpdateToolReq:
+  DisembodiedSpecter_internal_dto_request.AdminUpdateToolReq:
     properties:
       description:
         type: string
       name:
         type: string
     type: object
-  request.LoginReq:
+  DisembodiedSpecter_internal_dto_request.LoginReq:
     properties:
       password:
         type: string
@@ -157,14 +209,14 @@ definitions:
     - password
     - username
     type: object
-  request.RefreshReq:
+  DisembodiedSpecter_internal_dto_request.RefreshReq:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  request.RegisterReq:
+  DisembodiedSpecter_internal_dto_request.RegisterReq:
     properties:
       code:
         maxLength: 6
@@ -187,16 +239,16 @@ definitions:
     - name
     - password
     type: object
-  response.LoginResp:
+  DisembodiedSpecter_internal_dto_response.LoginResp:
     properties:
       access_token:
         type: string
-      expires_in:
-        type: integer
       refresh_token:
         type: string
+      user_id:
+        type: integer
     type: object
-  response.Result:
+  DisembodiedSpecter_internal_dto_response.Result:
     properties:
       code:
         description: 业务码：0 成功，非 0 失败
@@ -228,7 +280,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.LoginReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.LoginReq'
       produces:
       - application/json
       responses:
@@ -236,15 +288,15 @@ paths:
           description: 成功返回双令牌
           schema:
             allOf:
-            - $ref: '#/definitions/response.Result'
+            - $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
             - properties:
                 data:
-                  $ref: '#/definitions/response.LoginResp'
+                  $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.LoginResp'
               type: object
         "400":
           description: 请求参数错误
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 用户登录
       tags:
       - 认证模块
@@ -259,18 +311,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.RefreshReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.RefreshReq'
       produces:
       - application/json
       responses:
         "200":
           description: 退出登录成功
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
         "400":
           description: 请求参数错误
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 用户退出登录接口
       tags:
       - 认证模块
@@ -285,18 +337,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.RefreshReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.RefreshReq'
       produces:
       - application/json
       responses:
         "200":
           description: 成功返回新的双令牌
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
         "400":
           description: 请求参数错误
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 刷新令牌
       tags:
       - 认证模块
@@ -311,7 +363,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.RegisterReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.RegisterReq'
       produces:
       - application/json
       responses:
@@ -319,20 +371,20 @@ paths:
           description: 成功返回双令牌
           schema:
             allOf:
-            - $ref: '#/definitions/response.Result'
+            - $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
             - properties:
                 data:
-                  $ref: '#/definitions/response.LoginResp'
+                  $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.LoginResp'
               type: object
         "400":
           description: 请求参数错误
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 用户注册
       tags:
       - 认证模块
-  /api/v1/send_verify_code:
-    get:
+  /api/v1/send-verify-code:
+    post:
       consumes:
       - application/json
       description: 发送验证码到指定邮箱
@@ -353,11 +405,11 @@ paths:
         "200":
           description: 发送验证码成功
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
         "400":
           description: 请求参数错误
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 发送验证码接口
       tags:
       - 认证模块
@@ -365,21 +417,62 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取用户数据，包括邮箱、状态等
+      description: 获取用户数据，包括邮箱、状态等。支持 If-None-Match 条件请求：
+      parameters:
+      - description: 缓存校验值（弱 ETag）
+        in: header
+        name: If-None-Match
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: '成功 data: 用户数据对象'
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+        "304":
+          description: 数据未变化
         "500":
           description: 失败
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 获取用户数据
       tags:
       - 用户
+  /api/v2/token/check:
+    get:
+      description: 校验 Authorization 中的 token（JWT 签名 + Redis 会话唯一码），
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '有效 data: {"valid": true}'
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+        "401":
+          description: 无效
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: 校验 token 是否有效
+      tags:
+      - 认证模块
+  /api/v2/user/id:
+    get:
+      description: 获取当前登录用户的 ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功返回当前登录用户 ID
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: 获取当前登录用户 ID
+      tags:
+      - 用户模块
   /api/v2/ws-code:
     get:
       consumes:
@@ -391,11 +484,11 @@ paths:
         "200":
           description: '成功 data: {"wsCode": "123456"}'
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
         "500":
           description: 失败
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 获取 WebSocket 连接码
       tags:
       - 用户
@@ -407,7 +500,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 邮箱配置列表
       tags:
       - 管理员-系统配置
@@ -426,17 +519,104 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateEmailReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateEmailReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改邮箱配置
       tags:
       - 管理员-系统配置
+  /api/v3/admin/game/buffs:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: buff信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateBuffReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: 创建buff
+      tags:
+      - 管理员-游戏内容-Buff
+  /api/v3/admin/game/buffs/{id}:
+    get:
+      parameters:
+      - description: BuffID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: buff详情
+      tags:
+      - 管理员-游戏内容-Buff
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: BuffID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: buff信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateBuffReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: 修改buff
+      tags:
+      - 管理员-游戏内容-Buff
+  /api/v3/admin/game/buffs/list:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        required: true
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
+      summary: buff列表
+      tags:
+      - 管理员-游戏内容-Buff
   /api/v3/admin/game/characters:
     post:
       consumes:
@@ -447,14 +627,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminCreateCharacterReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateCharacterReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 创建角色
       tags:
       - 管理员-游戏内容-角色
@@ -472,7 +652,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 角色详情
       tags:
       - 管理员-游戏内容-角色
@@ -490,14 +670,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateCharacterReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateCharacterReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改角色
       tags:
       - 管理员-游戏内容-角色
@@ -520,7 +700,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 角色列表
       tags:
       - 管理员-游戏内容-角色
@@ -534,14 +714,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminCreateEnemyReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateEnemyReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 创建敌人
       tags:
       - 管理员-游戏内容-敌人
@@ -559,7 +739,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 敌人详情
       tags:
       - 管理员-游戏内容-敌人
@@ -577,14 +757,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateEnemyReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateEnemyReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改敌人
       tags:
       - 管理员-游戏内容-敌人
@@ -607,7 +787,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 敌人列表
       tags:
       - 管理员-游戏内容-敌人
@@ -621,14 +801,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminCreateSkillReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateSkillReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 创建技能
       tags:
       - 管理员-游戏内容-技能
@@ -646,7 +826,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 技能详情
       tags:
       - 管理员-游戏内容-技能
@@ -664,14 +844,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateSkillReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateSkillReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改技能
       tags:
       - 管理员-游戏内容-技能
@@ -694,7 +874,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 技能列表
       tags:
       - 管理员-游戏内容-技能
@@ -708,14 +888,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminCreateToolReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminCreateToolReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 创建道具
       tags:
       - 管理员-游戏内容-道具
@@ -733,7 +913,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 道具详情
       tags:
       - 管理员-游戏内容-道具
@@ -751,14 +931,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateToolReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateToolReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改道具
       tags:
       - 管理员-游戏内容-道具
@@ -781,7 +961,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 道具列表
       tags:
       - 管理员-游戏内容-道具
@@ -799,7 +979,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 玩家详情
       tags:
       - 管理员-玩家管理
@@ -817,7 +997,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 封禁玩家
       tags:
       - 管理员-玩家管理
@@ -836,14 +1016,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdatePlayerExpReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerExpReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改玩家经验
       tags:
       - 管理员-玩家管理
@@ -862,14 +1042,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdatePlayerLevelReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdatePlayerLevelReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改玩家等级
       tags:
       - 管理员-玩家管理
@@ -887,7 +1067,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 解封玩家
       tags:
       - 管理员-玩家管理
@@ -910,7 +1090,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 玩家列表
       tags:
       - 管理员-玩家管理
@@ -922,7 +1102,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 道具分布
       tags:
       - 管理员-数据统计
@@ -934,7 +1114,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 在线统计
       tags:
       - 管理员-数据统计
@@ -946,7 +1126,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 数据总览
       tags:
       - 管理员-数据统计
@@ -964,7 +1144,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 禁用用户
       tags:
       - 管理员-用户管理
@@ -982,7 +1162,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 启用用户
       tags:
       - 管理员-用户管理
@@ -1001,14 +1181,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/request.AdminUpdateRoleReq'
+          $ref: '#/definitions/DisembodiedSpecter_internal_dto_request.AdminUpdateRoleReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 修改用户角色
       tags:
       - 管理员-用户管理
@@ -1031,7 +1211,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/response.Result'
+            $ref: '#/definitions/DisembodiedSpecter_internal_dto_response.Result'
       summary: 用户列表
       tags:
       - 管理员-用户管理

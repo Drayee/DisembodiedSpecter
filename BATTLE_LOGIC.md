@@ -101,9 +101,17 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 
 `SkillManager.RunSkillStart` 按序执行（缺失的方法跳过，panic 会被捕获转错误）：
 
-1. `Init` —— 主行动者行动（回合发动者），如 `Skill1Init` 发布攻击事件；
-2. `Listener` —— 从行动者行动（战斗辅助者），如 `Skill2Listener` 订阅并联动；
+1. `Listener` —— **武装本回合的监听器**（从行动者/被动），如 `Skill2Listener` 注册"追加攻击"；
+2. `Init` —— 主行动者行动（回合发动者），如 `Skill1Init` 发布攻击事件；
 3. `Run` —— 所有行动者终结技能。
+
+**为什么 `Listener` 必须排在 `Init` 之前**：发布事件时会把"本 topic 当前的监听器数量"写进消息
+（反应版本戳），负责该事件的 actuator 会等这么多监听器打完点才结算。若监听器在 `Init` 之后
+才装上，`Init` 阶段发出的伤害事件到达时监听器还没就位，被动技能就永远打不到主动技能的伤害。
+
+回合结束（`FightEngine.EndRound`）会先等事件全部结算完，再 `machine.StopReactors()`
+**真退订**本回合的全部监听器 —— 因此回合之间相互独立，上一回合用过的技能不会残留到下一回合。
+敌方回合不跑技能阶段，由 `ArmRoundReactors` 用本回合技能集合重新武装。
 
 技能方法通过反射注册（`Skill{skillID}Init/Listener/Run`），缺失的方法不会导致 panic。
 
@@ -158,7 +166,7 @@ OtherRound --SwitchPhase(START_PHASE)--> 敌方行动 --> Waiting
 ## 已知限制与 TODO
 
 - **奖励结算**：`settle.go` 为空，战斗结束未发放经验/掉落/同步玩家数据（可接入 `PlayerDataManager.AddExp`/`AddItem`）；
-- **结算时序**：伤害由监听 goroutine 异步应用，技能/敌方行动后通过 `battleSettleDelay`（20ms）等待结算落地再做胜负判定与状态同步，避免下发滞后数值；极端高延迟环境可调大该常量；
+- **结算时序**：结算是"收到事件即结算"（各战斗位 actuator 负责），主循环在胜负判定与状态同步前调用 `FightEngine.WaitSettled` 等事件全部落地；原先固定睡眠 20ms 的 `battleSettleDelay` 已移除，改为"待结算事件归零 + 空闲确认"，无事可等时立即返回；
 - **回合回滚**：`RETURN_PREV_PHASE` 仅恢复上一状态编号，未实现完整快照回滚；
 - **技能实现不完整**：当前仅 `Skill1Init`/`Skill2Listener`/`Action1Run` 有实现，其余技能待补充；
 - **行动角色标记**：`CharacterSite.IsMainActionCharacter` 尚未在战斗初始化时填充，行动角色限制检查暂未生效；
