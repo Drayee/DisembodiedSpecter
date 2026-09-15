@@ -230,6 +230,40 @@ func (g *EventHub) publish(topic string, msg *message.Message) error {
 	return nil
 }
 
+// publishSignal 发布一个"信号事件"并等待它被处理完。
+//
+// 与普通战斗事件的区别：信号事件（例如回合结束的时间推进、某个战斗位行动结束）
+// **没有"负责它的 actuator"**，所以不能指望别人调 FinishEvent，
+// 否则它会一直挂在待结算表里让 WaitAllSettled 每回合都退化到 stall 兜底。
+// 这里由发布方自己收尾：发布 → 等所有已注册反应者打完点 → 释放事件。
+//
+// 因此本方法是**同步**的：返回时该信号已被全部反应者处理完（或超时兜底）。
+func (g *EventHub) publishSignal(topic string, payload []byte) error {
+	g.mu.Lock()
+	pubSub := g.pubSub
+	required := g.perTopic[topic]
+	g.mu.Unlock()
+
+	if pubSub == nil {
+		return errNoPubSub
+	}
+
+	eventID := watermill.NewUUID()
+	g.BeginEvent(eventID, required)
+	defer g.FinishEvent(eventID)
+
+	msg := message.NewMessage(watermill.NewUUID(), payload)
+	msg.Metadata.Set(metaEventID, eventID)
+	msg.Metadata.Set(metaReactNeed, strconv.Itoa(required))
+
+	if err := pubSub.Publish(topic, msg); err != nil {
+		return err
+	}
+	// required == 0 时（没有反应者）立即返回；否则等反应者打完点
+	g.WaitReacted(eventID, ReactionWaitTimeout)
+	return nil
+}
+
 // registerReactor 幂等注册一个反应者：同一 key 重复注册只替换处理器
 // （用于更新本回合的目标上下文），不会新建订阅、也不会让反应版本增长。
 //
@@ -556,6 +590,17 @@ func (m *Machine) PublishPayload(topic string, payload []byte) error {
 // key 用稳定的业务标识，例如 "skill2"。
 func (m *Machine) RegisterReactor(key string, topic string, handler ReactorHandler) error {
 	return m.Events().registerReactor(m.Ctx, key, topic, handler)
+}
+
+// UnregisterReactor 退订指定 key 的反应者（例如 buff 到期时需要停掉它的监听器）。
+// 不存在的 key 是空操作。
+func (m *Machine) UnregisterReactor(key string) {
+	m.Events().removeReactor(key)
+}
+
+// PublishSignal 发布一个信号事件并同步等待其被处理完（见 EventHub.publishSignal）。
+func (m *Machine) PublishSignal(topic string, payload []byte) error {
+	return m.Events().publishSignal(topic, payload)
 }
 
 // StopReactors 停止本机全部反应者监听（回合结束、真退订，见 EventHub.StopReactors）。
