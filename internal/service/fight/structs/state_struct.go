@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"DisembodiedSpecter/internal/domain"
 	"DisembodiedSpecter/internal/utils"
 	"context"
 	"encoding/json"
@@ -87,19 +88,41 @@ type Machine struct {
 }
 
 // CharacterState 角色状态
+//
+// Attack / Recover / Defense 是**结算后的当前值**（= 基础值叠加所有 buff 后的结果），
+// 所有读取方（伤害计算、防御减免、下发给前端的状态）直接用它们即可。
+// Base* 是基础值，整场战斗不变，只由 buff 的重算使用：
+// 重算 = 基础值 × (1 + Σ百分比) + Σ固定值。
+// 直接改 Attack 而不改 Base* 会让基础值被写脏，重算时越叠越错。
 type CharacterState struct {
 	Health  int     // 生命值
-	Attack  float64 // 攻击倍率
-	Recover float64 // 恢复倍率
-	Defense int     // 防御力
+	Attack  float64 // 攻击倍率（当前值）
+	Recover float64 // 恢复倍率（当前值）
+	Defense int     // 防御力（当前值）
+
+	BaseAttack  float64 // 基础攻击倍率
+	BaseRecover float64 // 基础恢复倍率
+	BaseDefense int     // 基础防御力
 
 	Buffs []*Buff // buff列表
 	//IsMyCharacter bool    // 是否是我的角色 // 被废弃,SelfCharacterNumber表示是否是我的角色
 }
 
+// Buff buff 运行时实例（挂在某个战斗位身上）。
+//
+// LossWay 与 Effects 是获得 buff 时从定义（domain.Buff）拷下来的**快照**：
+//   - 重算属性、回合扣减都只用快照，不需要在读战斗状态时去查内容表缓存
+//     （否则会在持有 Mu 的区间里做 Redis 往返，把所有战斗状态读写堵住）；
+//   - 战斗中途改 buff 定义不会影响已经挂上的实例。
 type Buff struct {
-	ID   int //  buffID
-	Time int // buff时间
+	ID   int // buffID
+	Time int // 剩余时间（0 表示已失效，由扣减逻辑移除）
+
+	Source int // 施加者的战斗位索引；-1 表示无来源（场地/系统）
+	// LossWay 时间损失方式快照（time/action/none/listener）
+	LossWay domain.BuffLossWay
+	// Effects 效果快照（空列表表示纯标记 buff）
+	Effects []domain.BuffEffect
 }
 
 // Site 角色位置
@@ -162,8 +185,7 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 			continue
 		}
 		idx := len(machine.CharacterState)
-		machine.CharacterState = append(machine.CharacterState,
-			&CharacterState{Health: character.Health, Attack: 1, Recover: 1, Defense: 0, Buffs: []*Buff{}})
+		machine.CharacterState = append(machine.CharacterState, newCharacterState(character.Health, 1, 1, 0))
 		// CharacterIDs 只在状态真正入列时才追加，保证与 CharacterState 严格同长同序：
 		// 加载失败被 continue 跳过的角色不占位，否则 SelfCharacterIDs[i] 会与
 		// CharacterState[i] 错位，导致按索引取到错误的角色。
@@ -180,13 +202,27 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 			continue
 		}
 		idx := len(machine.CharacterState)
-		machine.CharacterState = append(machine.CharacterState,
-			&CharacterState{Health: enemy.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+		machine.CharacterState = append(machine.CharacterState, newCharacterState(enemy.Health, 1, 1, 1))
 		machine.CharacterIDs = append(machine.CharacterIDs, eid)
 		machine.EnemyCharacterIndex[eid] = idx
 	}
 
 	return machine, nil
+}
+
+// newCharacterState 创建一个战斗位状态。
+// 基础值与当前值初始相同（此时身上没有任何 buff）。
+func newCharacterState(health int, attack, recover float64, defense int) *CharacterState {
+	return &CharacterState{
+		Health:      health,
+		Attack:      attack,
+		Recover:     recover,
+		Defense:     defense,
+		BaseAttack:  attack,
+		BaseRecover: recover,
+		BaseDefense: defense,
+		Buffs:       []*Buff{},
+	}
 }
 
 // CheckBattleEnd 检测战斗是否结束：我方全部阵亡则失败，敌方全部阵亡则胜利。
