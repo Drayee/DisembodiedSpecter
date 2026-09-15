@@ -1,0 +1,30 @@
+{
+  "name": "disembodied-specter-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "DisembodiedSpecter 前端工作台：剧情编辑器 + 后台管理",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "build:only": "vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.46.0",
+    "axios": "^1.20.0",
+    "pinia": "^4.0.3",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.5.1",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vue-tsc": "^3.3.11"
+  }
+}

@@ -53,6 +53,16 @@ front/native
 #//////////////////////////
 front/node_modules/
 
+#///////////////////////////
+# Studio（剧情编排 + 后台管理前端）
+#///////////////////////////
+studio/node_modules/
+studio/dist/
+studio/.npm-cache/
+studio/*.local
+studio/.env.local
+studio/.env.*.local
+
 #//////////////////////////
 # VSCode
 #//////////////////////////

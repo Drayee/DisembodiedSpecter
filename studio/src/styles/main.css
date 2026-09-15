@@ -1,0 +1,472 @@
+/* ============================================================================
+   main.css — 全局设计系统
+   目标：一套令牌 + 少量组件类，彻底避免旧工具「样式重叠、间距紧凑」的问题。
+   约定：
+     1) 任何尺寸都走令牌（间距 / 圆角 / 字号 / 层级），不要写魔法数字；
+     2) 分栏布局一律 flex + min-h-0 + overflow，禁止用绝对定位堆叠内容；
+     3) 层级统一：内容 0 · 吸顶工具条 10 · 浮层锚点 20 · 下拉 30 · 抽屉遮罩 40 ·
+        模态 50 · Toast 60。
+   ========================================================================== */
+
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------- 设计令牌 */
+@theme {
+    /* 字体 */
+    --font-sans:
+        'Inter', 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, 'Segoe UI',
+        sans-serif;
+    --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+
+    /* 中性色：深渊（深空蓝黑）—— 用于所有底色与描边 */
+    --color-void-950: #05070d;
+    --color-void-900: #0a0e18;
+    --color-void-880: #0d1220;
+    --color-void-850: #111728;
+    --color-void-800: #151c2f;
+    --color-void-750: #1a2237;
+    --color-void-700: #202a42;
+    --color-void-650: #27324e;
+    --color-void-600: #2f3b5a;
+    --color-void-500: #3f4c6d;
+    --color-void-400: #5a688a;
+    --color-void-300: #8592b0;
+    --color-void-200: #b3bdd2;
+    --color-void-100: #dde3ee;
+    --color-void-50: #f4f6fb;
+
+    /* 主强调色：幽紫 */
+    --color-phantom-50: #f2efff;
+    --color-phantom-100: #e6e0ff;
+    --color-phantom-200: #cfc3ff;
+    --color-phantom-300: #b09eff;
+    --color-phantom-400: #9277ff;
+    --color-phantom-500: #7c5cf5;
+    --color-phantom-600: #6841db;
+    --color-phantom-700: #5432b0;
+    --color-phantom-800: #40268a;
+    --color-phantom-900: #2c1a5e;
+
+    /* 次强调色：灵青 */
+    --color-spirit-300: #7ff0e4;
+    --color-spirit-400: #38d9c9;
+    --color-spirit-500: #14b8a6;
+    --color-spirit-600: #0d9488;
+    --color-spirit-700: #0f766e;
+
+    /* 语义色 */
+    --color-emerald-glow: #34d399;
+    --color-amber-glow: #fbbf24;
+    --color-rose-glow: #fb7185;
+    --color-sky-glow: #60a5fa;
+
+    /* 圆角 */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+
+    /* 阴影 */
+    --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px -4px rgb(0 0 0 / 0.45);
+    --shadow-float: 0 12px 32px -8px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.35);
+    --shadow-modal: 0 32px 64px -16px rgb(0 0 0 / 0.7);
+    --shadow-glow: 0 0 0 1px rgb(124 92 245 / 0.35), 0 8px 28px -10px rgb(124 92 245 / 0.6);
+
+    /* 动画 */
+    --animate-fade-in: fade-in 0.18s ease-out both;
+    --animate-slide-up: slide-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    --animate-slide-left: slide-left 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+    --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+}
+
+/* 语义色：深色 / 浅色两套值，其余令牌引用它们，从而支持运行时换肤 */
+:root,
+[data-theme='dark'] {
+    --s-bg: #070a12;
+    --s-bg-grad:
+        radial-gradient(1200px 640px at 12% -10%, rgb(124 92 245 / 0.16), transparent 60%),
+        radial-gradient(900px 520px at 96% 4%, rgb(20 184 166 / 0.1), transparent 62%);
+    --s-surface: #0e1422;
+    --s-surface-2: #131a2b;
+    --s-surface-3: #182136;
+    --s-elevated: #1b2439;
+    --s-line: #212c45;
+    --s-line-strong: #2d3a58;
+    --s-text: #e6ebf5;
+    --s-text-soft: #b3bdd2;
+    --s-text-muted: #8592b0;
+    --s-text-faint: #5a688a;
+    --s-accent: #7c5cf5;
+    --s-accent-soft: rgb(124 92 245 / 0.14);
+    --s-accent-line: rgb(124 92 245 / 0.42);
+    --s-scroll-thumb: #2d3a58;
+    --s-overlay: rgb(4 6 12 / 0.66);
+    color-scheme: dark;
+}
+
+[data-theme='light'] {
+    --s-bg: #f4f6fb;
+    --s-bg-grad:
+        radial-gradient(1100px 600px at 10% -12%, rgb(124 92 245 / 0.12), transparent 62%),
+        radial-gradient(900px 520px at 98% 0%, rgb(20 184 166 / 0.1), transparent 60%);
+    --s-surface: #ffffff;
+    --s-surface-2: #f8fafc;
+    --s-surface-3: #eef2f9;
+    --s-elevated: #ffffff;
+    --s-line: #e2e8f2;
+    --s-line-strong: #cbd5e6;
+    --s-text: #131a2b;
+    --s-text-soft: #3f4c6d;
+    --s-text-muted: #5a688a;
+    --s-text-faint: #8592b0;
+    --s-accent: #6841db;
+    --s-accent-soft: rgb(104 65 219 / 0.1);
+    --s-accent-line: rgb(104 65 219 / 0.32);
+    --s-scroll-thumb: #cbd5e6;
+    --s-overlay: rgb(19 26 43 / 0.4);
+    color-scheme: light;
+}
+
+/* 把语义变量注册成 Tailwind 颜色工具类：bg-surface / text-muted / border-line … */
+@theme inline {
+    --color-surface: var(--s-surface);
+    --color-surface-2: var(--s-surface-2);
+    --color-surface-3: var(--s-surface-3);
+    --color-elevated: var(--s-elevated);
+    --color-line: var(--s-line);
+    --color-line-strong: var(--s-line-strong);
+    --color-body: var(--s-bg);
+    --color-strong: var(--s-text);
+    --color-soft: var(--s-text-soft);
+    --color-muted: var(--s-text-muted);
+    --color-faint: var(--s-text-faint);
+    --color-accent: var(--s-accent);
+    --color-accent-soft: var(--s-accent-soft);
+    --color-accent-line: var(--s-accent-line);
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@keyframes slide-left {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@keyframes pulse-soft {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}
+
+/* --------------------------------------------------------------- 基础样式 */
+@layer base {
+    * {
+        border-color: var(--s-line);
+    }
+
+    html,
+    body,
+    #app {
+        height: 100%;
+    }
+
+    body {
+        margin: 0;
+        background-color: var(--s-bg);
+        background-image: var(--s-bg-grad);
+        background-attachment: fixed;
+        color: var(--s-text);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+        background: var(--s-accent-soft);
+        color: var(--s-text);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--s-accent);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    /* 统一滚动条，避免各面板宽度跳动 */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--s-scroll-thumb) transparent;
+    }
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--s-scroll-thumb);
+        border: 3px solid transparent;
+        background-clip: content-box;
+        border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--s-line-strong);
+        background-clip: content-box;
+    }
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        margin: 0;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+        font: inherit;
+        color: inherit;
+    }
+}
+
+/* --------------------------------------------------------- 组件类（统一） */
+@layer components {
+    /* 面板 / 卡片：所有容器都留出统一内边距，杜绝贴边与重叠 */
+    .panel {
+        @apply flex min-h-0 flex-col rounded-lg border border-line bg-surface/80 backdrop-blur-sm;
+    }
+    .panel-header {
+        @apply flex shrink-0 items-center gap-3 border-b border-line px-4 py-3;
+    }
+    .panel-title {
+        @apply flex items-center gap-2 text-[13px] font-semibold tracking-wide text-strong;
+    }
+    .panel-body {
+        @apply min-h-0 flex-1 overflow-auto p-4;
+    }
+    .panel-body-tight {
+        @apply min-h-0 flex-1 overflow-auto p-2;
+    }
+
+    .card {
+        @apply rounded-md border border-line bg-surface-2 p-4;
+    }
+
+    /* 工具条 */
+    .toolbar {
+        @apply flex flex-wrap items-center gap-2;
+    }
+    .toolbar-sep {
+        @apply mx-1 h-5 w-px shrink-0 bg-line-strong;
+    }
+
+    /* 按钮 */
+    .btn {
+        @apply inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-sm border
+            border-line-strong bg-surface-3 px-3 py-1.5 text-[13px] font-medium text-soft
+            transition-all duration-150 select-none hover:border-accent-line hover:bg-elevated hover:text-strong
+            active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-line-strong
+            disabled:hover:bg-surface-3 disabled:hover:text-soft;
+    }
+    .btn-primary {
+        @apply border-transparent bg-accent text-white shadow-raise hover:border-transparent hover:bg-phantom-400
+            hover:text-white;
+    }
+    .btn-ghost {
+        @apply border-transparent bg-transparent text-muted hover:bg-surface-3 hover:text-strong;
+    }
+    .btn-danger {
+        @apply border-rose-glow/35 bg-rose-glow/12 text-rose-glow hover:border-rose-glow/60 hover:bg-rose-glow/20
+            hover:text-rose-glow;
+    }
+    .btn-success {
+        @apply border-emerald-glow/35 bg-emerald-glow/12 text-emerald-glow hover:border-emerald-glow/60
+            hover:bg-emerald-glow/20 hover:text-emerald-glow;
+    }
+    .btn-sm {
+        @apply gap-1 px-2 py-1 text-xs;
+    }
+    .btn-icon {
+        @apply h-7 w-7 p-0;
+    }
+
+    /* 表单 */
+    .field {
+        @apply flex flex-col gap-1.5;
+    }
+    .field-label {
+        @apply flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted uppercase;
+    }
+    .field-hint {
+        @apply text-[11px] leading-snug text-faint;
+    }
+    .input,
+    .textarea,
+    .select {
+        @apply w-full rounded-sm border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] text-strong
+            transition-colors duration-150 placeholder:text-faint hover:border-line-strong
+            focus:border-accent focus:bg-surface-3 focus:outline-none;
+    }
+    .textarea {
+        @apply resize-y leading-relaxed;
+    }
+    .select {
+        @apply cursor-pointer appearance-none bg-[length:14px] bg-[right_8px_center] bg-no-repeat pr-7;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238592b0' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    .select option {
+        background: var(--s-surface-2);
+        color: var(--s-text);
+    }
+    .input-mono {
+        @apply font-mono text-[12.5px];
+    }
+    .checkbox {
+        @apply h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-xs border border-line-strong bg-surface-2
+            transition-colors checked:border-accent checked:bg-accent;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 11px;
+    }
+    .checkbox:checked {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+    }
+
+    /* 徽标 */
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-xs border border-line-strong bg-surface-3 px-1.5 py-0.5
+            text-[11px] font-medium text-muted;
+    }
+    .badge-accent {
+        @apply border-accent-line bg-accent-soft text-phantom-200;
+    }
+    .badge-ok {
+        @apply border-emerald-glow/35 bg-emerald-glow/12 text-emerald-glow;
+    }
+    .badge-warn {
+        @apply border-amber-glow/35 bg-amber-glow/12 text-amber-glow;
+    }
+    .badge-danger {
+        @apply border-rose-glow/35 bg-rose-glow/12 text-rose-glow;
+    }
+    .badge-info {
+        @apply border-sky-glow/35 bg-sky-glow/12 text-sky-glow;
+    }
+
+    /* 列表行 */
+    .row-item {
+        @apply flex cursor-pointer items-center gap-2.5 rounded-sm border border-transparent px-2.5 py-2
+            transition-colors duration-100 hover:bg-surface-3;
+    }
+    .row-item-active {
+        @apply border-accent-line bg-accent-soft text-strong;
+    }
+
+    /* 表格 */
+    .data-table {
+        @apply w-full border-collapse text-[13px];
+    }
+    .data-table thead th {
+        @apply sticky top-0 z-10 border-b border-line bg-surface-2 px-3 py-2.5 text-left text-[11px] font-semibold
+            tracking-wide text-muted uppercase;
+    }
+    .data-table tbody td {
+        @apply border-b border-line/70 px-3 py-2 align-middle text-soft;
+    }
+    .data-table tbody tr {
+        @apply transition-colors duration-100 hover:bg-surface-3/60;
+    }
+    .data-table tbody tr:last-child td {
+        @apply border-b-0;
+    }
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* 标签页 */
+    .tab {
+        @apply relative shrink-0 cursor-pointer rounded-sm px-3 py-1.5 text-[13px] font-medium text-muted
+            transition-colors duration-150 hover:bg-surface-3 hover:text-soft;
+    }
+    .tab-active {
+        @apply bg-accent-soft text-phantom-200;
+    }
+
+    /* 空状态 */
+    .empty-state {
+        @apply flex h-full min-h-[160px] flex-col items-center justify-center gap-2 p-8 text-center text-muted;
+    }
+
+    /* 分隔条（可拖拽） */
+    .splitter {
+        @apply relative z-10 w-px shrink-0 cursor-col-resize bg-line transition-colors duration-150
+            hover:bg-accent-line;
+    }
+    .splitter::after {
+        content: '';
+        @apply absolute top-0 bottom-0 -left-1 -right-1;
+    }
+
+    .kbd {
+        @apply rounded-xs border border-line-strong bg-surface-3 px-1.5 py-0.5 font-mono text-[10px] text-muted;
+    }
+}
+
+/* -------------------------------------------------------------- 原子工具 */
+@utility no-scrollbar {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@utility scroll-y {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+@utility glass {
+    background: color-mix(in oklab, var(--s-surface) 86%, transparent);
+    backdrop-filter: blur(12px);
+}
+
+@utility grid-bg {
+    background-image:
+        linear-gradient(rgb(124 92 245 / 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(124 92 245 / 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
