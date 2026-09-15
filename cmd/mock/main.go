@@ -55,8 +55,8 @@ func main() {
 	defer sqlDB2.Close()
 
 	// 4. 删除旧表后自动迁移（确保列名变更生效）
-	db.Migrator().DropTable("player_items", "items", "players", "users", "emails", "characters", "user_characters", "enemies", "tools", "skills")
-	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}, &domain.Character{}, &domain.UserCharacter{}, &domain.Enemy{}, &domain.Tool{}, &domain.Skill{}); err != nil {
+	db.Migrator().DropTable("player_items", "items", "players", "users", "emails", "characters", "user_characters", "enemies", "tools", "skills", "buffs")
+	if err := db.AutoMigrate(&domain.User{}, &domain.Player{}, &domain.Item{}, &domain.PlayerItem{}, &domain.Email{}, &domain.Character{}, &domain.UserCharacter{}, &domain.Enemy{}, &domain.Tool{}, &domain.Skill{}, &domain.Buff{}); err != nil {
 		log.Fatalf("自动迁移失败: %v", err)
 	}
 	log.Println("表结构迁移完成")
@@ -165,6 +165,22 @@ func main() {
 	db.Create(&skill)
 	log.Printf("技能已创建: id=%d, name=%s, character_id=%d", skill.ID, skill.Name, skill.CharacterID)
 
+	// 6.6.2 buff 定义（供战斗侧 buff 读写试玩）。
+	// 注意 ID：内容表走 Redis 自增计数器，正常由后台创建时分配；
+	// 这里直接落库，ID 由数据库自增决定，因此 log 出真实 ID 便于对照。
+	buffDef := domain.Buff{
+		Name:            "雷印",
+		Type:            domain.BuffTypeListener,
+		LossWay:         domain.LossByTime,
+		DefaultDuration: 3,
+		Description:     "每回合损失 1 格，持续期间触发雷击追加",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+	db.Create(&buffDef)
+	log.Printf("Buff 已创建: id=%d, name=%s, type=%s, loss_way=%s, default_duration=%d",
+		buffDef.ID, buffDef.Name, buffDef.Type, buffDef.LossWay, buffDef.DefaultDuration)
+
 	// 7. 清空 Redis DB
 	redisClient, err := utils.ConnectRedis(cfg)
 	if err != nil {
@@ -179,7 +195,22 @@ func main() {
 		log.Println("Redis DB 已清空")
 	}
 
-	// 7.1 预置玩家战斗状态：队伍 [character.ID]、对战 NPC [enemy.ID]、
+	// 7.1 内容表 ID 自增计数器对齐到已落库的最大 ID。
+	// 必须放在 Flushdb 之后：否则上面创建的 seed 内容 ID 会与 Redis 计数器脱节，
+	// 后台第一次 CreateX 会从 1 开始分配，直接覆盖 seed 出来的内容。
+	for key, maxID := range map[string]int{
+		"private:game:character:next_id": character.ID,
+		"private:game:enemy:next_id":     enemy.ID,
+		"private:game:skill:next_id":     skill.ID,
+		"private:game:buff:next_id":      buffDef.ID,
+	} {
+		setCmd := redisClient.B().Set().Key(key).Value(strconv.Itoa(maxID)).Build()
+		if err := redisClient.Do(context.Background(), setCmd).Error(); err != nil {
+			log.Printf("对齐 ID 计数器失败 key=%s: %v", key, err)
+		}
+	}
+
+	// 7.2 预置玩家战斗状态：队伍 [character.ID]、对战 NPC [enemy.ID]、
 	//     等级/经验（与玩家数据 Hash 共用，先建 key 后 loadFromDB 不会覆盖）
 	playerDataKey := fmt.Sprintf("private:player:data:%d", player.ID)
 	teamBytes, _ := json.Marshal([]int{character.ID})
