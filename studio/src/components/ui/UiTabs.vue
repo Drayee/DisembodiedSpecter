@@ -1,12 +1,6 @@
 <script setup lang="ts">
 /** UiTabs — 标签栏（不含内容区，内容由父级决定） */
-export interface TabOption {
-    key: string
-    label: string
-    icon?: unknown
-    count?: number
-    tone?: 'default' | 'warn' | 'danger'
-}
+import type { TabOption } from './types'
 
 defineProps<{ modelValue: string; tabs: TabOption[] }>()
 

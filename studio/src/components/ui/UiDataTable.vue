@@ -5,16 +5,7 @@
  * 表格自身只负责：吸顶表头、加载态、空态、横向滚动、行点击、行高一致。
  */
 import { LoaderCircle } from '@lucide/vue'
-
-export interface TableColumn {
-    key: string
-    title: string
-    width?: string
-    align?: 'left' | 'center' | 'right'
-    mono?: boolean
-    /** 数值列使用等宽数字，避免抖动 */
-    numeric?: boolean
-}
+import type { TableColumn } from './types'
 
 const props = withDefaults(
     defineProps<{

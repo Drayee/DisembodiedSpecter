@@ -1,13 +1,6 @@
 <script setup lang="ts">
 /** UiSegmented — 分段控件；比下拉更直观，适合 3~5 个互斥选项 */
-export interface SegmentOption {
-    value: string
-    label: string
-    /** lucide 图标组件（可选） */
-    icon?: unknown
-    /** 右上角计数 */
-    count?: number
-}
+import type { SegmentOption } from './types'
 
 defineProps<{ modelValue: string; options: SegmentOption[]; disabled?: boolean }>()
 
