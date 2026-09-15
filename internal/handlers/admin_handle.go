@@ -710,3 +710,96 @@ func (h *AdminHandler) UpdateSkill(c *gin.Context) {
 	}
 	response.OKWithMsg(c, "技能更新成功", nil)
 }
+
+// ==================== 游戏内容管理 - Buff ====================
+
+// GetBuffList buff 列表
+// @Summary buff列表
+// @Tags 管理员-游戏内容-Buff
+// @Produce json
+// @Param page query int true "页码"
+// @Param page_size query int true "每页数量"
+// @Success 200 {object} response.Result
+// @Router /api/v3/admin/game/buffs/list [get]
+func (h *AdminHandler) GetBuffList(c *gin.Context) {
+	var req request.AdminPaginateReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.FailInvalidParam(c, err.Error())
+		return
+	}
+	result, err := h.adminService.GetBuffList(c, req.Page, req.PageSize)
+	if err != nil {
+		response.FailServer(c, err.Error())
+		return
+	}
+	response.OK(c, result)
+}
+
+// GetBuffDetail buff 详情
+// @Summary buff详情
+// @Tags 管理员-游戏内容-Buff
+// @Produce json
+// @Param id path int true "BuffID"
+// @Success 200 {object} response.Result
+// @Router /api/v3/admin/game/buffs/{id} [get]
+func (h *AdminHandler) GetBuffDetail(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.FailInvalidParam(c, "无效的BuffID")
+		return
+	}
+	result, err := h.adminService.GetBuffDetail(c, id)
+	if err != nil {
+		response.FailServer(c, err.Error())
+		return
+	}
+	response.OK(c, result)
+}
+
+// CreateBuff 创建 buff
+// @Summary 创建buff
+// @Tags 管理员-游戏内容-Buff
+// @Accept json
+// @Produce json
+// @Param request body request.AdminCreateBuffReq true "buff信息"
+// @Success 200 {object} response.Result
+// @Router /api/v3/admin/game/buffs [post]
+func (h *AdminHandler) CreateBuff(c *gin.Context) {
+	var req request.AdminCreateBuffReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailInvalidParam(c, err.Error())
+		return
+	}
+	if err := h.adminService.CreateBuff(c, &req); err != nil {
+		response.FailServer(c, err.Error())
+		return
+	}
+	response.OKWithMsg(c, "buff创建成功", nil)
+}
+
+// UpdateBuff 修改 buff
+// @Summary 修改buff
+// @Tags 管理员-游戏内容-Buff
+// @Accept json
+// @Produce json
+// @Param id path int true "BuffID"
+// @Param request body request.AdminUpdateBuffReq true "buff信息"
+// @Success 200 {object} response.Result
+// @Router /api/v3/admin/game/buffs/{id} [put]
+func (h *AdminHandler) UpdateBuff(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.FailInvalidParam(c, "无效的BuffID")
+		return
+	}
+	var req request.AdminUpdateBuffReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailInvalidParam(c, err.Error())
+		return
+	}
+	if err := h.adminService.UpdateBuff(c, id, &req); err != nil {
+		response.FailServer(c, err.Error())
+		return
+	}
+	response.OKWithMsg(c, "buff更新成功", nil)
+}

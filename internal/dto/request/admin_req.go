@@ -94,3 +94,26 @@ type AdminUpdateSkillReq struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
 }
+
+// AdminCreateBuffReq 创建 buff
+// type/loss_way 用 oneof 约束成合法枚举值，避免把无效值写进内容表缓存
+// （战斗侧会按这些值 switch 分支）
+type AdminCreateBuffReq struct {
+	Name            string `json:"name" binding:"required"`
+	Type            string `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
+	LossWay         string `json:"loss_way" binding:"required,oneof=time action none listener"`
+	DefaultDuration int    `json:"default_duration" binding:"min=0"`
+	Description     string `json:"description"`
+}
+
+// AdminUpdateBuffReq 修改 buff
+// PUT 是整体替换：name/type/loss_way 都必须带（否则会被置空）。
+// type/loss_way 不用 omitempty，正是为了拦住"漏传 → 枚举被清成空串"——
+// 战斗侧会按 loss_way 分支，空值等于把 buff 变成无定义状态。
+type AdminUpdateBuffReq struct {
+	Name            string `json:"name" binding:"required"`
+	Type            string `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
+	LossWay         string `json:"loss_way" binding:"required,oneof=time action none listener"`
+	DefaultDuration int    `json:"default_duration" binding:"min=0"`
+	Description     string `json:"description"`
+}

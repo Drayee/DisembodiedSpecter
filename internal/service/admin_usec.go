@@ -371,3 +371,39 @@ func (a *AdminUseCase) UpdateSkill(ctx context.Context, id int, req *request.Adm
 	}
 	return a.gameContentManager.UpdateSkill(ctx, id, s)
 }
+
+// ==================== 游戏内容管理 - Buff ====================
+
+func (a *AdminUseCase) GetBuffList(ctx context.Context, page, pageSize int) (*response.AdminBuffListResp, error) {
+	list, total, err := a.gameContentManager.ListBuffs(ctx, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	return &response.AdminBuffListResp{Total: total, List: list}, nil
+}
+
+func (a *AdminUseCase) GetBuffDetail(ctx context.Context, id int) (*domain.Buff, error) {
+	return a.gameContentManager.GetBuff(ctx, id)
+}
+
+func (a *AdminUseCase) CreateBuff(ctx context.Context, req *request.AdminCreateBuffReq) error {
+	b := &domain.Buff{
+		Name:            req.Name,
+		Type:            domain.BuffType(req.Type),
+		LossWay:         domain.BuffLossWay(req.LossWay),
+		DefaultDuration: req.DefaultDuration,
+		Description:     req.Description,
+	}
+	return a.gameContentManager.CreateBuff(ctx, b)
+}
+
+func (a *AdminUseCase) UpdateBuff(ctx context.Context, id int, req *request.AdminUpdateBuffReq) error {
+	b := &domain.Buff{
+		Name:            req.Name,
+		Type:            domain.BuffType(req.Type),
+		LossWay:         domain.BuffLossWay(req.LossWay),
+		DefaultDuration: req.DefaultDuration,
+		Description:     req.Description,
+	}
+	return a.gameContentManager.UpdateBuff(ctx, id, b)
+}

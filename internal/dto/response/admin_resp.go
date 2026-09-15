@@ -34,6 +34,12 @@ type AdminSkillListResp struct {
 	List  []*domain.Skill `json:"list"`
 }
 
+// AdminBuffListResp buff 列表响应
+type AdminBuffListResp struct {
+	Total int64           `json:"total"`
+	List  []*domain.Buff `json:"list"`
+}
+
 type AdminUserItem struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`

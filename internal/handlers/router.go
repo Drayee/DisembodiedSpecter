@@ -83,6 +83,12 @@ func NewRouter(authHandler *AuthHandler, userHandler *UserHandler, adminHandler 
 		admin.GET("/game/skills/:id", adminHandler.GetSkillDetail)
 		admin.POST("/game/skills", adminHandler.CreateSkill)
 		admin.PUT("/game/skills/:id", adminHandler.UpdateSkill)
+
+		// 游戏内容管理 - Buff
+		admin.GET("/game/buffs/list", adminHandler.GetBuffList)
+		admin.GET("/game/buffs/:id", adminHandler.GetBuffDetail)
+		admin.POST("/game/buffs", adminHandler.CreateBuff)
+		admin.PUT("/game/buffs/:id", adminHandler.UpdateBuff)
 	}
 
 	return r
