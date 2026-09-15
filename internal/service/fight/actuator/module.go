@@ -40,16 +40,6 @@ func RecoverModule(machine *structs.Machine, targetIndex int, recover int) {
 	stateTarget.Health += recover
 }
 
-func GetBuffModule(machine *structs.Machine, targetIndex int, buffID int, buffTime int) {
-	stateTarget := machine.CharacterState[targetIndex]
-	for _, b := range stateTarget.Buffs {
-		if b.ID == buffID {
-			b.Time = buffTime
-		}
-	}
-	stateTarget.Buffs = append(stateTarget.Buffs, &structs.Buff{ID: buffID, Time: buffTime})
-}
-
 func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex int, targetIndex int, damage int, probability float64) error {
 	siteTarget := sites[targetIndex]
 	if damage <= 0 {

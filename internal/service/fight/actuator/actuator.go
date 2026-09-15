@@ -1,6 +1,7 @@
 package actuator
 
 import (
+	"DisembodiedSpecter/internal/service/fight/buff"
 	"DisembodiedSpecter/internal/service/fight/structs"
 	"DisembodiedSpecter/internal/utils"
 	"context"
@@ -212,7 +213,25 @@ func (am *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) err
 			}
 		}
 	}
+	// buff 单独走：它需要先按 ID 取定义（Redis 往返），而 defaultSettle 会持锁，
+	// 在锁内做网络 IO 会把所有战斗状态的读写堵住。
+	if e.Kind == structs.EffectBuff {
+		return applyBuff(machine, e)
+	}
 	return defaultSettle(machine, e)
+}
+
+// applyBuff 施加/刷新 buff：先取定义（不持锁），再交给 buff 包结算。
+// buff 包负责去重、默认时长兜底、效果快照、属性重算与监听器武装。
+func applyBuff(machine *structs.Machine, e structs.Effect) error {
+	def, err := buff.GetBuff(machine, e.BuffID)
+	if err != nil {
+		return fmt.Errorf("获取 buff %d 定义失败: %w", e.BuffID, err)
+	}
+	if err := buff.AddBuff(machine, e.TargetID, def, e.BuffTime, e.SourceID); err != nil {
+		return fmt.Errorf("施加 buff %d 失败: %w", e.BuffID, err)
+	}
+	return nil
 }
 
 // callBehavior 反射调用定制行为；panic 被捕获转为错误，避免拖垮主循环。
@@ -254,9 +273,8 @@ func defaultSettle(machine *structs.Machine, e structs.Effect) error {
 		AttackModule(machine, e.SourceID, e.TargetID, e.Damage, damageType)
 	case structs.EffectRecover:
 		RecoverModule(machine, e.TargetID, e.Recover)
-	case structs.EffectBuff:
-		GetBuffModule(machine, e.TargetID, e.BuffID, e.BuffTime)
 	default:
+		// EffectBuff 由 applyBuff 在取锁之前处理，不会走到这里
 		return fmt.Errorf("未知的效果类型 %d", int(e.Kind))
 	}
 	return nil
