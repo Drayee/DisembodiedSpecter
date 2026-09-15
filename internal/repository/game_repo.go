@@ -31,6 +31,11 @@ type GameRepo interface {
 	GetAllSkills(ctx context.Context, page, pageSize int) ([]*domain.Skill, int64, error)
 	UpsertSkill(ctx context.Context, s *domain.Skill) error
 	GetAllSkillNumber(ctx context.Context) (int, error)
+
+	// Buff 增益
+	GetBuffByID(ctx context.Context, id int) (*domain.Buff, error)
+	GetAllBuffs(ctx context.Context, page, pageSize int) ([]*domain.Buff, int64, error)
+	UpsertBuff(ctx context.Context, b *domain.Buff) error
 }
 
 func NewGormGameRepo(db *gorm.DB) GameRepo {
@@ -39,6 +44,31 @@ func NewGormGameRepo(db *gorm.DB) GameRepo {
 
 type gormGameRepo struct {
 	db *gorm.DB
+}
+
+// ==================== Buff ====================
+
+func (g *gormGameRepo) GetBuffByID(ctx context.Context, id int) (*domain.Buff, error) {
+	var b domain.Buff
+	if err := g.db.WithContext(ctx).Where("id = ?", id).First(&b).Error; err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+func (g *gormGameRepo) GetAllBuffs(ctx context.Context, page, pageSize int)  ([]*domain.Buff, int64, error) {
+	var list []*domain.Buff
+	var total int64
+	g.db.WithContext(ctx).Model(&domain.Buff{}).Count(&total)
+	offset := (page - 1) * pageSize
+	if err := g.db.WithContext(ctx).Order("id DESC").Offset(offset).Limit(pageSize).Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
+}
+
+func (g *gormGameRepo) UpsertBuff(ctx context.Context, b *domain.Buff) error {
+	return g.db.WithContext(ctx).Save(b).Error
 }
 
 // ==================== Character ====================

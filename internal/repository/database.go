@@ -59,6 +59,7 @@ func ProvideDB(cfg *config.Config) (*gorm.DB, func(), error) {
 			&domain.Enemy{},
 			&domain.Tool{},
 			&domain.Skill{},
+			&domain.Buff{},
 		); err != nil {
 			sqlDB, _ := database.DB()
 			if sqlDB != nil {
