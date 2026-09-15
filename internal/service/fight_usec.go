@@ -224,12 +224,15 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				machine.Ended = true
 				machine.PlayerWin = win
 				log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(win), userID)
+				fu.logBattleEnd(machine)
 				fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				continue
 			}
 			// 我方行动结束，进入敌方回合（前端发送 START_PHASE 触发敌方行动，计划步骤 6）
 			machine.LastStateNumber = structs.Waiting
 			machine.StateNumber = structs.OtherRound
+			// 记账：回合推进（Round 已 +1，StateNumber 已是敌方回合）
+			fu.logRound(machine)
 			fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 
 		case *pd.FightMessage_SwitchPhase:
@@ -254,9 +257,14 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 						machine.Ended = true
 						machine.PlayerWin = win
 						log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(win), userID)
+						fu.logBattleEnd(machine)
 					}
 					machine.LastStateNumber = structs.OtherRound
 					machine.StateNumber = structs.Waiting
+					if !machine.Ended {
+						// 记账：一个完整回合（我方+敌方）收尾，回到等待选择
+						fu.logRound(machine)
+					}
 					fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				default:
 					// Waiting：空闲阶段，仅同步
@@ -280,6 +288,20 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 	normalClose = true
 }
 
+// logRound 记录一次回合/阶段推进（供客户端播回合提示）。
+func (fu *FightUseCase) logRound(machine *structs.Machine) {
+	machine.AppendLog(structs.FightLog{Type: structs.FightLogRound})
+}
+
+// logBattleEnd 记录战斗结束：Value 1=胜利 0=失败（供客户端播结算演出）。
+func (fu *FightUseCase) logBattleEnd(machine *structs.Machine) {
+	value := 0
+	if machine.PlayerWin {
+		value = 1
+	}
+	machine.AppendLog(structs.FightLog{Type: structs.FightLogEnd, Value: value})
+}
+
 // runEnemyRound 敌方回合：为每个敌方 NPC 执行其行动（Action{enemyID}Run）。
 // id 为敌方战斗位索引，enemyID 为敌方 DB ID（用于查找行动注册表）。
 func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
@@ -288,6 +310,13 @@ func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
 		if !ok {
 			continue
 		}
+		// 记账：敌方出手（目标是"由行动内部决定"的，日志里先记 -1，
+		// 随后的 Attack 日志会带上真实目标）
+		machine.AppendLog(structs.FightLog{
+			Type:   structs.FightLogCast,
+			Source: idx,
+			Target: -1,
+		})
 		if err := fu.enemyManager.Run(idx, machine, eid); err != nil {
 			log.Printf("敌方行动失败: %v", err)
 		}
@@ -298,8 +327,17 @@ func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
 	}
 }
 
-// sendFightStatus 向客户端下发服务器权威战斗状态（用于纠正前端或主动同步）
+// sendFightStatus 向客户端下发服务器权威战斗状态（用于纠正前端或主动同步）。
+//
+// 顺序约定：**先发本批战斗日志、再发状态快照**。客户端因此总能"先按日志演完动画、
+// 再把权威状态落位"；反过来（先状态后日志）前端就只能在演出结束后才拿到数值，
+// 血条与飘字必然对不上。
 func (fu *FightUseCase) sendFightStatus(ws *websocket.Conn, ctx context.Context, machine *structs.Machine, userID int) {
+	// 先把待下发的日志冲刷出去（DrainLogs 取走即清空，保证同一批事件只播一次）
+	if err := fu.flushFightLogs(ws, ctx, machine); err != nil {
+		log.Printf("下发战斗日志失败: %v, userId %d", err, userID)
+	}
+
 	status := fight.BuildFightStatus(machine)
 	respMsg := &pd.FightMessage{
 		Timestamp: time.Now().UnixMilli(),
@@ -318,6 +356,44 @@ func (fu *FightUseCase) sendFightStatus(ws *websocket.Conn, ctx context.Context,
 	if err := ws.Write(ctx, websocket.MessageBinary, data); err != nil {
 		log.Printf("下发战斗状态失败: %v, userId %d", err, userID)
 	}
+}
+
+// flushFightLogs 把本机已记录的战斗日志打包下发给客户端；没有日志时什么都不发。
+func (fu *FightUseCase) flushFightLogs(ws *websocket.Conn, ctx context.Context, machine *structs.Machine) error {
+	logs := machine.DrainLogs()
+	if len(logs) == 0 {
+		return nil
+	}
+
+	pbLogs := make([]*pd.FightLog, 0, len(logs))
+	for _, entry := range logs {
+		pbLogs = append(pbLogs, &pd.FightLog{
+			Seq:         int32(entry.Seq),
+			Type:        pd.FightLogType(entry.Type),
+			Source:      int32(entry.Source),
+			Target:      int32(entry.Target),
+			SkillId:     int32(entry.SkillID),
+			BuffId:      int32(entry.BuffID),
+			Value:       int32(entry.Value),
+			HpBefore:    int32(entry.HPBefore),
+			HpAfter:     int32(entry.HPAfter),
+			Round:       int32(entry.Round),
+			StateNumber: int32(entry.StateNumber),
+			Text:        entry.Text,
+		})
+	}
+
+	respMsg := &pd.FightMessage{
+		Timestamp: time.Now().UnixMilli(),
+		Payload: &pd.FightMessage_FightLogs{
+			FightLogs: &pd.S2C_FightLogs{Logs: pbLogs},
+		},
+	}
+	data, err := proto.Marshal(respMsg)
+	if err != nil {
+		return fmt.Errorf("序列化战斗日志失败: %w", err)
+	}
+	return ws.Write(ctx, websocket.MessageBinary, data)
 }
 
 // battleResultText 战斗结果文案

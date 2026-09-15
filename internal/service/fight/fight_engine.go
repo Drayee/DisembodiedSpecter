@@ -124,6 +124,21 @@ func (fe *FightEngine) RunSkillStart(skills []*pd.Skill, machine *structs.Machin
 
 	fe.ArmRoundReactors(machine)
 
+	// 记账：本回合每次出手一条 Cast 日志（发生在 Init 之前，与"先出手、后结算"的
+	// 执行顺序一致）。客户端据此播放出手动画，随后的 Attack/Buff 日志再演结算。
+	for _, s := range skills {
+		index, ok := machine.SelfCharacterIndex[int(s.GetCharacterId())]
+		if !ok {
+			continue
+		}
+		machine.AppendLog(structs.FightLog{
+			Type:    structs.FightLogCast,
+			Source:  index,
+			Target:  int(s.GetTargetId()),
+			SkillID: int(s.GetSkillId()),
+		})
+	}
+
 	for _, s := range skills {
 		if err := fe.skillManger.Init(int(s.GetSkillId()), machine, int(s.GetCharacterId()), int(s.GetTargetId())); err != nil {
 			log.Printf("技能 %d Init 失败: %v", s.GetSkillId(), err)

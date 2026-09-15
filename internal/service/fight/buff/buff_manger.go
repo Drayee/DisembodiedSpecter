@@ -218,9 +218,27 @@ func AddBuff(machine *structs.Machine, index int, def *domain.Buff, buffTime int
 	recalcStats(state)
 	machine.Mu.Unlock()
 
+	// 记账放在解锁之后：AppendLog 只用 LogMu，但保持"不持 Mu 做 IO/记账"的一致风格
+	machine.AppendLog(structs.FightLog{
+		Type:   structs.FightLogBuffAdd,
+		Source: source,
+		Target: index,
+		BuffID: def.ID,
+		Value:  buffTime,
+	})
+
 	// 武装在解锁之后：RegisterReactor 会订阅 pubsub
 	arm(machine, index, def.ID)
 	return nil
+}
+
+// logBuffRemove 记录 buff 消失（时间耗尽或被主动移除）。
+func logBuffRemove(machine *structs.Machine, index int, buffID int) {
+	machine.AppendLog(structs.FightLog{
+		Type:   structs.FightLogBuffRemove,
+		Target: index,
+		BuffID: buffID,
+	})
 }
 
 // LossBuff 扣减战斗位 index 身上该 buff 的剩余时间；剩余时间归零则移除并重算属性。
@@ -239,6 +257,7 @@ func LossBuff(machine *structs.Machine, index int, buffID int, loss int) {
 
 	if removed {
 		disarm(machine, index, buffID)
+		logBuffRemove(machine, index, buffID)
 	}
 }
 
@@ -271,6 +290,7 @@ func RemoveBuff(machine *structs.Machine, index int, buffID int) {
 
 	if removed {
 		disarm(machine, index, buffID)
+		logBuffRemove(machine, index, buffID)
 	}
 }
 
@@ -493,6 +513,7 @@ func handleTick(machine *structs.Machine, index int, buffID int, msg *message.Me
 
 	if removed {
 		disarm(machine, index, buffID)
+		logBuffRemove(machine, index, buffID)
 	}
 }
 

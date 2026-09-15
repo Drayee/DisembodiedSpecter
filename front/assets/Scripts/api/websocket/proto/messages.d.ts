@@ -17,6 +17,37 @@ export namespace proto {
         RETURN_PREV_PHASE = 2
     }
 
+    /** FightLogType enum. */
+    enum FightLogType {
+
+        /** LOG_UNKNOWN value */
+        LOG_UNKNOWN = 0,
+
+        /** LOG_CAST value */
+        LOG_CAST = 1,
+
+        /** LOG_ATTACK value */
+        LOG_ATTACK = 2,
+
+        /** LOG_RECOVER value */
+        LOG_RECOVER = 3,
+
+        /** LOG_BUFF_ADD value */
+        LOG_BUFF_ADD = 4,
+
+        /** LOG_BUFF_REMOVE value */
+        LOG_BUFF_REMOVE = 5,
+
+        /** LOG_DEATH value */
+        LOG_DEATH = 6,
+
+        /** LOG_ROUND value */
+        LOG_ROUND = 7,
+
+        /** LOG_END value */
+        LOG_END = 8
+    }
+
     /**
      * Properties of a Buff.
      * @deprecated Use proto.Buff.$Properties instead.
@@ -174,6 +205,12 @@ export namespace proto {
         /** CharacterStatus isMyCharacter. */
         isMyCharacter: boolean;
 
+        /** CharacterStatus characterId. */
+        characterId: number;
+
+        /** CharacterStatus maxHealth. */
+        maxHealth: number;
+
         /**
          * Creates a new CharacterStatus instance using the specified properties.
          * @param [properties] Properties to set
@@ -272,6 +309,12 @@ export namespace proto {
 
             /** CharacterStatus isMyCharacter */
             isMyCharacter?: (boolean|null);
+
+            /** CharacterStatus characterId */
+            characterId?: (number|null);
+
+            /** CharacterStatus maxHealth */
+            maxHealth?: (number|null);
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
@@ -1290,6 +1333,306 @@ export namespace proto {
     }
 
     /**
+     * Properties of a FightLog.
+     * @deprecated Use proto.FightLog.$Properties instead.
+     */
+    interface IFightLog extends proto.FightLog.$Properties {
+    }
+
+    /** Represents a FightLog. */
+    class FightLog {
+
+        /**
+         * Constructs a new FightLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.FightLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** FightLog seq. */
+        seq: number;
+
+        /** FightLog type. */
+        type: proto.FightLogType;
+
+        /** FightLog source. */
+        source: number;
+
+        /** FightLog target. */
+        target: number;
+
+        /** FightLog skillId. */
+        skillId: number;
+
+        /** FightLog buffId. */
+        buffId: number;
+
+        /** FightLog value. */
+        value: number;
+
+        /** FightLog hpBefore. */
+        hpBefore: number;
+
+        /** FightLog hpAfter. */
+        hpAfter: number;
+
+        /** FightLog round. */
+        round: number;
+
+        /** FightLog stateNumber. */
+        stateNumber: number;
+
+        /** FightLog text. */
+        text: string;
+
+        /**
+         * Creates a new FightLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns FightLog instance
+         */
+        static create(properties: proto.FightLog.$Shape): proto.FightLog & proto.FightLog.$Shape;
+        static create(properties?: proto.FightLog.$Properties): proto.FightLog;
+
+        /**
+         * Encodes the specified FightLog message. Does not implicitly {@link proto.FightLog.verify|verify} messages.
+         * @param message FightLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.FightLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified FightLog message, length delimited. Does not implicitly {@link proto.FightLog.verify|verify} messages.
+         * @param message FightLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.FightLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a FightLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.FightLog & proto.FightLog.$Shape} FightLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.FightLog & proto.FightLog.$Shape;
+
+        /**
+         * Decodes a FightLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.FightLog & proto.FightLog.$Shape} FightLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.FightLog & proto.FightLog.$Shape;
+
+        /**
+         * Verifies a FightLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a FightLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns FightLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.FightLog;
+
+        /**
+         * Creates a plain object from a FightLog message. Also converts values to other types if specified.
+         * @param message FightLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.FightLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this FightLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for FightLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace FightLog {
+
+        /** Properties of a FightLog. */
+        interface $Properties {
+
+            /** FightLog seq */
+            seq?: (number|null);
+
+            /** FightLog type */
+            type?: (proto.FightLogType|null);
+
+            /** FightLog source */
+            source?: (number|null);
+
+            /** FightLog target */
+            target?: (number|null);
+
+            /** FightLog skillId */
+            skillId?: (number|null);
+
+            /** FightLog buffId */
+            buffId?: (number|null);
+
+            /** FightLog value */
+            value?: (number|null);
+
+            /** FightLog hpBefore */
+            hpBefore?: (number|null);
+
+            /** FightLog hpAfter */
+            hpAfter?: (number|null);
+
+            /** FightLog round */
+            round?: (number|null);
+
+            /** FightLog stateNumber */
+            stateNumber?: (number|null);
+
+            /** FightLog text */
+            text?: (string|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a FightLog. */
+        type $Shape = proto.FightLog.$Properties;
+    }
+
+    /**
+     * Properties of a S2C_FightLogs.
+     * @deprecated Use proto.S2C_FightLogs.$Properties instead.
+     */
+    interface IS2C_FightLogs extends proto.S2C_FightLogs.$Properties {
+    }
+
+    /** Represents a S2C_FightLogs. */
+    class S2C_FightLogs {
+
+        /**
+         * Constructs a new S2C_FightLogs.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.S2C_FightLogs.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** S2C_FightLogs logs. */
+        logs: proto.FightLog.$Properties[];
+
+        /**
+         * Creates a new S2C_FightLogs instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns S2C_FightLogs instance
+         */
+        static create(properties: proto.S2C_FightLogs.$Shape): proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape;
+        static create(properties?: proto.S2C_FightLogs.$Properties): proto.S2C_FightLogs;
+
+        /**
+         * Encodes the specified S2C_FightLogs message. Does not implicitly {@link proto.S2C_FightLogs.verify|verify} messages.
+         * @param message S2C_FightLogs message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.S2C_FightLogs.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified S2C_FightLogs message, length delimited. Does not implicitly {@link proto.S2C_FightLogs.verify|verify} messages.
+         * @param message S2C_FightLogs message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.S2C_FightLogs.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a S2C_FightLogs message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape} S2C_FightLogs
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape;
+
+        /**
+         * Decodes a S2C_FightLogs message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape} S2C_FightLogs
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape;
+
+        /**
+         * Verifies a S2C_FightLogs message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a S2C_FightLogs message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns S2C_FightLogs
+         */
+        static fromObject(object: { [k: string]: any }): proto.S2C_FightLogs;
+
+        /**
+         * Creates a plain object from a S2C_FightLogs message. Also converts values to other types if specified.
+         * @param message S2C_FightLogs
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.S2C_FightLogs, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this S2C_FightLogs to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for S2C_FightLogs
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace S2C_FightLogs {
+
+        /** Properties of a S2C_FightLogs. */
+        interface $Properties {
+
+            /** S2C_FightLogs logs */
+            logs?: (proto.FightLog.$Properties[]|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a S2C_FightLogs. */
+        type $Shape = proto.S2C_FightLogs.$Properties;
+    }
+
+    /**
      * Properties of a FightMessage.
      * @deprecated Use proto.FightMessage.$Properties instead.
      */
@@ -1326,8 +1669,11 @@ export namespace proto {
         /** FightMessage syncFightStatus. */
         syncFightStatus?: (proto.Msg_SyncFightStatus.$Properties|null);
 
+        /** FightMessage fightLogs. */
+        fightLogs?: (proto.S2C_FightLogs.$Properties|null);
+
         /** FightMessage payload. */
-        payload?: ("choseSkill"|"useTool"|"switchPhase"|"syncFightStatus");
+        payload?: ("choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"|"fightLogs");
 
         /**
          * Creates a new FightMessage instance using the specified properties.
@@ -1431,8 +1777,11 @@ export namespace proto {
             /** FightMessage syncFightStatus */
             syncFightStatus?: (proto.Msg_SyncFightStatus.$Properties|null);
 
+            /** FightMessage fightLogs */
+            fightLogs?: (proto.S2C_FightLogs.$Properties|null);
+
             /** FightMessage payload */
-            payload?: ("choseSkill"|"useTool"|"switchPhase"|"syncFightStatus");
+            payload?: ("choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"|"fightLogs");
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
@@ -1446,9 +1795,10 @@ export namespace proto {
           useTool?: proto.C2S_UseTool.$Shape|null;
           switchPhase?: proto.C2S_SwitchPhase.$Shape|null;
           syncFightStatus?: proto.Msg_SyncFightStatus.$Shape|null;
+          fightLogs?: proto.S2C_FightLogs.$Shape|null;
           $unknowns?: Uint8Array[];
         } & (
-          ({ payload?: undefined; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null }|{ payload?: "choseSkill"; choseSkill: proto.C2S_ChoseSkills.$Shape; useTool?: null; switchPhase?: null; syncFightStatus?: null }|{ payload?: "useTool"; choseSkill?: null; useTool: proto.C2S_UseTool.$Shape; switchPhase?: null; syncFightStatus?: null }|{ payload?: "switchPhase"; choseSkill?: null; useTool?: null; switchPhase: proto.C2S_SwitchPhase.$Shape; syncFightStatus?: null }|{ payload?: "syncFightStatus"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus: proto.Msg_SyncFightStatus.$Shape })
+          ({ payload?: undefined; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "choseSkill"; choseSkill: proto.C2S_ChoseSkills.$Shape; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "useTool"; choseSkill?: null; useTool: proto.C2S_UseTool.$Shape; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "switchPhase"; choseSkill?: null; useTool?: null; switchPhase: proto.C2S_SwitchPhase.$Shape; syncFightStatus?: null; fightLogs?: null }|{ payload?: "syncFightStatus"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus: proto.Msg_SyncFightStatus.$Shape; fightLogs?: null }|{ payload?: "fightLogs"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs: proto.S2C_FightLogs.$Shape })
         );
     }
 

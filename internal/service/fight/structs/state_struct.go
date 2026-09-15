@@ -85,6 +85,17 @@ type Machine struct {
 	// Ended / PlayerWin 战斗是否结束及结果（全部敌方阵亡胜利，全部我方阵亡失败）
 	Ended     bool
 	PlayerWin bool
+
+	// Logs / LogSeq 战斗日志缓冲区（见 fight_log.go）。
+	//   - Logs 是"尚未下发给客户端的事件"，每次下发后被 DrainLogs 取走清空；
+	//   - LogSeq 是本场战斗内自增的日志序号，供客户端排序/去重。
+	// 只由 LogMu 保护，**不要用 Mu**：结算路径在持有 Mu 的区间里记账，
+	// 用同一把锁会自锁死。
+	Logs   []FightLog
+	LogSeq int
+
+	// LogMu 保护 Logs / LogSeq。
+	LogMu sync.Mutex
 }
 
 // CharacterState 角色状态
@@ -99,6 +110,10 @@ type CharacterState struct {
 	Attack  float64 // 攻击倍率（当前值）
 	Recover float64 // 恢复倍率（当前值）
 	Defense int     // 防御力（当前值）
+
+	// MaxHealth 生命上限：建场时的初始生命值，整场不变。
+	// 只用于下发（客户端血条基准），不参与任何结算。
+	MaxHealth int
 
 	BaseAttack  float64 // 基础攻击倍率
 	BaseRecover float64 // 基础恢复倍率
@@ -211,13 +226,14 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 }
 
 // newCharacterState 创建一个战斗位状态。
-// 基础值与当前值初始相同（此时身上没有任何 buff）。
+// 基础值与当前值初始相同（此时身上没有任何 buff），生命上限记为初始生命值。
 func newCharacterState(health int, attack, recover float64, defense int) *CharacterState {
 	return &CharacterState{
 		Health:      health,
 		Attack:      attack,
 		Recover:     recover,
 		Defense:     defense,
+		MaxHealth:   health,
 		BaseAttack:  attack,
 		BaseRecover: recover,
 		BaseDefense: defense,

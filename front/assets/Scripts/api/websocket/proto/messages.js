@@ -35,6 +35,34 @@ $root.proto = (function() {
         return values;
     })();
 
+    /**
+     * FightLogType enum.
+     * @name proto.FightLogType
+     * @enum {number}
+     * @property {number} LOG_UNKNOWN=0 LOG_UNKNOWN value
+     * @property {number} LOG_CAST=1 LOG_CAST value
+     * @property {number} LOG_ATTACK=2 LOG_ATTACK value
+     * @property {number} LOG_RECOVER=3 LOG_RECOVER value
+     * @property {number} LOG_BUFF_ADD=4 LOG_BUFF_ADD value
+     * @property {number} LOG_BUFF_REMOVE=5 LOG_BUFF_REMOVE value
+     * @property {number} LOG_DEATH=6 LOG_DEATH value
+     * @property {number} LOG_ROUND=7 LOG_ROUND value
+     * @property {number} LOG_END=8 LOG_END value
+     */
+    proto.FightLogType = (function() {
+        var valuesById = $Object.create(null), values = $Object.create(valuesById);
+        values[valuesById[0] = "LOG_UNKNOWN"] = 0;
+        values[valuesById[1] = "LOG_CAST"] = 1;
+        values[valuesById[2] = "LOG_ATTACK"] = 2;
+        values[valuesById[3] = "LOG_RECOVER"] = 3;
+        values[valuesById[4] = "LOG_BUFF_ADD"] = 4;
+        values[valuesById[5] = "LOG_BUFF_REMOVE"] = 5;
+        values[valuesById[6] = "LOG_DEATH"] = 6;
+        values[valuesById[7] = "LOG_ROUND"] = 7;
+        values[valuesById[8] = "LOG_END"] = 8;
+        return values;
+    })();
+
     proto.Buff = (function() {
 
         /**
@@ -335,6 +363,8 @@ $root.proto = (function() {
          * @property {number|null} [defense] CharacterStatus defense
          * @property {Array.<proto.Buff.$Properties>|null} [buffs] CharacterStatus buffs
          * @property {boolean|null} [isMyCharacter] CharacterStatus isMyCharacter
+         * @property {number|null} [characterId] CharacterStatus characterId
+         * @property {number|null} [maxHealth] CharacterStatus maxHealth
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -408,6 +438,22 @@ $root.proto = (function() {
         CharacterStatus.prototype.isMyCharacter = false;
 
         /**
+         * CharacterStatus characterId.
+         * @member {number} characterId
+         * @memberof proto.CharacterStatus
+         * @instance
+         */
+        CharacterStatus.prototype.characterId = 0;
+
+        /**
+         * CharacterStatus maxHealth.
+         * @member {number} maxHealth
+         * @memberof proto.CharacterStatus
+         * @instance
+         */
+        CharacterStatus.prototype.maxHealth = 0;
+
+        /**
          * Creates a new CharacterStatus instance using the specified properties.
          * @function create
          * @memberof proto.CharacterStatus
@@ -450,6 +496,10 @@ $root.proto = (function() {
                     $root.proto.Buff.encode(message.buffs[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
             if (message.isMyCharacter != null && $Object.hasOwnProperty.call(message, "isMyCharacter") && message.isMyCharacter !== false)
                 writer.uint32(/* id 5, wireType 0 =*/40).bool(message.isMyCharacter);
+            if (message.characterId != null && $Object.hasOwnProperty.call(message, "characterId") && message.characterId !== 0)
+                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.characterId);
+            if (message.maxHealth != null && $Object.hasOwnProperty.call(message, "maxHealth") && message.maxHealth !== 0)
+                writer.uint32(/* id 7, wireType 0 =*/56).int32(message.maxHealth);
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (var i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -541,6 +591,24 @@ $root.proto = (function() {
                             delete message.isMyCharacter;
                         continue;
                     }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.characterId = value;
+                        else
+                            delete message.characterId;
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.maxHealth = value;
+                        else
+                            delete message.maxHealth;
+                        continue;
+                    }
                 }
                 reader.skipType(wireType, _depth, tag);
                 if (!reader.discardUnknown) {
@@ -605,6 +673,12 @@ $root.proto = (function() {
             if (message.isMyCharacter != null && $Object.hasOwnProperty.call(message, "isMyCharacter"))
                 if (typeof message.isMyCharacter !== "boolean")
                     return "isMyCharacter: boolean expected";
+            if (message.characterId != null && $Object.hasOwnProperty.call(message, "characterId"))
+                if (!$util.isInteger(message.characterId))
+                    return "characterId: integer expected";
+            if (message.maxHealth != null && $Object.hasOwnProperty.call(message, "maxHealth"))
+                if (!$util.isInteger(message.maxHealth))
+                    return "maxHealth: integer expected";
             return null;
         };
 
@@ -648,6 +722,12 @@ $root.proto = (function() {
             if (object.isMyCharacter != null)
                 if (object.isMyCharacter)
                     message.isMyCharacter = $Boolean(object.isMyCharacter);
+            if (object.characterId != null)
+                if ($Number(object.characterId) !== 0)
+                    message.characterId = object.characterId | 0;
+            if (object.maxHealth != null)
+                if ($Number(object.maxHealth) !== 0)
+                    message.maxHealth = object.maxHealth | 0;
             return message;
         };
 
@@ -675,6 +755,8 @@ $root.proto = (function() {
                 object.attack = 0;
                 object.defense = 0;
                 object.isMyCharacter = false;
+                object.characterId = 0;
+                object.maxHealth = 0;
             }
             if (message.health != null && $Object.hasOwnProperty.call(message, "health"))
                 object.health = message.health;
@@ -689,6 +771,10 @@ $root.proto = (function() {
             }
             if (message.isMyCharacter != null && $Object.hasOwnProperty.call(message, "isMyCharacter"))
                 object.isMyCharacter = message.isMyCharacter;
+            if (message.characterId != null && $Object.hasOwnProperty.call(message, "characterId"))
+                object.characterId = message.characterId;
+            if (message.maxHealth != null && $Object.hasOwnProperty.call(message, "maxHealth"))
+                object.maxHealth = message.maxHealth;
             return object;
         };
 
@@ -3298,6 +3384,902 @@ $root.proto = (function() {
         return Msg_SyncFightStatus;
     })();
 
+    proto.FightLog = (function() {
+
+        /**
+         * Properties of a FightLog.
+         * @typedef {Object} proto.FightLog.$Properties
+         * @property {number|null} [seq] FightLog seq
+         * @property {proto.FightLogType|null} [type] FightLog type
+         * @property {number|null} [source] FightLog source
+         * @property {number|null} [target] FightLog target
+         * @property {number|null} [skillId] FightLog skillId
+         * @property {number|null} [buffId] FightLog buffId
+         * @property {number|null} [value] FightLog value
+         * @property {number|null} [hpBefore] FightLog hpBefore
+         * @property {number|null} [hpAfter] FightLog hpAfter
+         * @property {number|null} [round] FightLog round
+         * @property {number|null} [stateNumber] FightLog stateNumber
+         * @property {string|null} [text] FightLog text
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a FightLog.
+         * @memberof proto
+         * @interface IFightLog
+         * @augments proto.FightLog.$Properties
+         * @deprecated Use proto.FightLog.$Properties instead.
+         */
+
+        /**
+         * Shape of a FightLog.
+         * @typedef {proto.FightLog.$Properties} proto.FightLog.$Shape
+         */
+
+        /**
+         * Constructs a new FightLog.
+         * @memberof proto
+         * @classdesc Represents a FightLog.
+         * @constructor
+         * @param {proto.FightLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var FightLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * FightLog seq.
+         * @member {number} seq
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.seq = 0;
+
+        /**
+         * FightLog type.
+         * @member {proto.FightLogType} type
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.type = 0;
+
+        /**
+         * FightLog source.
+         * @member {number} source
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.source = 0;
+
+        /**
+         * FightLog target.
+         * @member {number} target
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.target = 0;
+
+        /**
+         * FightLog skillId.
+         * @member {number} skillId
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.skillId = 0;
+
+        /**
+         * FightLog buffId.
+         * @member {number} buffId
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.buffId = 0;
+
+        /**
+         * FightLog value.
+         * @member {number} value
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.value = 0;
+
+        /**
+         * FightLog hpBefore.
+         * @member {number} hpBefore
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.hpBefore = 0;
+
+        /**
+         * FightLog hpAfter.
+         * @member {number} hpAfter
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.hpAfter = 0;
+
+        /**
+         * FightLog round.
+         * @member {number} round
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.round = 0;
+
+        /**
+         * FightLog stateNumber.
+         * @member {number} stateNumber
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.stateNumber = 0;
+
+        /**
+         * FightLog text.
+         * @member {string} text
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.text = "";
+
+        /**
+         * Creates a new FightLog instance using the specified properties.
+         * @function create
+         * @memberof proto.FightLog
+         * @static
+         * @param {proto.FightLog.$Properties=} [properties] Properties to set
+         * @returns {proto.FightLog} FightLog instance
+         * @type {{
+         *   (properties: proto.FightLog.$Shape): proto.FightLog & proto.FightLog.$Shape;
+         *   (properties?: proto.FightLog.$Properties): proto.FightLog;
+         * }}
+         */
+        FightLog.create = function(properties) {
+            return new FightLog(properties);
+        };
+
+        /**
+         * Encodes the specified FightLog message. Does not implicitly {@link proto.FightLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.FightLog
+         * @static
+         * @param {proto.FightLog.$Properties} message FightLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        FightLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.seq != null && $Object.hasOwnProperty.call(message, "seq") && message.seq !== 0)
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.seq);
+            if (message.type != null && $Object.hasOwnProperty.call(message, "type") && message.type !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.type);
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.source);
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.target);
+            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId") && message.skillId !== 0)
+                writer.uint32(/* id 5, wireType 0 =*/40).int32(message.skillId);
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId") && message.buffId !== 0)
+                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.buffId);
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value") && message.value !== 0)
+                writer.uint32(/* id 7, wireType 0 =*/56).int32(message.value);
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore") && message.hpBefore !== 0)
+                writer.uint32(/* id 8, wireType 0 =*/64).int32(message.hpBefore);
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter") && message.hpAfter !== 0)
+                writer.uint32(/* id 9, wireType 0 =*/72).int32(message.hpAfter);
+            if (message.round != null && $Object.hasOwnProperty.call(message, "round") && message.round !== 0)
+                writer.uint32(/* id 10, wireType 0 =*/80).int32(message.round);
+            if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber") && message.stateNumber !== 0)
+                writer.uint32(/* id 11, wireType 0 =*/88).int32(message.stateNumber);
+            if (message.text != null && $Object.hasOwnProperty.call(message, "text") && message.text !== "")
+                writer.uint32(/* id 12, wireType 2 =*/98).string(message.text);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified FightLog message, length delimited. Does not implicitly {@link proto.FightLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.FightLog
+         * @static
+         * @param {proto.FightLog.$Properties} message FightLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        FightLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a FightLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.FightLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.FightLog & proto.FightLog.$Shape} FightLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        FightLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.FightLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.seq = value;
+                        else
+                            delete message.seq;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.type = value;
+                        else
+                            delete message.type;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.source = value;
+                        else
+                            delete message.source;
+                        continue;
+                    }
+                case 4: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.target = value;
+                        else
+                            delete message.target;
+                        continue;
+                    }
+                case 5: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.skillId = value;
+                        else
+                            delete message.skillId;
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.buffId = value;
+                        else
+                            delete message.buffId;
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.value = value;
+                        else
+                            delete message.value;
+                        continue;
+                    }
+                case 8: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpBefore = value;
+                        else
+                            delete message.hpBefore;
+                        continue;
+                    }
+                case 9: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpAfter = value;
+                        else
+                            delete message.hpAfter;
+                        continue;
+                    }
+                case 10: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.round = value;
+                        else
+                            delete message.round;
+                        continue;
+                    }
+                case 11: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.stateNumber = value;
+                        else
+                            delete message.stateNumber;
+                        continue;
+                    }
+                case 12: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.text = value;
+                        else
+                            delete message.text;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a FightLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.FightLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.FightLog & proto.FightLog.$Shape} FightLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        FightLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a FightLog message.
+         * @function verify
+         * @memberof proto.FightLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        FightLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.seq != null && $Object.hasOwnProperty.call(message, "seq"))
+                if (!$util.isInteger(message.seq))
+                    return "seq: integer expected";
+            if (message.type != null && $Object.hasOwnProperty.call(message, "type"))
+                if (typeof message.type !== "number" || (message.type | 0) !== message.type)
+                    return "type: enum value expected";
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                if (!$util.isInteger(message.source))
+                    return "source: integer expected";
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                if (!$util.isInteger(message.target))
+                    return "target: integer expected";
+            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId"))
+                if (!$util.isInteger(message.skillId))
+                    return "skillId: integer expected";
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
+                if (!$util.isInteger(message.buffId))
+                    return "buffId: integer expected";
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
+                if (!$util.isInteger(message.value))
+                    return "value: integer expected";
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                if (!$util.isInteger(message.hpBefore))
+                    return "hpBefore: integer expected";
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                if (!$util.isInteger(message.hpAfter))
+                    return "hpAfter: integer expected";
+            if (message.round != null && $Object.hasOwnProperty.call(message, "round"))
+                if (!$util.isInteger(message.round))
+                    return "round: integer expected";
+            if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber"))
+                if (!$util.isInteger(message.stateNumber))
+                    return "stateNumber: integer expected";
+            if (message.text != null && $Object.hasOwnProperty.call(message, "text"))
+                if (!$util.isString(message.text))
+                    return "text: string expected";
+            return null;
+        };
+
+        /**
+         * Creates a FightLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.FightLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.FightLog} FightLog
+         */
+        FightLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.FightLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.FightLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.FightLog();
+            if (object.seq != null)
+                if ($Number(object.seq) !== 0)
+                    message.seq = object.seq | 0;
+            if (object.type !== 0 && (typeof object.type !== "string" || $root.proto.FightLogType[object.type] !== 0))
+                switch (object.type) {
+                case "LOG_UNKNOWN":
+                case 0:
+                    message.type = 0;
+                    break;
+                case "LOG_CAST":
+                case 1:
+                    message.type = 1;
+                    break;
+                case "LOG_ATTACK":
+                case 2:
+                    message.type = 2;
+                    break;
+                case "LOG_RECOVER":
+                case 3:
+                    message.type = 3;
+                    break;
+                case "LOG_BUFF_ADD":
+                case 4:
+                    message.type = 4;
+                    break;
+                case "LOG_BUFF_REMOVE":
+                case 5:
+                    message.type = 5;
+                    break;
+                case "LOG_DEATH":
+                case 6:
+                    message.type = 6;
+                    break;
+                case "LOG_ROUND":
+                case 7:
+                    message.type = 7;
+                    break;
+                case "LOG_END":
+                case 8:
+                    message.type = 8;
+                    break;
+                default:
+                    if (typeof object.type === "number" && (object.type | 0) === object.type)
+                        message.type = object.type;
+                }
+            if (object.source != null)
+                if ($Number(object.source) !== 0)
+                    message.source = object.source | 0;
+            if (object.target != null)
+                if ($Number(object.target) !== 0)
+                    message.target = object.target | 0;
+            if (object.skillId != null)
+                if ($Number(object.skillId) !== 0)
+                    message.skillId = object.skillId | 0;
+            if (object.buffId != null)
+                if ($Number(object.buffId) !== 0)
+                    message.buffId = object.buffId | 0;
+            if (object.value != null)
+                if ($Number(object.value) !== 0)
+                    message.value = object.value | 0;
+            if (object.hpBefore != null)
+                if ($Number(object.hpBefore) !== 0)
+                    message.hpBefore = object.hpBefore | 0;
+            if (object.hpAfter != null)
+                if ($Number(object.hpAfter) !== 0)
+                    message.hpAfter = object.hpAfter | 0;
+            if (object.round != null)
+                if ($Number(object.round) !== 0)
+                    message.round = object.round | 0;
+            if (object.stateNumber != null)
+                if ($Number(object.stateNumber) !== 0)
+                    message.stateNumber = object.stateNumber | 0;
+            if (object.text != null)
+                if (typeof object.text !== "string" || object.text.length)
+                    message.text = $String(object.text);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a FightLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.FightLog
+         * @static
+         * @param {proto.FightLog} message FightLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        FightLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.seq = 0;
+                object.type = options.enums === $String ? "LOG_UNKNOWN" : 0;
+                object.source = 0;
+                object.target = 0;
+                object.skillId = 0;
+                object.buffId = 0;
+                object.value = 0;
+                object.hpBefore = 0;
+                object.hpAfter = 0;
+                object.round = 0;
+                object.stateNumber = 0;
+                object.text = "";
+            }
+            if (message.seq != null && $Object.hasOwnProperty.call(message, "seq"))
+                object.seq = message.seq;
+            if (message.type != null && $Object.hasOwnProperty.call(message, "type"))
+                object.type = options.enums === $String ? $root.proto.FightLogType[message.type] === $undefined ? message.type : $root.proto.FightLogType[message.type] : message.type;
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                object.source = message.source;
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                object.target = message.target;
+            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId"))
+                object.skillId = message.skillId;
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
+                object.buffId = message.buffId;
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
+                object.value = message.value;
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                object.hpBefore = message.hpBefore;
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                object.hpAfter = message.hpAfter;
+            if (message.round != null && $Object.hasOwnProperty.call(message, "round"))
+                object.round = message.round;
+            if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber"))
+                object.stateNumber = message.stateNumber;
+            if (message.text != null && $Object.hasOwnProperty.call(message, "text"))
+                object.text = message.text;
+            return object;
+        };
+
+        /**
+         * Converts this FightLog to JSON.
+         * @function toJSON
+         * @memberof proto.FightLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        FightLog.prototype.toJSON = function() {
+            return FightLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for FightLog
+         * @function getTypeUrl
+         * @memberof proto.FightLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        FightLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.FightLog";
+        };
+
+        return FightLog;
+    })();
+
+    proto.S2C_FightLogs = (function() {
+
+        /**
+         * Properties of a S2C_FightLogs.
+         * @typedef {Object} proto.S2C_FightLogs.$Properties
+         * @property {Array.<proto.FightLog.$Properties>|null} [logs] S2C_FightLogs logs
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a S2C_FightLogs.
+         * @memberof proto
+         * @interface IS2C_FightLogs
+         * @augments proto.S2C_FightLogs.$Properties
+         * @deprecated Use proto.S2C_FightLogs.$Properties instead.
+         */
+
+        /**
+         * Shape of a S2C_FightLogs.
+         * @typedef {proto.S2C_FightLogs.$Properties} proto.S2C_FightLogs.$Shape
+         */
+
+        /**
+         * Constructs a new S2C_FightLogs.
+         * @memberof proto
+         * @classdesc Represents a S2C_FightLogs.
+         * @constructor
+         * @param {proto.S2C_FightLogs.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var S2C_FightLogs = function (properties) {
+            this.logs = [];
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * S2C_FightLogs logs.
+         * @member {Array.<proto.FightLog.$Properties>} logs
+         * @memberof proto.S2C_FightLogs
+         * @instance
+         */
+        S2C_FightLogs.prototype.logs = $util.emptyArray;
+
+        /**
+         * Creates a new S2C_FightLogs instance using the specified properties.
+         * @function create
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {proto.S2C_FightLogs.$Properties=} [properties] Properties to set
+         * @returns {proto.S2C_FightLogs} S2C_FightLogs instance
+         * @type {{
+         *   (properties: proto.S2C_FightLogs.$Shape): proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape;
+         *   (properties?: proto.S2C_FightLogs.$Properties): proto.S2C_FightLogs;
+         * }}
+         */
+        S2C_FightLogs.create = function(properties) {
+            return new S2C_FightLogs(properties);
+        };
+
+        /**
+         * Encodes the specified S2C_FightLogs message. Does not implicitly {@link proto.S2C_FightLogs.verify|verify} messages.
+         * @function encode
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {proto.S2C_FightLogs.$Properties} message S2C_FightLogs message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        S2C_FightLogs.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.logs != null && message.logs.length)
+                for (var i = 0; i < message.logs.length; ++i)
+                    $root.proto.FightLog.encode(message.logs[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified S2C_FightLogs message, length delimited. Does not implicitly {@link proto.S2C_FightLogs.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {proto.S2C_FightLogs.$Properties} message S2C_FightLogs message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        S2C_FightLogs.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a S2C_FightLogs message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape} S2C_FightLogs
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        S2C_FightLogs.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.S2C_FightLogs();
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 2)
+                            break;
+                        if (!(message.logs && message.logs.length))
+                            message.logs = [];
+                        message.logs.push($root.proto.FightLog.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a S2C_FightLogs message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.S2C_FightLogs & proto.S2C_FightLogs.$Shape} S2C_FightLogs
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        S2C_FightLogs.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a S2C_FightLogs message.
+         * @function verify
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        S2C_FightLogs.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.logs != null && $Object.hasOwnProperty.call(message, "logs")) {
+                if (!$Array.isArray(message.logs))
+                    return "logs: array expected";
+                for (var i = 0; i < message.logs.length; ++i) {
+                    var error = $root.proto.FightLog.verify(message.logs[i], _depth + 1);
+                    if (error)
+                        return "logs." + error;
+                }
+            }
+            return null;
+        };
+
+        /**
+         * Creates a S2C_FightLogs message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.S2C_FightLogs} S2C_FightLogs
+         */
+        S2C_FightLogs.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.S2C_FightLogs)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.S2C_FightLogs: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.S2C_FightLogs();
+            if (object.logs) {
+                if (!$Array.isArray(object.logs))
+                    throw $TypeError(".proto.S2C_FightLogs.logs: array expected");
+                message.logs = $Array(object.logs.length);
+                for (var i = 0; i < object.logs.length; ++i) {
+                    if (!$util.isObject(object.logs[i]))
+                        throw $TypeError(".proto.S2C_FightLogs.logs: object expected");
+                    message.logs[i] = $root.proto.FightLog.fromObject(object.logs[i], _depth + 1);
+                }
+            }
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a S2C_FightLogs message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {proto.S2C_FightLogs} message S2C_FightLogs
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        S2C_FightLogs.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.arrays || options.defaults)
+                object.logs = [];
+            if (message.logs && message.logs.length) {
+                object.logs = $Array(message.logs.length);
+                for (var j = 0; j < message.logs.length; ++j)
+                    object.logs[j] = $root.proto.FightLog.toObject(message.logs[j], options, _depth + 1);
+            }
+            return object;
+        };
+
+        /**
+         * Converts this S2C_FightLogs to JSON.
+         * @function toJSON
+         * @memberof proto.S2C_FightLogs
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        S2C_FightLogs.prototype.toJSON = function() {
+            return S2C_FightLogs.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for S2C_FightLogs
+         * @function getTypeUrl
+         * @memberof proto.S2C_FightLogs
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        S2C_FightLogs.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.S2C_FightLogs";
+        };
+
+        return S2C_FightLogs;
+    })();
+
     proto.FightMessage = (function() {
 
         /**
@@ -3309,7 +4291,8 @@ $root.proto = (function() {
          * @property {proto.C2S_UseTool.$Properties|null} [useTool] FightMessage useTool
          * @property {proto.C2S_SwitchPhase.$Properties|null} [switchPhase] FightMessage switchPhase
          * @property {proto.Msg_SyncFightStatus.$Properties|null} [syncFightStatus] FightMessage syncFightStatus
-         * @property {"choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"} [payload] FightMessage payload
+         * @property {proto.S2C_FightLogs.$Properties|null} [fightLogs] FightMessage fightLogs
+         * @property {"choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"|"fightLogs"} [payload] FightMessage payload
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -3330,9 +4313,10 @@ $root.proto = (function() {
          *   useTool?: proto.C2S_UseTool.$Shape|null;
          *   switchPhase?: proto.C2S_SwitchPhase.$Shape|null;
          *   syncFightStatus?: proto.Msg_SyncFightStatus.$Shape|null;
+         *   fightLogs?: proto.S2C_FightLogs.$Shape|null;
          *   $unknowns?: Array.<Uint8Array>;
          * } & (
-         *   ({ payload?: undefined; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null }|{ payload?: "choseSkill"; choseSkill: proto.C2S_ChoseSkills.$Shape; useTool?: null; switchPhase?: null; syncFightStatus?: null }|{ payload?: "useTool"; choseSkill?: null; useTool: proto.C2S_UseTool.$Shape; switchPhase?: null; syncFightStatus?: null }|{ payload?: "switchPhase"; choseSkill?: null; useTool?: null; switchPhase: proto.C2S_SwitchPhase.$Shape; syncFightStatus?: null }|{ payload?: "syncFightStatus"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus: proto.Msg_SyncFightStatus.$Shape })
+         *   ({ payload?: undefined; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "choseSkill"; choseSkill: proto.C2S_ChoseSkills.$Shape; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "useTool"; choseSkill?: null; useTool: proto.C2S_UseTool.$Shape; switchPhase?: null; syncFightStatus?: null; fightLogs?: null }|{ payload?: "switchPhase"; choseSkill?: null; useTool?: null; switchPhase: proto.C2S_SwitchPhase.$Shape; syncFightStatus?: null; fightLogs?: null }|{ payload?: "syncFightStatus"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus: proto.Msg_SyncFightStatus.$Shape; fightLogs?: null }|{ payload?: "fightLogs"; choseSkill?: null; useTool?: null; switchPhase?: null; syncFightStatus?: null; fightLogs: proto.S2C_FightLogs.$Shape })
          * )} proto.FightMessage.$Shape
          */
 
@@ -3399,17 +4383,25 @@ $root.proto = (function() {
          */
         FightMessage.prototype.syncFightStatus = null;
 
+        /**
+         * FightMessage fightLogs.
+         * @member {proto.S2C_FightLogs.$Properties|null|undefined} fightLogs
+         * @memberof proto.FightMessage
+         * @instance
+         */
+        FightMessage.prototype.fightLogs = null;
+
         // OneOf field names bound to virtual getters and setters
         var $oneOfFields;
 
         /**
          * FightMessage payload.
-         * @member {"choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"|undefined} payload
+         * @member {"choseSkill"|"useTool"|"switchPhase"|"syncFightStatus"|"fightLogs"|undefined} payload
          * @memberof proto.FightMessage
          * @instance
          */
         $Object.defineProperty(FightMessage.prototype, "payload", {
-            get: $util.oneOfGetter($oneOfFields = ["choseSkill", "useTool", "switchPhase", "syncFightStatus"]),
+            get: $util.oneOfGetter($oneOfFields = ["choseSkill", "useTool", "switchPhase", "syncFightStatus", "fightLogs"]),
             set: $util.oneOfSetter($oneOfFields)
         });
 
@@ -3457,6 +4449,8 @@ $root.proto = (function() {
                 $root.proto.C2S_SwitchPhase.encode(message.switchPhase, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
             if (message.syncFightStatus != null && $Object.hasOwnProperty.call(message, "syncFightStatus"))
                 $root.proto.Msg_SyncFightStatus.encode(message.syncFightStatus, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+            if (message.fightLogs != null && $Object.hasOwnProperty.call(message, "fightLogs"))
+                $root.proto.S2C_FightLogs.encode(message.fightLogs, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (var i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -3550,6 +4544,13 @@ $root.proto = (function() {
                         message.payload = "syncFightStatus";
                         continue;
                     }
+                case 7: {
+                        if (wireType !== 2)
+                            break;
+                        message.fightLogs = $root.proto.S2C_FightLogs.decode(reader, reader.uint32(), $undefined, _depth + 1, message.fightLogs);
+                        message.payload = "fightLogs";
+                        continue;
+                    }
                 }
                 reader.skipType(wireType, _depth, tag);
                 if (!reader.discardUnknown) {
@@ -3638,6 +4639,16 @@ $root.proto = (function() {
                         return "syncFightStatus." + error;
                 }
             }
+            if (message.fightLogs != null && $Object.hasOwnProperty.call(message, "fightLogs")) {
+                if (properties.payload === 1)
+                    return "payload: multiple values";
+                properties.payload = 1;
+                {
+                    var error = $root.proto.S2C_FightLogs.verify(message.fightLogs, _depth + 1);
+                    if (error)
+                        return "fightLogs." + error;
+                }
+            }
             return null;
         };
 
@@ -3698,6 +4709,11 @@ $root.proto = (function() {
                 if (!$util.isObject(object.syncFightStatus))
                     throw $TypeError(".proto.FightMessage.syncFightStatus: object expected");
                 message.syncFightStatus = $root.proto.Msg_SyncFightStatus.fromObject(object.syncFightStatus, _depth + 1);
+            }
+            if (object.fightLogs != null) {
+                if (!$util.isObject(object.fightLogs))
+                    throw $TypeError(".proto.FightMessage.fightLogs: object expected");
+                message.fightLogs = $root.proto.S2C_FightLogs.fromObject(object.fightLogs, _depth + 1);
             }
             return message;
         };
@@ -3764,6 +4780,11 @@ $root.proto = (function() {
                 object.syncFightStatus = $root.proto.Msg_SyncFightStatus.toObject(message.syncFightStatus, options, _depth + 1);
                 if (options.oneofs)
                     object.payload = "syncFightStatus";
+            }
+            if (message.fightLogs != null && $Object.hasOwnProperty.call(message, "fightLogs")) {
+                object.fightLogs = $root.proto.S2C_FightLogs.toObject(message.fightLogs, options, _depth + 1);
+                if (options.oneofs)
+                    object.payload = "fightLogs";
             }
             return object;
         };

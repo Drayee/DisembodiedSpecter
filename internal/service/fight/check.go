@@ -131,6 +131,11 @@ func BuildFightStatus(machine *structs.Machine) *pd.FightStatus {
 			Defense:       int32(cs.Defense),
 			Buffs:         buildBuffs(cs.Buffs),
 			IsMyCharacter: i < machine.SelfCharacterNumber,
+			// 直接读 CharacterIDs（与 CharacterState 严格同长同序）而不调
+			// machine.CharacterDBID：那个方法会再取一次 RLock，而这里已持有读锁，
+			// RWMutex 的递归读锁在有写者等待时会死锁。
+			CharacterId: int32(combatantDBID(machine, i)),
+			MaxHealth:   int32(cs.MaxHealth),
 		})
 	}
 
@@ -151,6 +156,15 @@ func BuildFightStatus(machine *structs.Machine) *pd.FightStatus {
 	}
 
 	return status
+}
+
+// combatantDBID 返回战斗位索引对应的角色/NPC DB ID（越界返回 0）。
+// 调用方必须已持有 machine.Mu 读锁（本函数不再加锁，见 BuildFightStatus 里的说明）。
+func combatantDBID(machine *structs.Machine, index int) int {
+	if index < 0 || index >= len(machine.CharacterIDs) {
+		return 0
+	}
+	return machine.CharacterIDs[index]
 }
 
 // buildBuffs 将状态机 buff 列表转换为协议 buff 列表

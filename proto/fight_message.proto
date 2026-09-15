@@ -9,6 +9,21 @@ enum Switch_Phase_Option {
   RETURN_PREV_PHASE = 2; // 回到上一回合
 }
 
+// 战斗日志类型。
+// 服务端在执行战斗时按发生顺序记录，客户端按同一顺序回放演出（动画/飘字/血条）。
+// 约定：日志是"一次性事件"，状态（FightStatus）是"当前快照"，两者互不替代。
+enum FightLogType {
+  LOG_UNKNOWN = 0;
+  LOG_CAST = 1; // 施放技能 / 敌方开始行动
+  LOG_ATTACK = 2; // 伤害结算
+  LOG_RECOVER = 3; // 治疗结算
+  LOG_BUFF_ADD = 4; // 获得 buff
+  LOG_BUFF_REMOVE = 5; // 失去 buff
+  LOG_DEATH = 6; // 战斗位阵亡
+  LOG_ROUND = 7; // 回合 / 阶段推进
+  LOG_END = 8; // 战斗结束
+}
+
 message Buff {
   int32 buff_id = 1; // buffID
   int32 time = 2; // buff持续时间
@@ -22,6 +37,9 @@ message CharacterStatus {
 
   repeated Buff buffs = 4; // buff列表
   bool is_my_character = 5; // 是否是我的角色
+
+  int32 character_id = 6; // 角色/敌人的 DB ID（前端据此选择立绘与动画资源）
+  int32 max_health = 7; // 生命上限（血条基准）
 }
 
 // 道具
@@ -79,6 +97,36 @@ message Msg_SyncFightStatus {
   int64 timestamp = 2; // 消息发送时间戳
 }
 
+// 一条战斗日志（不可变事件）。
+//
+// source / target 都是**战斗位索引**（0..N-1，我方在前敌方在后，与 FightStatus.characters 下标一致），
+// 不是角色 DB ID；-1 表示无来源/无目标。
+// hp_before / hp_after 让客户端不必自己推算血量，可直接把血条补间到 hp_after。
+message FightLog {
+  int32 seq = 1; // 同一场战斗内自增序号（客户端可据此排序/去重）
+  FightLogType type = 2; // 事件类型
+  int32 source = 3; // 来源战斗位索引（-1 表示无来源）
+  int32 target = 4; // 目标战斗位索引（-1 表示无目标）
+
+  int32 skill_id = 5; // 技能 ID（LOG_CAST）
+  int32 buff_id = 6; // buff ID（LOG_BUFF_ADD / LOG_BUFF_REMOVE）
+  int32 value = 7; // 数值：伤害/恢复量；LOG_END 时 1=胜利 0=失败
+
+  int32 hp_before = 8; // 结算前生命值
+  int32 hp_after = 9; // 结算后生命值
+  int32 round = 10; // 发生时的回合数
+  int32 state_number = 11; // 发生时的战斗状态编号
+
+  string text = 12; // 展示文案（可选，留给前端直接飘字）
+}
+
+// 战斗日志批次（服务端 → 客户端）。
+// 服务端在每次下发权威状态**之前**先发本批日志，因此客户端收到的
+// "日志流 + 状态快照"天然有序：先按日志演出，播完再落地状态。
+message S2C_FightLogs {
+  repeated FightLog logs = 1; // 按发生顺序排列的日志
+}
+
 // 顶层消息包装器 (Envelope)
 message FightMessage {
   uint64 sequence_id = 1;      // 消息序号 (用于处理乱序、丢包或消息确认)
@@ -90,5 +138,7 @@ message FightMessage {
     C2S_SwitchPhase switch_phase = 5; // 阶段切换
 
     Msg_SyncFightStatus sync_fight_status = 6; // 同步战斗状态请求
+
+    S2C_FightLogs fight_logs = 7; // 战斗日志（服务端 → 客户端）
   }
 }
