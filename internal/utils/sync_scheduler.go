@@ -115,11 +115,12 @@ func (s *SyncScheduler) doSync() {
 	if err != nil {
 		log.Printf("[SyncScheduler] 游戏内容同步失败: %v", err)
 	} else {
-		log.Printf("[SyncScheduler] 游戏内容 | 角色: 成功 %d 失败 %d | 敌人: 成功 %d 失败 %d | 道具: 成功 %d 失败 %d | 技能: 成功 %d 失败 %d",
+		log.Printf("[SyncScheduler] 游戏内容 | 角色: 成功 %d 失败 %d | 敌人: 成功 %d 失败 %d | 道具: 成功 %d 失败 %d | 技能: 成功 %d 失败 %d | Buff: 成功 %d 失败 %d",
 			gameResult.CharacterSuccess, gameResult.CharacterFail,
 			gameResult.EnemySuccess, gameResult.EnemyFail,
 			gameResult.ToolSuccess, gameResult.ToolFail,
-			gameResult.SkillSuccess, gameResult.SkillFail)
+			gameResult.SkillSuccess, gameResult.SkillFail,
+			gameResult.BuffSuccess, gameResult.BuffFail)
 	}
 
 	duration := time.Since(start)

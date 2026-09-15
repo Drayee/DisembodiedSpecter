@@ -20,12 +20,14 @@ const (
 	enemyKeyPrefix     = "private:game:enemy:"
 	toolKeyPrefix      = "private:game:tool:"
 	skillKeyPrefix     = "private:game:skill:"
+	buffKeyPrefix      = "private:game:buff:"
 
 	// ID 自增计数器
 	characterIDKey = "private:game:character:next_id"
 	enemyIDKey     = "private:game:enemy:next_id"
 	toolIDKey      = "private:game:tool:next_id"
 	skillIDKey     = "private:game:skill:next_id"
+	buffIDKey      = "private:game:buff:next_id"
 )
 
 // GameContentManager 游戏内容缓存管理器
@@ -782,6 +784,163 @@ func (m *GameContentManager) SyncAllSkillsToDB(ctx context.Context) (int, int, e
 	return success, fail, nil
 }
 
+// ==================== Buff ====================
+// buff 定义统一用 domain.Buff（内容表模型），不再另设 utils.Buff，
+// 避免"缓存一套、DB 一套、战斗侧再一套"的三份模型分叉。
+// 战斗运行时的实例是 structs.Buff{ID, Time}，只存 ID 与剩余时间。
+
+func (m *GameContentManager) buffKey(id int) string {
+	return fmt.Sprintf("%s%d", buffKeyPrefix, id)
+}
+
+// GetBuff 读取 buff 定义（cache-aside）
+func (m *GameContentManager) GetBuff(ctx context.Context, id int) (*domain.Buff, error) {
+	key := m.buffKey(id)
+	fields, err := m.redis.Do(ctx, m.redis.B().Hgetall().Key(key).Build()).AsStrMap()
+	if err != nil && !rueidis.IsRedisNil(err) {
+		return nil, fmt.Errorf("读取缓存失败: %w", err)
+	}
+	if len(fields) == 0 {
+		b, err := m.gameRepo.GetBuffByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if err := m.saveBuffToCache(ctx, b); err != nil {
+			return nil, err
+		}
+		return b, nil
+	}
+	return m.parseBuff(fields), nil
+}
+
+func (m *GameContentManager) parseBuff(fields map[string]string) *domain.Buff {
+	b := &domain.Buff{}
+	if v, ok := fields["id"]; ok {
+		b.ID, _ = strconv.Atoi(v)
+	}
+	b.Name = fields["name"]
+	b.Type = domain.BuffType(fields["type"])
+	b.LossWay = domain.BuffLossWay(fields["loss_way"])
+	if v, ok := fields["default_duration"]; ok {
+		b.DefaultDuration, _ = strconv.Atoi(v)
+	}
+	b.Description = fields["description"]
+	if v, ok := fields["created_at"]; ok {
+		b.CreatedAt, _ = time.Parse(time.RFC3339, v)
+	}
+	if v, ok := fields["updated_at"]; ok {
+		b.UpdatedAt, _ = time.Parse(time.RFC3339, v)
+	}
+	return b
+}
+
+func (m *GameContentManager) saveBuffToCache(ctx context.Context, b *domain.Buff) error {
+	key := m.buffKey(b.ID)
+	cmd := m.redis.B().Hset().Key(key).FieldValue().
+		FieldValue("id", strconv.Itoa(b.ID)).
+		FieldValue("name", b.Name).
+		FieldValue("type", string(b.Type)).
+		FieldValue("loss_way", string(b.LossWay)).
+		FieldValue("default_duration", strconv.Itoa(b.DefaultDuration)).
+		FieldValue("description", b.Description).
+		FieldValue("created_at", b.CreatedAt.Format(time.RFC3339)).
+		FieldValue("updated_at", b.UpdatedAt.Format(time.RFC3339)).
+		Build()
+	return m.redis.Do(ctx, cmd).Error()
+}
+
+func (m *GameContentManager) ListBuffs(ctx context.Context, page, pageSize int) ([]*domain.Buff, int64, error) {
+	ids, err := m.scanIDs(ctx, buffKeyPrefix)
+	if err != nil {
+		return nil, 0, err
+	}
+	pageIDs, total := paginateIDs(ids, page, pageSize)
+	list := make([]*domain.Buff, 0, len(pageIDs))
+	for _, id := range pageIDs {
+		b, err := m.GetBuff(ctx, id)
+		if err != nil {
+			continue
+		}
+		list = append(list, b)
+	}
+	return list, total, nil
+}
+
+func (m *GameContentManager) CreateBuff(ctx context.Context, b *domain.Buff) error {
+	id, err := m.nextID(ctx, buffIDKey)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	b.ID = id
+	b.CreatedAt = now
+	b.UpdatedAt = now
+	return m.saveBuffToCache(ctx, b)
+}
+
+func (m *GameContentManager) UpdateBuff(ctx context.Context, id int, b *domain.Buff) error {
+	key := m.buffKey(id)
+	exists, err := m.exists(ctx, key)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		old, err := m.gameRepo.GetBuffByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("buff 不存在: %d", id)
+			}
+			return err
+		}
+		if err := m.saveBuffToCache(ctx, old); err != nil {
+			return err
+		}
+	}
+	b.ID = id
+	b.UpdatedAt = time.Now()
+	if b.CreatedAt.IsZero() {
+		if createdAt, err := m.redis.Do(ctx, m.redis.B().Hget().Key(key).Field("created_at").Build()).ToString(); err == nil {
+			b.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		}
+	}
+	return m.saveBuffToCache(ctx, b)
+}
+
+func (m *GameContentManager) SyncBuffToDB(ctx context.Context, id int) error {
+	key := m.buffKey(id)
+	exists, err := m.exists(ctx, key)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	fields, err := m.redis.Do(ctx, m.redis.B().Hgetall().Key(key).Build()).AsStrMap()
+	if err != nil {
+		return err
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return m.gameRepo.UpsertBuff(ctx, m.parseBuff(fields))
+}
+
+func (m *GameContentManager) SyncAllBuffsToDB(ctx context.Context) (int, int, error) {
+	ids, err := m.scanIDs(ctx, buffKeyPrefix)
+	if err != nil {
+		return 0, 0, err
+	}
+	success, fail := 0, 0
+	for _, id := range ids {
+		if err := m.SyncBuffToDB(ctx, id); err != nil {
+			fail++
+		} else {
+			success++
+		}
+	}
+	return success, fail, nil
+}
+
 // ==================== 全量同步 ====================
 
 // SyncAllToDBResult 全量同步结果
@@ -794,6 +953,8 @@ type SyncAllToDBResult struct {
 	ToolFail         int
 	SkillSuccess     int
 	SkillFail        int
+	BuffSuccess      int
+	BuffFail         int
 }
 
 // SyncAllToDB 同步所有游戏内容到 DB
@@ -830,6 +991,14 @@ func (m *GameContentManager) SyncAllToDB(ctx context.Context) (*SyncAllToDBResul
 	} else {
 		result.SkillSuccess = s
 		result.SkillFail = f
+	}
+	if s, f, err := m.SyncAllBuffsToDB(ctx); err != nil {
+		if firstErr == nil {
+			firstErr = err
+		}
+	} else {
+		result.BuffSuccess = s
+		result.BuffFail = f
 	}
 
 	return result, firstErr
