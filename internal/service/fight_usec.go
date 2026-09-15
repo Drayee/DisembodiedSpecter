@@ -4,6 +4,7 @@ import (
 	"DisembodiedSpecter/internal/config"
 	"DisembodiedSpecter/internal/dto/response"
 	"DisembodiedSpecter/internal/service/fight"
+	"DisembodiedSpecter/internal/service/fight/buff"
 	"DisembodiedSpecter/internal/service/fight/character"
 	"DisembodiedSpecter/internal/service/fight/enemy"
 	"DisembodiedSpecter/internal/service/fight/structs"
@@ -213,8 +214,9 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			if err := fightEngine.RunSkillStart(skills, machine); err != nil {
 				log.Printf("技能执行失败: %v, userId %d", err, userID)
 			}
-			// 结束本回合：等事件全部响应并结算完，然后停掉本回合的全部监听器（真退订）
-			fightEngine.EndRound(machine)
+			// 结束我方回合：等事件结算完并停掉监听器。
+			// 不推进 buff 时间——一个完整回合是"我方+敌方"，时间推进放在敌方回合结束时。
+			fightEngine.EndRound(machine, false)
 			machine.Round++
 			machine.CharacterUsedSkill = map[int]int{} // 本回合技能记录已用完，重置
 			// 胜负判定
@@ -245,8 +247,9 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 					// （例如"被攻击时追加攻击"），所以先用本回合技能集合重新武装监听器
 					fightEngine.ArmRoundReactors(machine)
 					fu.runEnemyRound(machine)
-					// 结束本回合：等敌方事件响应并结算完，再停掉本回合的全部监听器
-					fightEngine.EndRound(machine)
+					// 结束敌方回合：这里是"我方+敌方"一个完整回合的收尾，
+					// 因此由它推进 buff 时间（LossByTime 各扣 1 格）
+					fightEngine.EndRound(machine, true)
 					if ended, win := machine.CheckBattleEnd(); ended {
 						machine.Ended = true
 						machine.PlayerWin = win
@@ -287,6 +290,10 @@ func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
 		}
 		if err := fu.enemyManager.Run(idx, machine, eid); err != nil {
 			log.Printf("敌方行动失败: %v", err)
+		}
+		// 该敌方单位行动完毕：发行动结束信号，让它身上 LossByAction 的 buff 各扣 1 格
+		if err := buff.PublishActionTick(machine, idx); err != nil {
+			log.Printf("敌方战斗位 %d 行动信号发布失败: %v", idx, err)
 		}
 	}
 }
