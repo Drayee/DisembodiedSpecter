@@ -4,6 +4,7 @@ import (
 	"DisembodiedSpecter/internal/domain"
 	"DisembodiedSpecter/internal/repository"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -825,6 +826,12 @@ func (m *GameContentManager) parseBuff(fields map[string]string) *domain.Buff {
 		b.DefaultDuration, _ = strconv.Atoi(v)
 	}
 	b.Description = fields["description"]
+	if v, ok := fields["effects"]; ok && v != "" {
+		var effects []domain.BuffEffect
+		if err := json.Unmarshal([]byte(v), &effects); err == nil {
+			b.Effects = effects
+		}
+	}
 	if v, ok := fields["created_at"]; ok {
 		b.CreatedAt, _ = time.Parse(time.RFC3339, v)
 	}
@@ -836,12 +843,18 @@ func (m *GameContentManager) parseBuff(fields map[string]string) *domain.Buff {
 
 func (m *GameContentManager) saveBuffToCache(ctx context.Context, b *domain.Buff) error {
 	key := m.buffKey(b.ID)
+	// 效果列表按 JSON 字符串存一个字段（Redis Hash 只能存字符串）
+	effects, err := json.Marshal(b.Effects)
+	if err != nil {
+		return fmt.Errorf("序列化 buff 效果失败: %w", err)
+	}
 	cmd := m.redis.B().Hset().Key(key).FieldValue().
 		FieldValue("id", strconv.Itoa(b.ID)).
 		FieldValue("name", b.Name).
 		FieldValue("type", string(b.Type)).
 		FieldValue("loss_way", string(b.LossWay)).
 		FieldValue("default_duration", strconv.Itoa(b.DefaultDuration)).
+		FieldValue("effects", string(effects)).
 		FieldValue("description", b.Description).
 		FieldValue("created_at", b.CreatedAt.Format(time.RFC3339)).
 		FieldValue("updated_at", b.UpdatedAt.Format(time.RFC3339)).

@@ -95,15 +95,24 @@ type AdminUpdateSkillReq struct {
 	Description string `json:"description"`
 }
 
+// AdminBuffEffectReq 一条 buff 效果
+// Percent=true 时 Value 是比例（0.1 = +10%），否则是固定值。
+type AdminBuffEffectReq struct {
+	Stat    string  `json:"stat" binding:"required,oneof=attack defense recover"`
+	Value   float64 `json:"value"`
+	Percent bool    `json:"percent"`
+}
+
 // AdminCreateBuffReq 创建 buff
 // type/loss_way 用 oneof 约束成合法枚举值，避免把无效值写进内容表缓存
 // （战斗侧会按这些值 switch 分支）
 type AdminCreateBuffReq struct {
-	Name            string `json:"name" binding:"required"`
-	Type            string `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
-	LossWay         string `json:"loss_way" binding:"required,oneof=time action none listener"`
-	DefaultDuration int    `json:"default_duration" binding:"min=0"`
-	Description     string `json:"description"`
+	Name            string               `json:"name" binding:"required"`
+	Type            string               `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
+	LossWay         string               `json:"loss_way" binding:"required,oneof=time action none listener"`
+	DefaultDuration int                  `json:"default_duration" binding:"min=0"`
+	Effects         []AdminBuffEffectReq `json:"effects" binding:"dive"`
+	Description     string               `json:"description"`
 }
 
 // AdminUpdateBuffReq 修改 buff
@@ -111,9 +120,10 @@ type AdminCreateBuffReq struct {
 // type/loss_way 不用 omitempty，正是为了拦住"漏传 → 枚举被清成空串"——
 // 战斗侧会按 loss_way 分支，空值等于把 buff 变成无定义状态。
 type AdminUpdateBuffReq struct {
-	Name            string `json:"name" binding:"required"`
-	Type            string `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
-	LossWay         string `json:"loss_way" binding:"required,oneof=time action none listener"`
-	DefaultDuration int    `json:"default_duration" binding:"min=0"`
-	Description     string `json:"description"`
+	Name            string               `json:"name" binding:"required"`
+	Type            string               `json:"type" binding:"required,oneof=value_change percent_change listener tag"`
+	LossWay         string               `json:"loss_way" binding:"required,oneof=time action none listener"`
+	DefaultDuration int                  `json:"default_duration" binding:"min=0"`
+	Effects         []AdminBuffEffectReq `json:"effects" binding:"dive"`
+	Description     string               `json:"description"`
 }

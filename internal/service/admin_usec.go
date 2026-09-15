@@ -392,6 +392,7 @@ func (a *AdminUseCase) CreateBuff(ctx context.Context, req *request.AdminCreateB
 		Type:            domain.BuffType(req.Type),
 		LossWay:         domain.BuffLossWay(req.LossWay),
 		DefaultDuration: req.DefaultDuration,
+		Effects:         toBuffEffects(req.Effects),
 		Description:     req.Description,
 	}
 	return a.gameContentManager.CreateBuff(ctx, b)
@@ -403,7 +404,24 @@ func (a *AdminUseCase) UpdateBuff(ctx context.Context, id int, req *request.Admi
 		Type:            domain.BuffType(req.Type),
 		LossWay:         domain.BuffLossWay(req.LossWay),
 		DefaultDuration: req.DefaultDuration,
+		Effects:         toBuffEffects(req.Effects),
 		Description:     req.Description,
 	}
 	return a.gameContentManager.UpdateBuff(ctx, id, b)
+}
+
+// toBuffEffects 把请求里的效果列表转成领域模型。
+func toBuffEffects(in []request.AdminBuffEffectReq) []domain.BuffEffect {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]domain.BuffEffect, 0, len(in))
+	for _, e := range in {
+		out = append(out, domain.BuffEffect{
+			Stat:    domain.BuffStat(e.Stat),
+			Value:   e.Value,
+			Percent: e.Percent,
+		})
+	}
+	return out
 }
