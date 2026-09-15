@@ -68,7 +68,10 @@ func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex 
 			SourceID: sourceIndex,
 			Other:    "{\"type\":\"thunder:no\"}",
 		})
-		_ = machine.PublishPayload("fight-buff", jsonBytes)
+		// 这里发的是 Attack 载荷，必须走 fight-attack：
+		// 发到 fight-buff 会被 GetBuffListener 当成 BuffMessage 反序列化
+		// （Damage 被丢弃、ID/Time 为 0），等于按 buffID 0 施加 buff 并报错。
+		_ = machine.PublishPayload("fight-attack", jsonBytes)
 		return nil
 	}
 	return errors.New("target is not main action character")
