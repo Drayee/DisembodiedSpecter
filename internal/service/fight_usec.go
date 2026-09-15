@@ -108,10 +108,13 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		fu.gameContentManager,
 	)
 
-	// 战斗级 pubsub：整场战斗共用一个，监听器只启动一次，避免重复订阅/重复结算
+	// 战斗级 pubsub：整场战斗唯一一个，交给 Machine 独占接管（其它位置拿不到它）。
+	// 发布只能走 machine.PublishPayload（内部生成事件 ID 并打反应版本戳），
+	// actuator 订阅走 machine.Subscribe，因此不会出现"绕过版本戳"的事件。
 	battlePubSub := gochannel.NewGoChannel(gochannel.Config{}, watermill.NewSlogLogger(slog.Default()))
+	machine.AttachPubSub(battlePubSub)
 	defer func() {
-		_ = battlePubSub.Close()
+		_ = machine.CloseEvents()
 	}()
 
 	ws, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
@@ -138,7 +141,7 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 	}(ws)
 
 	// 战斗开始：启动全部战斗位的底层监听器（攻击/治疗/buff），并同步初始状态（计划步骤 1）
-	if err := fightEngine.ActuatorListenerStart(battlePubSub, machine); err != nil {
+	if err := fightEngine.ActuatorListenerStart(machine); err != nil {
 		log.Printf("启动战斗监听器失败: %v, userId %d", err, userID)
 		return
 	}
@@ -202,18 +205,16 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				continue
 			}
-			// 应用技能（记录本回合使用）并执行：Init → Listener → Run
+			// 应用技能（记录本回合使用）并执行：Listener（武装）→ Init → Run
 			for _, s := range skills {
 				fightEngine.ApplyChoseSkill(machine, s)
 			}
 			machine.StateNumber = structs.MyRound
-			if err := fightEngine.RunSkillStart(skills, battlePubSub, machine); err != nil {
+			if err := fightEngine.RunSkillStart(skills, machine); err != nil {
 				log.Printf("技能执行失败: %v, userId %d", err, userID)
 			}
-			// 同步一次：等所有已发布事件被监听器响应并结算完（收到即结算，此处只是读值前的等待）
-			if !fightEngine.WaitSettled(machine) {
-				log.Printf("本回合事件未能全部结算，仍继续推进, userId %d", userID)
-			}
+			// 结束本回合：等事件全部响应并结算完，然后停掉本回合的全部监听器（真退订）
+			fightEngine.EndRound(machine)
 			machine.Round++
 			machine.CharacterUsedSkill = map[int]int{} // 本回合技能记录已用完，重置
 			// 胜负判定
@@ -240,12 +241,12 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 					machine.StateNumber = structs.Waiting
 					fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				case structs.OtherRound:
-					// 敌方回合：调用 enemy 行动（底层监听器已在战斗开始时启动）
-					fu.runEnemyRound(machine, battlePubSub)
-					// 同步一次：等敌方事件被响应并结算完（不再是固定睡眠）
-					if !fightEngine.WaitSettled(machine) {
-						log.Printf("敌方回合事件未能全部结算，仍继续推进, userId %d", userID)
-					}
+					// 敌方回合不跑技能阶段，但本回合的被动反应仍要生效
+					// （例如"被攻击时追加攻击"），所以先用本回合技能集合重新武装监听器
+					fightEngine.ArmRoundReactors(machine)
+					fu.runEnemyRound(machine)
+					// 结束本回合：等敌方事件响应并结算完，再停掉本回合的全部监听器
+					fightEngine.EndRound(machine)
 					if ended, win := machine.CheckBattleEnd(); ended {
 						machine.Ended = true
 						machine.PlayerWin = win
@@ -278,13 +279,13 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 
 // runEnemyRound 敌方回合：为每个敌方 NPC 执行其行动（Action{enemyID}Run）。
 // id 为敌方战斗位索引，enemyID 为敌方 DB ID（用于查找行动注册表）。
-func (fu *FightUseCase) runEnemyRound(machine *structs.Machine, pubSub *gochannel.GoChannel) {
+func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
 	for _, eid := range machine.EnemyCharacterIDs {
 		idx, ok := machine.EnemyCharacterIndex[eid]
 		if !ok {
 			continue
 		}
-		if err := fu.enemyManager.Run(idx, machine, pubSub, eid); err != nil {
+		if err := fu.enemyManager.Run(idx, machine, eid); err != nil {
 			log.Printf("敌方行动失败: %v", err)
 		}
 	}

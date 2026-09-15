@@ -11,6 +11,15 @@ import (
 	"sync"
 )
 
+// ArmedSkill 本回合武装的技能。
+// 用三个 int 而不是直接存 proto 消息，避免 structs 包依赖 proto/pd。
+// 用途：敌方回合不跑技能阶段，需要用它重新武装同一批监听器。
+type ArmedSkill struct {
+	SkillID     int
+	CharacterID int
+	TargetID    int
+}
+
 // Machine 战斗状态机
 type Machine struct {
 	IsSelfRound bool // 是否是自己的回合
@@ -33,9 +42,21 @@ type Machine struct {
 	// actuator 的角色行为分派、行动角色判定都必须用 CharacterIDs。
 	CharacterIDs []int
 
-	// Reaction 本场战斗的反应版本闸门：监听器收到事件后由它协调"反应者先打点、
-	// actuator 最后结算"。不要每场战斗之外复用实例，统一用 Gate() 获取。
-	Reaction *ReactionGate
+	// EventHub 本机的事件中枢：独占本场战斗唯一的 pubsub，并持有反应者注册表与
+	// "每事件一份"的反应版本闸门。不要另建实例，统一用 Events() 获取，
+	// 否则发布方、反应者与 actuator 会各自持有不同的中枢，反应版本对不上。
+	EventHub *EventHub
+
+	// RoundSkills 本回合武装的技能集合（回合结束时清空）。
+	// 回合之间相互独立：回合结束会真退订本回合的全部监听器，
+	// 敌方回合则用这份集合重新武装（敌方回合不跑技能阶段）。
+	RoundSkills []ArmedSkill
+
+	// GameContent 内容表管理器（角色/敌人/技能/buff 定义都走它读缓存）。
+	// 由 NewMachine 注入；战斗侧的 buff 逻辑用它按 ID 取定义。
+	// 注意：它底层是 Redis 访问，**不要在持有 Mu 的区间内调用**，
+	// 否则一次网络往返会把所有战斗状态的读写都堵住。
+	GameContent *utils.GameContentManager
 
 	// 队伍与对战 NPC 的 ID 列表（由 NewMachine 加载）
 	SelfCharacterIDs  []int // 我方队伍角色 ID 列表（来自玩家数据的 character_team）
@@ -130,7 +151,8 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 		CharacterUsedSkill:  map[int]int{},
 		Counters:            map[string]float32{},
 		LastStateNumber:     Waiting,
-		Reaction:            NewReactionGate(),
+		EventHub:            NewEventHub(),
+		GameContent:         gm,
 	}
 
 	// 1+2. 从玩家数据（Redis Hash）读取状态机字段：队伍角色 ID + DoingMap
@@ -150,7 +172,7 @@ func NewMachine(ctx context.Context, pdm *utils.PlayerDataManager, gm *utils.Gam
 		}
 		idx := len(machine.CharacterState)
 		machine.CharacterState = append(machine.CharacterState,
-			&CharacterState{Health: character.Health, Attack: 1, Recover: 1, Defense: 1, Buffs: []*Buff{}})
+			&CharacterState{Health: character.Health, Attack: 1, Recover: 1, Defense: 0, Buffs: []*Buff{}})
 		// CharacterIDs 只在状态真正入列时才追加，保证与 CharacterState 严格同长同序：
 		// 加载失败被 continue 跳过的角色不占位，否则 SelfCharacterIDs[i] 会与
 		// CharacterState[i] 错位，导致按索引取到错误的角色。

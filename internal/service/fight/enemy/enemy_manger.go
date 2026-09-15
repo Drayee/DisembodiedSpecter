@@ -8,8 +8,6 @@ import (
 	"log"
 	"reflect"
 	"time"
-
-	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
 
 type EnemyManager struct {
@@ -39,7 +37,9 @@ func NewEnemyManager(gm *utils.GameContentManager) *EnemyManager {
 	return enemyManager
 }
 
-func (a *EnemyManager) Run(id int, machine *structs.Machine, pubSub *gochannel.GoChannel, enemyID int) (err error) {
+// Run 执行敌方行动。签名统一为 (machine, id)：
+// pubsub 已由 Machine 独占，不再作为参数透传（发布走 machine.PublishPayload）。
+func (a *EnemyManager) Run(id int, machine *structs.Machine, enemyID int) (err error) {
 	method, ok := a.Action[enemyID]
 	if !ok {
 		return fmt.Errorf("action %d 缺少必需的方法", id)
@@ -55,7 +55,6 @@ func (a *EnemyManager) Run(id int, machine *structs.Machine, pubSub *gochannel.G
 		[]reflect.Value{
 			reflect.ValueOf(a),
 			reflect.ValueOf(machine),
-			reflect.ValueOf(pubSub),
 			reflect.ValueOf(id),
 		},
 	)

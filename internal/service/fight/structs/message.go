@@ -21,3 +21,13 @@ type Recover struct {
 	Recover  int
 	Other    string
 }
+
+type DamageType int
+
+const (
+	DamageTypeNormal   DamageType = iota
+	DamageTypePhysical DamageType = iota
+	DamageTypeThunder  DamageType = iota
+	DamageTypeFire     DamageType = iota
+	DamageTypeReally   DamageType = iota
+)

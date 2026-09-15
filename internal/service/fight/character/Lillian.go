@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
 
-func (sm *SkillManager) Skill3Init(pubSub *gochannel.GoChannel, machine *structs.Machine, selfId int, otherId int) {
+func (sm *SkillManager) Skill3Init(machine *structs.Machine, selfId int, otherId int) {
 	total := machine.Counters["count:skill3"]
 	if total <= 0 {
 		total = 1
@@ -18,24 +17,23 @@ func (sm *SkillManager) Skill3Init(pubSub *gochannel.GoChannel, machine *structs
 		Damage:   1,
 		TargetID: otherId,
 		SourceID: selfId,
-		Other:    "type:thunder",
+		Other:    "{\"type\":\"thunder\"}",
 	})
 	for range int(total) {
-		msg := message.NewMessage(machine.UUID, jsonBytes)
-		// 打上反应版本戳后发布：actuator 会等反应者打完点再结算
-		if err := machine.PublishEvent(pubSub, "fight-attack", msg); err != nil {
+		// PublishPayload 生成事件 ID 并打上反应版本戳：actuator 会等反应者打完点再结算
+		if err := machine.PublishPayload("fight-attack", jsonBytes); err != nil {
 			return
 		}
 	}
 }
 
-func (sm *SkillManager) Skill4Listener(pubSub *gochannel.GoChannel, machine *structs.Machine, selfId int, otherId int) {
-	// RegisterReactor 统一负责：反应版本 +1、每条消息打点 + Ack、
-	// 退出时 -1 版本并退订（避免消息堵在无人读取的 channel 上）
-	err := machine.RegisterReactor(pubSub, machine.Ctx, "fight-attack", func(msg *message.Message) bool {
-		return sm.skill4React(pubSub, machine, msg, selfId, otherId)
-	})
-	if err != nil {
+func (sm *SkillManager) Skill4Listener(machine *structs.Machine, selfId int, otherId int) {
+	// RegisterReactor 按 key 幂等注册：整场战斗只订阅一次，重复调用只更新本回合的
+	// 目标上下文（selfId/otherId）。它同时统一负责"每条消息打点 + Ack"与
+	// "退出时退订并释放反应版本"。
+	if err := machine.RegisterReactor("skill4", "fight-attack", func(msg *message.Message) bool {
+		return sm.skill4React(machine, msg, selfId, otherId)
+	}); err != nil {
 		return
 	}
 }
@@ -46,7 +44,7 @@ func (sm *SkillManager) Skill4Listener(pubSub *gochannel.GoChannel, machine *str
 // 导致主循环的 CheckBattleEnd / BuildFightStatus 全部阻塞、整场战斗卡死）：
 //  1. count <= 4 的所有路径都没有 Unlock；
 //  2. json.Unmarshal 失败时在持锁状态下直接 return。
-func (sm *SkillManager) skill4React(pubSub *gochannel.GoChannel, machine *structs.Machine, msg *message.Message, selfId int, otherId int) bool {
+func (sm *SkillManager) skill4React(machine *structs.Machine, msg *message.Message, selfId int, otherId int) bool {
 	machine.Mu.Lock()
 	attack := &structs.Attack{}
 	err := json.Unmarshal(msg.Payload, attack)
@@ -65,13 +63,13 @@ func (sm *SkillManager) skill4React(pubSub *gochannel.GoChannel, machine *struct
 		Damage:   4,
 		TargetID: otherId,
 		SourceID: selfId,
-		Other:    "type:thunder",
+		Other:    "{\"type\":\"thunder\"}",
 	})
 	machine.Counters["count:skill3"]++
 	machine.Counters["count:skill4"] = 0
 	machine.Mu.Unlock()
-	// 发布必须在解锁之后：PublishEvent 内部会读 machine.Gate()（需要读锁）
-	return machine.PublishEvent(pubSub, "fight-attack", message.NewMessage(machine.UUID, jsonBytes)) != nil
+	// 发布必须在解锁之后：PublishPayload 内部会读 machine.Events()（需要读锁）
+	return machine.PublishPayload("fight-attack", jsonBytes) != nil
 }
 
 func (sm *SkillManager) Skill4Run(machine *structs.Machine, selfId int, otherId int) error {
@@ -82,17 +80,16 @@ func (sm *SkillManager) Skill4Run(machine *structs.Machine, selfId int, otherId 
 	return nil
 }
 
-func (sm *SkillManager) Skill5Init(pubSub *gochannel.GoChannel, machine *structs.Machine, selfId int, otherId int) {
-	if machine.Counters["count:character1"] > 0 {
+func (sm *SkillManager) Skill5Init(machine *structs.Machine, selfId int, otherId int) {
+	if machine.Counters["count:character2"] > 0 {
 		jsonBytes, _ := json.Marshal(structs.BuffMessage{
 			TargetID: selfId,
 			SourceID: selfId,
 			ID:       1,
-			Time:     int(machine.Counters["count:character1"]),
+			Time:     int(machine.Counters["count:character2"]),
 			Other:    "",
 		})
-		msg := message.NewMessage(machine.UUID, jsonBytes)
-		if err := machine.PublishEvent(pubSub, "fight-buff", msg); err != nil {
+		if err := machine.PublishPayload("fight-buff", jsonBytes); err != nil {
 			return
 		}
 	}

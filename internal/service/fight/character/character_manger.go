@@ -8,8 +8,6 @@ import (
 	"log"
 	"reflect"
 	"time"
-
-	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
 
 type Skill struct {
@@ -70,22 +68,25 @@ func (sm *SkillManager) callMethod(method reflect.Method, name string, skillID i
 	return nil
 }
 
-func (sm *SkillManager) Listener(skillID int, pubSub *gochannel.GoChannel, machine *structs.Machine, selfId int, otherId int) error {
+// 技能方法签名统一为 (machine, selfId, otherId)：pubsub 已由 Machine 独占，
+// 不再作为参数层层透传（发布走 machine.PublishPayload，订阅走 machine.RegisterReactor）。
+
+func (sm *SkillManager) Listener(skillID int, machine *structs.Machine, selfId int, otherId int) error {
 	skill, ok := sm.SkillRegistry[skillID]
 	if !ok {
 		return fmt.Errorf("技能 %d 不存在", skillID)
 	}
 	return sm.callMethod(skill.listener, "Listener", skillID,
-		reflect.ValueOf(pubSub), reflect.ValueOf(machine), reflect.ValueOf(selfId), reflect.ValueOf(otherId))
+		reflect.ValueOf(machine), reflect.ValueOf(selfId), reflect.ValueOf(otherId))
 }
 
-func (sm *SkillManager) Init(skillID int, pubSub *gochannel.GoChannel, machine *structs.Machine, selfId int, otherId int) error {
+func (sm *SkillManager) Init(skillID int, machine *structs.Machine, selfId int, otherId int) error {
 	skill, ok := sm.SkillRegistry[skillID]
 	if !ok {
 		return fmt.Errorf("技能 %d 不存在", skillID)
 	}
 	return sm.callMethod(skill.init, "Init", skillID,
-		reflect.ValueOf(pubSub), reflect.ValueOf(machine), reflect.ValueOf(selfId), reflect.ValueOf(otherId))
+		reflect.ValueOf(machine), reflect.ValueOf(selfId), reflect.ValueOf(otherId))
 }
 
 func (sm *SkillManager) Run(skillID int, machine *structs.Machine, selfId int, otherId int) error {

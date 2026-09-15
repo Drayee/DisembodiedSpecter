@@ -1,4 +1,4 @@
-package fight
+package actuator
 
 import (
 	"DisembodiedSpecter/internal/service/fight/structs"
@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 )
 
 // 行为方法签名校验用的类型常量。
@@ -159,14 +158,14 @@ func validBehaviorSignature(m reflect.Method) bool {
 	return true
 }
 
-// StartListener 为给定的战斗位索引启动监听器（订阅战斗 pubsub）。
+// StartListener 为给定的战斗位索引启动监听器（订阅走 machine.Subscribe）。
 // ids 必须是合法的战斗位索引；越界的索引会被跳过。
-func (a *ActuatorManager) StartListener(pubSub *gochannel.GoChannel, machine *structs.Machine, ids []int) error {
+func (am *ActuatorManager) StartListener(machine *structs.Machine, ids []int) error {
 	for _, idx := range ids {
 		if idx < 0 || idx >= len(machine.CharacterState) {
 			continue
 		}
-		NewActuator(a, idx, pubSub, machine, machine.Ctx)
+		NewActuator(am, idx, machine)
 	}
 	return nil
 }
@@ -175,15 +174,15 @@ func (a *ActuatorManager) StartListener(pubSub *gochannel.GoChannel, machine *st
 //
 // 注意：调用定制行为时**不持有 machine.Mu**。定制行为若需读写角色状态请自行加锁
 // （与 Skill2Listener 等既有监听器的风格一致）；默认结算内部会自行加锁。
-func (a *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) error {
+func (am *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) error {
 	if dbID, isSelf, ok := machine.CharacterDBID(e.TargetID); ok {
-		behaviors := a.enemyBehaviors
+		behaviors := am.enemyBehaviors
 		if isSelf {
-			behaviors = a.characterBehaviors
+			behaviors = am.characterBehaviors
 		}
 		if b, found := behaviors[dbID]; found {
 			if method, has := b.pick(e.Kind); has {
-				return a.callBehavior(method, machine, e)
+				return am.callBehavior(method, machine, e)
 			}
 		}
 	}
@@ -191,7 +190,7 @@ func (a *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) erro
 }
 
 // callBehavior 反射调用定制行为；panic 被捕获转为错误，避免拖垮主循环。
-func (a *ActuatorManager) callBehavior(method reflect.Method, machine *structs.Machine, e structs.Effect) (err error) {
+func (am *ActuatorManager) callBehavior(method reflect.Method, machine *structs.Machine, e structs.Effect) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("战斗位 %d 的定制行为 %s 执行 panic: %v", e.TargetID, method.Name, r)
@@ -199,7 +198,7 @@ func (a *ActuatorManager) callBehavior(method reflect.Method, machine *structs.M
 	}()
 
 	results := method.Func.Call([]reflect.Value{
-		reflect.ValueOf(a),
+		reflect.ValueOf(am),
 		reflect.ValueOf(machine),
 		reflect.ValueOf(e.TargetID),
 		reflect.ValueOf(e),
@@ -218,21 +217,19 @@ func defaultSettle(machine *structs.Machine, e structs.Effect) error {
 	if e.TargetID < 0 || e.TargetID >= len(machine.CharacterState) {
 		return fmt.Errorf("战斗位 %d 不存在", e.TargetID)
 	}
-	state := machine.CharacterState[e.TargetID]
-	if state == nil {
+	stateTarget := machine.CharacterState[e.TargetID]
+	if stateTarget == nil {
 		return fmt.Errorf("战斗位 %d 状态缺失", e.TargetID)
 	}
 
 	switch e.Kind {
 	case structs.EffectAttack:
-		state.Health -= max(e.Damage-state.Defense, 0)
-		if state.Health < 0 {
-			state.Health = 0
-		}
+		damageType := ParseDamageType(e)
+		AttackModule(machine, e.SourceID, e.TargetID, e.Damage, damageType)
 	case structs.EffectRecover:
-		state.Health += e.Recover
+		RecoverModule(machine, e.TargetID, e.Recover)
 	case structs.EffectBuff:
-		state.Buffs = append(state.Buffs, &structs.Buff{ID: e.BuffID, Time: e.BuffTime})
+		GetBuffModule(machine, e.TargetID, e.BuffID, e.BuffTime)
 	default:
 		return fmt.Errorf("未知的效果类型 %d", int(e.Kind))
 	}
@@ -250,7 +247,7 @@ type Actuator interface {
 // ActuatorImpl 单个战斗位的监听器。
 //
 // 每个事件由"目标战斗位与自身索引相同"的唯一一个 actuator 负责：
-// 它先等该事件要求的反应者全部打点完毕（ReactionGate），**再立即结算**，
+// 它先等该事件要求的反应者全部打点完毕（事件中枢的反应版本闸门），**再立即结算**，
 // 最后释放该事件。因此：
 //   - 结算是收到事件时发生的，不攒到回合末；
 //   - 结算必然晚于所有其它监听器（技能反应）对该事件的处理。
@@ -259,18 +256,18 @@ type Actuator interface {
 type ActuatorImpl struct {
 	Manager *ActuatorManager
 	ID      int // 战斗位索引（0..N-1），不是角色 DB ID
-	pubSub  *gochannel.GoChannel
 }
 
 var _ Actuator = (*ActuatorImpl)(nil)
 
 // NewActuator 为指定战斗位启动监听 goroutine。
-// ctx 用于订阅的生命周期控制（战斗结束时取消，订阅随之关闭，goroutine 退出）。
-func NewActuator(manager *ActuatorManager, id int, pubSub *gochannel.GoChannel, machine *structs.Machine, ctx context.Context) *ActuatorImpl {
-	actuator := &ActuatorImpl{Manager: manager, ID: id, pubSub: pubSub}
-	attackMessages, err1 := pubSub.Subscribe(ctx, "fight-attack")
-	recoverMessages, err2 := pubSub.Subscribe(ctx, "fight-recover")
-	buffMessages, err3 := pubSub.Subscribe(ctx, "fight-buff")
+// 订阅走 machine.Subscribe（pubsub 由 Machine 独占，不再作为参数透传）；
+// 订阅生命周期与战斗上下文绑定（战斗结束时取消，订阅随之关闭，goroutine 退出）。
+func NewActuator(manager *ActuatorManager, id int, machine *structs.Machine) *ActuatorImpl {
+	actuator := &ActuatorImpl{Manager: manager, ID: id}
+	attackMessages, err1 := machine.Subscribe("fight-attack")
+	recoverMessages, err2 := machine.Subscribe("fight-recover")
+	buffMessages, err3 := machine.Subscribe("fight-buff")
 	if err1 != nil || err2 != nil || err3 != nil {
 		log.Printf("Actuator %d Subscribe error: %v, %v, %v", actuator.ID, err1, err2, err3)
 		return actuator
@@ -302,7 +299,7 @@ func (a *ActuatorImpl) consume(messages <-chan *message.Message, machine *struct
 // settleOwned 负责结算命中本战斗位的效果：
 // 先等该事件要求的反应者全部打点（"actuator 最后执行"由此保证），再立即结算并释放事件。
 func (a *ActuatorImpl) settleOwned(msg *message.Message, machine *structs.Machine, e structs.Effect) {
-	gate := machine.Gate()
+	gate := machine.Events()
 	eventID, _ := structs.EventStamp(msg)
 
 	// 事件带了版本戳才会被登记；未登记的（旧格式/已清扫）事件不会阻塞结算
