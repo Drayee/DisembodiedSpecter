@@ -1,7 +1,6 @@
 package structs
 
 import (
-	"DisembodiedSpecter/internal/eventbus"
 	"DisembodiedSpecter/internal/utils"
 	"context"
 	"encoding/json"
@@ -125,14 +124,6 @@ const (
 	DoingMapEnemyID  = "enemy_id"  // 对战的 NPC ID（单个）
 	DoingMapEnemyIDs = "enemy_ids" // 对战的 NPC ID 列表（JSON []int）
 )
-
-// Event 事件
-type Event struct {
-	DamageEvent    *eventbus.EventBus[*eventbus.DamageEvent]    // 伤害事件
-	RecoverEvent   *eventbus.EventBus[*eventbus.RecoverEvent]   // 恢复事件
-	ToolEvent      *eventbus.EventBus[*eventbus.ToolEvent]      // 道具事件
-	CharacterEvent *eventbus.EventBus[*eventbus.CharacterEvent] // 角色事件
-}
 
 // NewMachine 创建并初始化战斗状态机：
 //  1. 通过 PlayerDataManager（Redis 玩家数据 Hash）读取玩家的队伍角色 ID（character_team 字段）；

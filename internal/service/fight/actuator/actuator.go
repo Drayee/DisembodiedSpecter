@@ -24,9 +24,10 @@ var (
 
 // Behavior 一个角色的定制行为集合。字段为零值（未注册）表示该类事件走默认结算。
 type Behavior struct {
-	Attack  reflect.Method
-	Recover reflect.Method
-	GetBuff reflect.Method
+	Attack    reflect.Method
+	Recover   reflect.Method
+	GetBuff   reflect.Method
+	Permanent reflect.Method
 }
 
 // pick 取出该效果类型对应的定制方法；ok == false 表示未注册，应由默认结算处理。
@@ -75,8 +76,10 @@ func (b Behavior) pick(kind structs.EffectKind) (reflect.Method, bool) {
 type ActuatorManager struct {
 	GameContentManager *utils.GameContentManager
 
-	characterBehaviors map[int]Behavior // 角色 DB ID → 定制行为
-	enemyBehaviors     map[int]Behavior // 敌方 NPC DB ID → 定制行为
+	characterBehaviors map[int]Behavior       // 角色 DB ID → 定制行为
+	enemyBehaviors     map[int]Behavior       // 敌方 NPC DB ID → 定制行为
+	characterPermanent map[int]reflect.Method // 角色 DB ID → 定制永久行为
+	enemyPermanent     map[int]reflect.Method // 敌方 NPC DB ID → 定制永久行为
 }
 
 func NewActuatorManager(gm *utils.GameContentManager) *ActuatorManager {
@@ -84,6 +87,8 @@ func NewActuatorManager(gm *utils.GameContentManager) *ActuatorManager {
 		GameContentManager: gm,
 		characterBehaviors: map[int]Behavior{},
 		enemyBehaviors:     map[int]Behavior{},
+		characterPermanent: map[int]reflect.Method{},
+		enemyPermanent:     map[int]reflect.Method{},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -96,6 +101,10 @@ func NewActuatorManager(gm *utils.GameContentManager) *ActuatorManager {
 		log.Printf("ActuatorManager 读取角色数量失败，角色定制行为未注册: %v", err)
 	} else {
 		for id := 1; id <= n; id++ {
+			// 角色永久行为
+			if p, ok := am.getPermanent("Character", id); ok {
+				am.characterPermanent[id] = p
+			}
 			if b, ok := am.register(fmt.Sprintf("Character%d", id)); ok {
 				am.characterBehaviors[id] = b
 			}
@@ -105,12 +114,29 @@ func NewActuatorManager(gm *utils.GameContentManager) *ActuatorManager {
 		log.Printf("ActuatorManager 读取敌人数量失败，敌人定制行为未注册: %v", err)
 	} else {
 		for id := 1; id <= n; id++ {
+			// 敌人永久行为
+			if p, ok := am.getPermanent("Enemy", id); ok {
+				am.enemyPermanent[id] = p
+			}
 			if b, ok := am.register(fmt.Sprintf("Enemy%d", id)); ok {
 				am.enemyBehaviors[id] = b
 			}
 		}
 	}
 	return am
+}
+
+// getPermanent 取出该角色的永久行为；ok == false 表示未注册，应由默认结算处理。
+func (am *ActuatorManager) getPermanent(prefix string, dbID int) (reflect.Method, bool) {
+	var m reflect.Method
+	m, ok := reflect.TypeFor[*ActuatorManager]().MethodByName(fmt.Sprintf("%s%dPermanent", prefix, dbID))
+	if !ok {
+		return reflect.Method{}, false
+	}
+	if !m.Func.IsValid() {
+		return reflect.Method{}, false
+	}
+	return m, true
 }
 
 // register 查找 <prefix>AttackListener / RecoverListener / GetBuffListener 三个方法。
@@ -241,7 +267,6 @@ type Actuator interface {
 	AttackListener(msg *message.Message, machine *structs.Machine) error
 	RecoverListener(msg *message.Message, machine *structs.Machine) error
 	GetBuffListener(msg *message.Message, machine *structs.Machine) error
-	PermanentListener(machine *structs.Machine) error
 }
 
 // ActuatorImpl 单个战斗位的监听器。
@@ -272,9 +297,7 @@ func NewActuator(manager *ActuatorManager, id int, machine *structs.Machine) *Ac
 		log.Printf("Actuator %d Subscribe error: %v, %v, %v", actuator.ID, err1, err2, err3)
 		return actuator
 	}
-	if err := actuator.PermanentListener(machine); err != nil {
-		log.Printf("Actuator %d PermanentListener error: %v", actuator.ID, err)
-	}
+	actuator.runPermanent(machine)
 	go actuator.consume(attackMessages, machine, actuator.AttackListener, "Attack")
 	go actuator.consume(recoverMessages, machine, actuator.RecoverListener, "Recover")
 	go actuator.consume(buffMessages, machine, actuator.GetBuffListener, "GetBuff")
@@ -296,6 +319,18 @@ func (a *ActuatorImpl) consume(messages <-chan *message.Message, machine *struct
 	}
 }
 
+// runPermanent 运行被动
+func (a *ActuatorImpl) runPermanent(machine *structs.Machine) {
+	isSelf := machine.SelfCharacterNumber > a.ID
+	if isSelf {
+		function := a.Manager.characterPermanent[a.ID]
+		if !function.Func.IsValid() {
+			return
+		}
+		go function.Func.Call([]reflect.Value{reflect.ValueOf(machine), reflect.ValueOf(a.ID)})
+	}
+}
+
 // settleOwned 负责结算命中本战斗位的效果：
 // 先等该事件要求的反应者全部打点（"actuator 最后执行"由此保证），再立即结算并释放事件。
 func (a *ActuatorImpl) settleOwned(msg *message.Message, machine *structs.Machine, e structs.Effect) {
@@ -309,11 +344,6 @@ func (a *ActuatorImpl) settleOwned(msg *message.Message, machine *structs.Machin
 		log.Printf("结算战斗位 %d 的 %s 效果失败: %v", e.TargetID, e.Kind, err)
 	}
 	gate.FinishEvent(eventID)
-}
-
-// PermanentListener 预留的常驻监听入口（当前无额外订阅）。
-func (a *ActuatorImpl) PermanentListener(machine *structs.Machine) error {
-	return nil
 }
 
 // AttackListener 伤害事件：命中本战斗位时等反应者打完点后立即结算。
