@@ -53,6 +53,8 @@ DisembodiedSpecter/
 │   └── utils/             # 工具：Redis 缓存、玩家数据、游戏内容、邮件、Token 等
 ├── proto/                 # 战斗 protobuf 定义与生成代码
 ├── docs/                  # Swagger 生成文档
+├── front/                 # Cocos Creator 客户端（含 assets/resources/story 剧情数据）
+├── studio/                # 前端工作台（Vue 3）：剧情编排 + 后台管理，见 studio/README.md
 ├── config.yaml            # 配置文件
 └── BATTLE_LOGIC.md        # 战斗系统设计与修复记录
 ```
