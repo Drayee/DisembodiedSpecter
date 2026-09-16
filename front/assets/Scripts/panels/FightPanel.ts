@@ -25,8 +25,12 @@
 import { _decorator, Color, Component, Graphics, JsonAsset, Label, Node, resources, Sprite, UITransform, view } from 'cc';
 import { GameManager } from 'db://assets/Scripts/managers/GameManager';
 import { UIManager } from 'db://assets/Scripts/managers/UIManager';
-import { BattleActor, clearChildren } from 'db://assets/Scripts/layers/fight/BattleActor';
-import { FightLogLike, FightLogPlayer, FightLogType } from 'db://assets/Scripts/layers/fight/FightLogPlayer';
+import { BattleActor, BuffView, clearChildren } from 'db://assets/Scripts/layers/fight/BattleActor';
+import {
+    FightLogLike,
+    FightLogPlayer,
+    parseBuffCounterKey,
+} from 'db://assets/Scripts/layers/fight/FightLogPlayer';
 
 const { ccclass } = _decorator;
 
@@ -37,13 +41,12 @@ const STATE_OTHER_ROUND = 2;
 
 /** 各日志的演出时长（毫秒）：集中在这里便于调手感与倍速 */
 const DURATION = {
-    cast: 420,
-    attack: 380,
+    attack: 460,
     recover: 380,
+    counter: 160,
     buff: 240,
     death: 560,
-    round: 420,
-    end: 700,
+    other: 400,
     unknown: 160,
 };
 
@@ -83,7 +86,7 @@ export class FightPanel extends Component {
     private ended = false;
     private autoAdvanceKey = '';        // 自动推进去重键（round:stateNumber）
 
-    private buffIds: number[][] = [];   // 各战斗位当前展示的 buff（日志增删 + 状态对齐）
+    private buffState: BuffView[][] = []; // 各战斗位当前展示的 buff（buff 事件增、counter 事件改层数）
     private selection = new Map<number, { skillId: number; targetId: number }>();
     private targeting: { characterId: number; skill: SkillConfig } | null = null;
     private lastSkillSig = '';          // 我方角色集合签名：没变就不重建技能按钮
@@ -369,9 +372,10 @@ export class FightPanel extends Component {
             const actor = this.actors[i];
             if (!actor) return;
             actor.setHealth(Number(c.health) || 0, Number(c.maxHealth) || Math.max(1, Number(c.health) || 1), false);
-            const ids = (c.buffs ?? []).map((b: any) => Number(b.buffId));
-            this.buffIds[i] = ids;
-            actor.setBuffs(ids);
+            // 权威状态里的 buff 是"最终真值"：层数/时间以它为准，覆盖演出过程中的中间态
+            const buffs: BuffView[] = (c.buffs ?? []).map((b: any) => ({ id: Number(b.buffId), time: Number(b.time) }));
+            this.buffState[i] = buffs;
+            actor.setBuffs(buffs);
             if ((Number(c.health) || 0) <= 0 && !actor.dead) actor.playAnim('die');
         });
 
@@ -406,7 +410,7 @@ export class FightPanel extends Component {
                 if (a && a.node && a.node.isValid) a.node.destroy();
             }
             this.actors = [];
-            this.buffIds = [];
+            this.buffState = [];
             clearChildren(this.actorRoot);
 
             const size = this.rootSize();
@@ -438,7 +442,7 @@ export class FightPanel extends Component {
                 node.setPosition(x, y, 0);
 
                 this.actors[i] = actor;
-                this.buffIds[i] = [];
+                this.buffState[i] = [];
             });
             this.tipLabel.string = `${selfCount} 名我方角色已就位`;
         } else {
@@ -454,72 +458,148 @@ export class FightPanel extends Component {
 
     /**
      * 播放一条日志，返回该条演出占用的毫秒数。
-     * 所有数值都直接用日志里的字段，前端不做任何换算。
+     *
+     * 按 oneof 判别键 `detail`（'attack'/'recover'/...）分发，而不是按 type 数字：
+     * 判别键由 protobufjs 从线格式里还原，写错分支名会编译不过，比数字可靠。
+     * 所有数值都直接用日志给的字段，前端不做任何换算。
      */
     private playLog(entry: FightLogLike): number {
-        const source = this.actors[entry.source];
-        const target = this.actors[entry.target];
-
-        switch (entry.type) {
-            case FightLogType.CAST:
-                if (source) source.playAnim(source.isSelf ? 'cast' : 'attack');
-                return DURATION.cast;
-
-            case FightLogType.ATTACK:
-                // 出手动画由 CAST 负责，这里只演"受击"：结算数值直接用日志给的
-                if (target) {
-                    target.playAnim('hit');
-                    target.float(`-${entry.value}`, target.isSelf ? new Color(255, 140, 120, 255) : new Color(255, 220, 90, 255));
-                    target.setHealth(entry.hpAfter, undefined, true);
-                }
-                return DURATION.attack;
-
-            case FightLogType.RECOVER:
-                if (target) {
-                    target.playAnim('heal');
-                    target.float(`+${entry.value}`, new Color(120, 240, 150, 255));
-                    target.setHealth(entry.hpAfter, undefined, true);
-                }
-                return DURATION.recover;
-
-            case FightLogType.BUFF_ADD:
-                if (target) {
-                    const ids = (this.buffIds[entry.target] ?? []).slice();
-                    if (ids.indexOf(entry.buffId) < 0) ids.push(entry.buffId);
-                    this.buffIds[entry.target] = ids;
-                    target.setBuffs(ids);
-                    target.float(`buff ${entry.buffId}`, new Color(200, 170, 255, 255), 50);
-                }
-                return DURATION.buff;
-
-            case FightLogType.BUFF_REMOVE:
-                if (target) {
-                    const ids = (this.buffIds[entry.target] ?? []).filter((id) => id !== entry.buffId);
-                    this.buffIds[entry.target] = ids;
-                    target.setBuffs(ids);
-                    target.float(`buff ${entry.buffId} 结束`, new Color(170, 170, 170, 255), 50);
-                }
-                return DURATION.buff;
-
-            case FightLogType.DEATH:
-                if (target) {
-                    target.playAnim('die');
-                    target.float('阵亡', new Color(255, 90, 90, 255), 60);
-                }
-                return DURATION.death;
-
-            case FightLogType.ROUND:
-                this.roundLabel.string = `回合 ${entry.round ?? 0}`;
-                this.setTip(entry.stateNumber === STATE_OTHER_ROUND ? '敌方行动中…' : '新的回合开始');
-                return DURATION.round;
-
-            case FightLogType.END:
-                this.showResult(entry.value === 1);
-                return DURATION.end;
-
+        switch (entry.detail) {
+            case 'attack':
+                return this.playAttack(entry);
+            case 'recover':
+                return this.playRecover(entry);
+            case 'counter':
+                return this.playCounter(entry);
+            case 'buff':
+                return this.playBuff(entry);
+            case 'death':
+                return this.playDeath(entry);
+            case 'other':
+                return this.playOther(entry);
             default:
                 return DURATION.unknown;
         }
+    }
+
+    /**
+     * 攻击：出手 + 受击 + 飘字 + 血条落位，全在这一条事件里播完
+     * （没有单独的"出手事件"：被动追加攻击也有自己的 source，因此同样会播出手）。
+     */
+    private playAttack(entry: FightLogLike): number {
+        const a = entry.attack;
+        if (!a) return DURATION.unknown;
+        const source = this.actors[a.source];
+        const target = this.actors[a.target];
+
+        if (source) source.playAnim(source.isSelf ? 'cast' : 'attack');
+        if (target) {
+            target.playAnim('hit');
+            if (a.damage > 0) {
+                // 实际掉血量（被抵消的部分不计入）
+                target.float(`-${a.damage}`, target.isSelf ? new Color(255, 140, 120, 255) : new Color(255, 220, 90, 255));
+            } else if (a.special !== 0) {
+                // 伤害为 0 且声明了触发的被动/buff → 播"被挡下"
+                target.float(this.specialText(a.special), new Color(150, 220, 255, 255), 50);
+            } else {
+                target.float('格挡', new Color(200, 200, 200, 255), 50);
+            }
+            target.setHealth(a.hpAfter, undefined, true);
+        }
+        return DURATION.attack;
+    }
+
+    /** 恢复：治疗动作 + 绿字 + 血条落位 */
+    private playRecover(entry: FightLogLike): number {
+        const r = entry.recover;
+        if (!r) return DURATION.unknown;
+        const target = this.actors[r.target];
+        if (target) {
+            target.playAnim('heal');
+            target.float(`+${r.recover}`, new Color(120, 240, 150, 255));
+            target.setHealth(r.hpAfter, undefined, true);
+        }
+        return DURATION.recover;
+    }
+
+    /**
+     * 计数器变化。两种 key：
+     *   - "buff:<buffID>:<战斗位>" → buff 层数/时间变化（value 归零即失效，移除图标）
+     *   - 其它 → 普通战斗计数器（仅提示，前端不参与结算）
+     */
+    private playCounter(entry: FightLogLike): number {
+        const c = entry.counter;
+        if (!c) return DURATION.unknown;
+
+        const buffKey = parseBuffCounterKey(c.key);
+        if (buffKey) {
+            const actor = this.actors[buffKey.index];
+            if (actor) {
+                const list = (this.buffState[buffKey.index] ?? []).filter((b) => b.id !== buffKey.buffId);
+                if (c.value > 0) list.push({ id: buffKey.buffId, time: c.value });
+                this.buffState[buffKey.index] = list;
+                actor.setBuffs(list);
+                if (c.value <= 0) actor.float(`buff ${buffKey.buffId} 结束`, new Color(170, 170, 170, 255), 50);
+                else actor.float(`${c.delta > 0 ? '+' : ''}${c.delta}`, new Color(180, 210, 255, 255), 46);
+            }
+            return DURATION.counter;
+        }
+
+        this.setTip(`计数 ${c.key} = ${c.value}（${c.delta > 0 ? '+' : ''}${c.delta}）`);
+        return DURATION.counter;
+    }
+
+    /** 获得/刷新 buff：加图标 + 提示 */
+    private playBuff(entry: FightLogLike): number {
+        const b = entry.buff;
+        if (!b) return DURATION.unknown;
+        const actor = this.actors[b.target];
+        if (actor) {
+            const list = (this.buffState[b.target] ?? []).filter((x) => x.id !== b.buffId);
+            list.push({ id: b.buffId, time: b.time });
+            this.buffState[b.target] = list;
+            actor.setBuffs(list);
+            actor.float(`buff ${b.buffId}`, new Color(200, 170, 255, 255), 50);
+        }
+        return DURATION.buff;
+    }
+
+    /** 阵亡 */
+    private playDeath(entry: FightLogLike): number {
+        const d = entry.death;
+        const target = d ? this.actors[d.target] : null;
+        if (target) {
+            target.playAnim('die');
+            target.float('阵亡', new Color(255, 90, 90, 255), 60);
+            this.buffState[d!.target] = [];
+            target.setBuffs([]);
+        }
+        return DURATION.death;
+    }
+
+    /**
+     * 其他事件：detail 是 JSON 原文，目前只约定 op=end（战斗结束）。
+     * 未知 op 只打日志，不影响演出（保证服务端加新事件时前端不会崩）。
+     */
+    private playOther(entry: FightLogLike): number {
+        const raw = entry.other?.detail;
+        if (!raw) return DURATION.other;
+        try {
+            const data = JSON.parse(raw);
+            if (data && data.op === 'end') {
+                this.showResult(Number(data.win) === 1);
+                return DURATION.other;
+            }
+            console.log('[FightPanel] 未处理的其他事件', data);
+        } catch (e) {
+            console.warn('[FightPanel] 其他事件 JSON 解析失败', raw, e);
+        }
+        return DURATION.other;
+    }
+
+    /** 把 special（>0 角色DB ID / <0 −buffID）翻译成提示文案 */
+    private specialText(special: number): string {
+        return special < 0 ? `buff ${-special} 抵消` : `角色 ${special} 被动`;
     }
 
     /** 队列播空：落地挂起的状态，并在需要时推进阶段。 */

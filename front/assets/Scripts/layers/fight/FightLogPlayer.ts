@@ -10,34 +10,104 @@
 //   - 演出期间 busy 为 true，调用方据此把权威状态挂起（播完再落地）；
 //   - 队列播空后回调一次 onDrain（恰好一次，不会因为空转反复触发）。
 
-/** 服务端 FightLog 的最小结构（与 messages.js 生成类型字段一致） */
+/** 攻击事件详情（对应 proto AttackLog） */
+export interface AttackLogLike {
+    source: number;   // 出手方战斗位（-1 = 无来源）
+    target: number;   // 受击方战斗位
+    damage: number;   // 最终伤害（实际掉血量；被抵消的不计入）
+    hpBefore: number;
+    hpAfter: number;
+    ref: number;      // 伤害来源：>0 技能ID；<0 −buffID；0 被动
+    special: number;  // 本次触发的被动/特殊受击：>0 角色DB ID；<0 −buffID；0 无
+    other: string;    // 原始 other（JSON 原文）
+}
+
+/** 恢复事件详情（对应 proto RecoverLog） */
+export interface RecoverLogLike {
+    source: number;
+    target: number;
+    recover: number;  // 实际恢复量
+    hpBefore: number;
+    hpAfter: number;
+    ref: number;
+    special: number;
+    other: string;
+}
+
+/** 计数器变化详情（对应 proto CounterLog）。buff 层数用 key = "buff:<buffID>:<战斗位>" */
+export interface CounterLogLike {
+    key: string;
+    delta: number;    // 变化值（正=增加，负=减少）
+    value: number;    // 变化后的值（buff 归零即失效）
+    ref: number;
+}
+
+/** 获得/刷新 buff 详情（对应 proto BuffLog） */
+export interface BuffLogLike {
+    source: number;
+    target: number;
+    buffId: number;
+    time: number;     // 本次时长/层数
+    ref: number;
+    special: number;
+    other: string;
+}
+
+/** 阵亡详情（对应 proto DeathLog） */
+export interface DeathLogLike {
+    source: number;
+    target: number;
+    ref: number;
+}
+
+/** 其他事件详情（对应 proto OtherLog） */
+export interface OtherLogLike {
+    detail: string;   // JSON 原文，例如 {"op":"end","win":1}
+}
+
+/**
+ * 一条战斗日志：信封（通用字段）+ 详情。
+ * detail 是 pbjs 为 oneof 生成的**判别键**（'attack'|'recover'|...），
+ * 用它分发比用 type 数字更直观，也不会因为数字写错而静默走错分支。
+ */
 export interface FightLogLike {
     seq: number;
     type: number;
-    source: number;
-    target: number;
-    skillId: number;
-    buffId: number;
-    value: number;
-    hpBefore: number;
-    hpAfter: number;
     round: number;
     stateNumber: number;
-    text: string;
+
+    detail?: 'attack' | 'recover' | 'counter' | 'buff' | 'death' | 'other';
+    attack?: AttackLogLike;
+    recover?: RecoverLogLike;
+    counter?: CounterLogLike;
+    buff?: BuffLogLike;
+    death?: DeathLogLike;
+    other?: OtherLogLike;
 }
 
-/** 日志类型常量（与 proto FightLogType 对齐） */
+/** 日志类型常量（与 proto FightLogType 对齐；请以 detail 判别键为准分发） */
 export const FightLogType = {
     UNKNOWN: 0,
-    CAST: 1,
-    ATTACK: 2,
-    RECOVER: 3,
-    BUFF_ADD: 4,
-    BUFF_REMOVE: 5,
-    DEATH: 6,
-    ROUND: 7,
-    END: 8,
+    ATTACK: 1,
+    RECOVER: 2,
+    COUNTER: 3,
+    BUFF: 4,
+    DEATH: 5,
+    OTHER: 6,
 } as const;
+
+/** buff 计数器键的前缀与解析：键格式 "buff:<buffID>:<战斗位>" */
+export const BUFF_COUNTER_PREFIX = 'buff:';
+
+export function parseBuffCounterKey(key: string): { buffId: number; index: number } | null {
+    if (!key || key.indexOf(BUFF_COUNTER_PREFIX) !== 0) return null;
+    const parts = key.split(':');
+    if (parts.length !== 3) return null;
+    const buffId = Number(parts[1]);
+    const index = Number(parts[2]);
+    if (!isFinite(buffId) || !isFinite(index)) return null;
+    return { buffId, index };
+}
 
 /** 兜底演出时长（毫秒）：onPlay 未给出有效时长时用它 */
 const DEFAULT_DURATION_MS = 200;

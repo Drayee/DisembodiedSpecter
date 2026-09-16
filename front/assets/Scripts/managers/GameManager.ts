@@ -130,7 +130,7 @@ export class GameManager extends Component {
     /**
      * 处理一条战斗消息。
      * 服务端战斗通道上有两类下行消息，顺序保证是「先日志、后状态」：
-     *   - fightLogs：本批一次性事件（出手/伤害/治疗/buff/回合/结束）→ 交给表现层回放动画；
+     *   - fightLogs：本批一次性事件（攻击/恢复/计数/buff/阵亡/其他）→ 交给表现层回放动画；
      *   - syncFightStatus：权威状态快照 → 由表现层在演出播完后落地对齐。
      */
     public handleFightMessage(msg: FightMessage) {

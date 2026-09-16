@@ -7,18 +7,21 @@
 
 **后端执行战斗时顺手记日志，前端按日志播动画。**
 
-- 服务端在结算收口处（伤害/治疗/buff/出手/回合/结束）追加一条 `FightLog`；
+- 服务端在唯一记账点（`actuator.Apply`）把每次结算写成一条 `FightLog`（攻击/恢复/计数/buff/阵亡/其他）；
 - 每次下发权威状态**之前**先把这批日志发给客户端（`S2C_FightLogs`）；
-- 前端把日志推进播放队列串行演出（出手 → 命中 → 飘字 → 血条补间），播完再把权威状态落地；
+- 前端把日志推进播放队列串行演出，播完再把权威状态落地；
 - 前端**不做任何战斗结算**：伤害数值、血量结果全部来自服务端，所以不存在双端算法分歧。
 
 ```
-服务端                                      前端 (Cocos)
-执行技能 ──► 记日志(CAST/ATTACK/BUFF…)  ──►  FightLogPlayer 队列
+服务端                                          前端 (Cocos)
+执行技能 ──► 记账(ATTACK/COUNTER/BUFF…)  ──►  FightLogPlayer 队列
         └─► 写权威状态                    ──►  ① 逐条演出（BattleActor 动画/飘字/血条）
                                              ② 队列播空 → 落地权威状态（最终对齐）
                                              ③ 若在敌方回合 → 自动发 START_PHASE 继续
 ```
+
+**一条攻击事件就包含"出手 + 受击 + 飘字"**：协议里没有单独的"出手(CAST)"事件，
+出手方就是 `AttackLog.source`。好处是被动追加攻击也有自己的 source，天然会播出手，不会"凭空掉血"。
 
 ## 2. 文件清单
 
@@ -26,8 +29,8 @@
 
 | 文件 | 作用 |
 |---|---|
-| `front/assets/Scripts/layers/fight/FightLogPlayer.ts` | 日志播放队列：串行演出、倍速、跳过、播空回调 |
-| `front/assets/Scripts/layers/fight/BattleActor.ts` | 单个战斗位的视图：站位、占位体、血条、buff 图标、飘字、动作演出 |
+| `front/assets/Scripts/layers/fight/FightLogPlayer.ts` | 日志播放队列：按 `detail` 判别键分发、串行演出、倍速、跳过、播空回调 |
+| `front/assets/Scripts/layers/fight/BattleActor.ts` | 单个战斗位的视图：站位、占位体、血条、buff 图标（含层数）、飘字、动作演出 |
 | `front/assets/Scripts/panels/FightPanel.ts` | 面板控制器：建场、演出调度、技能选择、结算、阶段推进 |
 | `front/assets/resources/fight/battle.json` | 展示配置表（角色/敌人 DB ID → 名字、颜色、缩放、技能按钮） |
 
@@ -36,11 +39,12 @@
 | 文件 | 改动 |
 |---|---|
 | `managers/GameManager.ts` | 识别 `fightLogs` 并回调 `onFightLogs`；新增 `useSkills()` 批量提交；同步请求回带本地状态 |
-| `api/websocket/proto/messages.js` / `.d.ts` | 由 proto 重新生成（新增 `FightLog`/`S2C_FightLogs`/`character_id`/`max_health`） |
+| `api/websocket/proto/messages.js` / `.d.ts` | 由 proto 重新生成（6 类日志 + 独立详情 message） |
 
 **修改（后端）**：`proto/fight_message.proto`、`proto/pd/fight_message.pb.go`、
-`internal/service/fight/structs/fight_log.go`（新增）、`structs/state_struct.go`、
-`actuator/module.go`、`buff/buff_manger.go`、`fight_engine.go`、`check.go`、`internal/service/fight_usec.go`。
+`internal/service/fight/structs/fight_log.go`（日志唯一属主）、`actuator/actuator.go`（记账收口）、
+`buff/buff_manger.go`、`character/*`、`enemy/*`、`fight_engine.go`、`fight/round.go`（新增）、
+`fight/log.go`（新增）、`check.go`、`internal/service/fight_usec.go`。
 
 ## 3. 编辑器里要做的事
 
@@ -112,29 +116,75 @@ UIManager.getInstance().openPanel('FightPanel');
 1. 进面板 → 自动连接战斗 WS → 收到权威状态 → 建好站位与血条。
 2. 阶段"等待选择技能"时，技能按钮可用；只有一个技能的角色**默认选中并自动选第一个合法目标**（点一下已选中的技能可取消，再点一次即进入选靶模式）。
 3. 点「出手」→ 本回合全部角色的技能**一次提交**（服务端把一条消息当作整回合行动，分两次提交第二条会被拒）。
-4. 我方结算 → 日志按序演出（出手/伤害/飘字/血条）→ 播完自动进入敌方回合并自动发 `START_PHASE`。
-5. 敌方行动日志演出 → 回到等待选择。
-6. 结算日志（`LOG_END`）到达 → 弹结算面板 →「离开战斗」退出并回世界。
+4. 我方结算 → 日志按序演出（出手+受击+飘字+血条）→ 播完自动进入敌方回合并自动发 `START_PHASE`。
+5. 敌方行动日志演出 → 回到等待选择（回合数由权威状态 `round` 更新）。
+6. "其他"事件（`op=end`）到达 → 弹结算面板 →「离开战斗」退出并回世界。
 
-## 6. 协议摘要（本次新增）
+## 6. 协议摘要
+
+### 6.1 事件类型与详情
 
 ```proto
-enum FightLogType { LOG_CAST=1; LOG_ATTACK=2; LOG_RECOVER=3; LOG_BUFF_ADD=4;
-                    LOG_BUFF_REMOVE=5; LOG_DEATH=6; LOG_ROUND=7; LOG_END=8; }
-
-message FightLog {
-  int32 seq = 1; int32 type = 2;
-  int32 source = 3; int32 target = 4;   // 战斗位索引（我方在前敌方在后）；-1 = 无
-  int32 skill_id = 5; int32 buff_id = 6;
-  int32 value = 7;                       // 伤害/恢复量；END 时 1=胜利 0=失败
-  int32 hp_before = 8; int32 hp_after = 9;
-  int32 round = 10; int32 state_number = 11;
-  string text = 12;
+enum FightLogType {
+  LOG_UNKNOWN = 0;
+  LOG_ATTACK  = 1;  // 攻击（含被被动/特殊受击接管的情况）
+  LOG_RECOVER = 2;  // 恢复
+  LOG_COUNTER = 3;  // 计数器变化（含 buff 层数/时间变化）
+  LOG_BUFF    = 4;  // 获得/刷新 buff
+  LOG_DEATH   = 5;  // 阵亡
+  LOG_OTHER   = 6;  // 其他（战斗结束等）
 }
-message S2C_FightLogs { repeated FightLog logs = 1; }   // FightMessage 新增 oneof 分支
 
-// CharacterStatus 新增：int32 character_id = 6;  int32 max_health = 7;
+// 信封：通用字段；详情由 detail 这个 oneof 承载（每个类型一个独立 message）
+message FightLog {
+  int32 seq = 1; int32 type = 2; int32 round = 3; int32 state_number = 4;
+  oneof detail {
+    AttackLog attack = 5; RecoverLog recover = 6; CounterLog counter = 7;
+    BuffLog buff = 8; DeathLog death = 9; OtherLog other = 10;
+  }
+}
+
+message AttackLog {   // 恢复 RecoverLog 与它同构（recover 代替 damage）
+  int32 source = 1;   // 出手方战斗位（-1 = 无来源）
+  int32 target = 2;   // 受击方战斗位
+  int32 damage = 3;   // 最终伤害（实际掉血量；被抵消的部分不计入）
+  int32 hp_before = 4; int32 hp_after = 5;
+  int32 ref = 6;      // 伤害来源：>0 技能ID；<0 −buffID；0 被动
+  int32 special = 7;  // 本次触发的被动/特殊受击：>0 角色DB ID；<0 −buffID；0 无
+  string other = 8;   // 原始 other（JSON 原文）
+}
+message CounterLog { string key = 1; int32 delta = 2; int32 value = 3; int32 ref = 4; }
+message BuffLog    { int32 source = 1; int32 target = 2; int32 buff_id = 3; int32 time = 4; int32 ref = 5; int32 special = 6; string other = 7; }
+message DeathLog   { int32 source = 1; int32 target = 2; int32 ref = 3; }
+message OtherLog   { string detail = 1; }   // JSON，例如 {"op":"end","win":1}
+
+message S2C_FightLogs { repeated FightLog logs = 1; }   // FightMessage 的 oneof 分支
+// CharacterStatus 另有：int32 character_id = 6;  int32 max_health = 7;
 ```
+
+### 6.2 前端消费方式（按 `detail` 判别键分发）
+
+```ts
+switch (entry.detail) {
+  case 'attack':  this.playAttack(entry);  break;  // 出手 + 受击 + 飘字 + 血条
+  case 'recover': this.playRecover(entry); break;
+  case 'counter': this.playCounter(entry); break;  // buff 层数用 key="buff:<id>:<位>"
+  case 'buff':    this.playBuff(entry);    break;
+  case 'death':   this.playDeath(entry);   break;
+  case 'other':   this.playOther(entry);   break;  // 解 JSON：op=end → 结算面板
+}
+```
+
+约定与注意：
+
+- **`detail` 是 protobufjs 为 oneof 生成的判别键**（'attack'/'recover'/…），用它分发比用 type 数字可靠。
+- `ref` / `special` 是**带符号的一个 int**：`ref` >0 技能ID、<0 −buffID、0 被动；
+  `special` >0 角色DB ID、<0 −buffID、0 无。前端可用它区分"技能打的 / buff 触发的 / 被动补的"，
+  并在 `damage == 0 且 special != 0` 时播"被挡下"而不是掉血。
+- **buff 层数走 `counter` 事件**：键 `buff:<buffID>:<战斗位索引>`，`value` 即剩余层数，归零即移除图标。
+  没有单独的"buff 消失"事件。
+- **没有"出手"与"回合"事件**：出手由攻击事件承载；回合数只看权威状态 `status.round`。
+- **日志顺序 = 真实因果顺序**：例如"用龙力抵消"时先来 `counter`（层数 −1）、再来 `attack`（0 伤害 + special）。
 
 ## 7. 怎么验证
 
@@ -144,8 +194,8 @@ message S2C_FightLogs { repeated FightLog logs = 1; }   // FightMessage 新增 o
 # 构建缓存要用仓库内的 .gocache（沙箱/权限下默认 GOCACHE 可能不可写）
 $env:GOCACHE="$PWD\.gocache"
 go build ./...
-go vet ./internal/...
-go test ./internal/service/fight/actuator/ -v      # 日志埋点行为
+go vet ./...
+go test ./internal/... -v      # 含 apply_log_test.go（记账收口）与 log_test.go（协议映射）
 ```
 
 **前端类型检查**（用 Cocos 自带的 TypeScript，不需要额外装依赖）
@@ -171,5 +221,5 @@ Redis 没起时后端连不上，面板只会停在"等待服务端下发战斗�
 2. **美术资源**：目前是 Graphics 占位体 + tween 占位动画，`BattleActor.setArt()` 与 Animation Clip 槽位已留好。
 3. **重连**：断开重连会重新建场并拿权威状态，但**不会重播历史演出**（日志是"一次性事件"，下发即清空）。
 4. **多角色多技能**：后端限制"一个角色每回合一个技能"且"一条消息 = 一回合行动"，前端已按此实现（攒好再一次性提交）。
-5. **buff 图标**只显示 buffID 色块，内容表里有名字/图标后可以接入。
-6. **`assets/resources/protos/*.proto`** 是一份未被任何脚本引用的副本，且已与 `proto/` 漂移，本次未动它。
+5. **buff 图标**只显示 "buffID×层数" 色块，内容表里有名字/图标后可以接入。
+6. **`assets/Resources/protos/*.proto`** 是一份未被任何脚本引用的副本，且已与 `proto/` 漂移，本次未动它。

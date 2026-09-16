@@ -26,6 +26,12 @@ export interface ActorOptions {
     scale?: number;      // 整体缩放（不同体型的角色可用）
 }
 
+/** 一个 buff 的展示数据：id + 剩余层数/时间（层数由 counter 事件实时更新） */
+export interface BuffView {
+    id: number;
+    time: number;
+}
+
 // 占位体尺寸（像素，设计分辨率下）
 const BODY_W = 110;
 const BODY_H = 170;
@@ -225,22 +231,25 @@ export class BattleActor extends Component {
         g.fill();
     }
 
-    /** 刷新 buff 图标（按 buffID 显示彩色小方块 + 序号文字）。 */
-    public setBuffs(buffIds: number[]): void {
+    /**
+     * 刷新 buff 图标（彩色小方块 + 「buffID×层数」文字）。
+     * 层数为 1 时只显示 buffID；层数由 counter 事件实时更新，因此这里每次都整体重画。
+     */
+    public setBuffs(buffs: BuffView[]): void {
         if (!this.buffRoot || !this.buffRoot.isValid) return;
         // 注意：removeAllChildren 只解除父子关系、不销毁节点，重复刷新会漏节点。
         clearChildren(this.buffRoot);
-        const list = (buffIds || []).slice(0, MAX_BUFF_ICONS);
-        list.forEach((id, i) => {
-            const n = this.makeChild(`Buff_${id}`, this.buffRoot);
+        const list = (buffs || []).slice(0, MAX_BUFF_ICONS);
+        list.forEach((buff, i) => {
+            const n = this.makeChild(`Buff_${buff.id}`, this.buffRoot);
             n.setPosition(i * (BUFF_SIZE + BUFF_GAP), 0, 0);
             const g = n.addComponent(Graphics);
-            g.fillColor = this.buffColor(id);
+            g.fillColor = this.buffColor(buff.id);
             g.roundRect(-BUFF_SIZE / 2, -BUFF_SIZE / 2, BUFF_SIZE, BUFF_SIZE, 4);
             g.fill();
             const labelNode = this.makeChild('Id', n);
             const label = labelNode.addComponent(Label);
-            label.string = `${id}`;
+            label.string = buff.time > 1 ? `${buff.id}×${buff.time}` : `${buff.id}`;
             label.fontSize = 14;
             label.lineHeight = 16;
             label.horizontalAlign = Label.HorizontalAlign.CENTER;
