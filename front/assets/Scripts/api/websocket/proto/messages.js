@@ -40,26 +40,22 @@ $root.proto = (function() {
      * @name proto.FightLogType
      * @enum {number}
      * @property {number} LOG_UNKNOWN=0 LOG_UNKNOWN value
-     * @property {number} LOG_CAST=1 LOG_CAST value
-     * @property {number} LOG_ATTACK=2 LOG_ATTACK value
-     * @property {number} LOG_RECOVER=3 LOG_RECOVER value
-     * @property {number} LOG_BUFF_ADD=4 LOG_BUFF_ADD value
-     * @property {number} LOG_BUFF_REMOVE=5 LOG_BUFF_REMOVE value
-     * @property {number} LOG_DEATH=6 LOG_DEATH value
-     * @property {number} LOG_ROUND=7 LOG_ROUND value
-     * @property {number} LOG_END=8 LOG_END value
+     * @property {number} LOG_ATTACK=1 LOG_ATTACK value
+     * @property {number} LOG_RECOVER=2 LOG_RECOVER value
+     * @property {number} LOG_COUNTER=3 LOG_COUNTER value
+     * @property {number} LOG_BUFF=4 LOG_BUFF value
+     * @property {number} LOG_DEATH=5 LOG_DEATH value
+     * @property {number} LOG_OTHER=6 LOG_OTHER value
      */
     proto.FightLogType = (function() {
         var valuesById = $Object.create(null), values = $Object.create(valuesById);
         values[valuesById[0] = "LOG_UNKNOWN"] = 0;
-        values[valuesById[1] = "LOG_CAST"] = 1;
-        values[valuesById[2] = "LOG_ATTACK"] = 2;
-        values[valuesById[3] = "LOG_RECOVER"] = 3;
-        values[valuesById[4] = "LOG_BUFF_ADD"] = 4;
-        values[valuesById[5] = "LOG_BUFF_REMOVE"] = 5;
-        values[valuesById[6] = "LOG_DEATH"] = 6;
-        values[valuesById[7] = "LOG_ROUND"] = 7;
-        values[valuesById[8] = "LOG_END"] = 8;
+        values[valuesById[1] = "LOG_ATTACK"] = 1;
+        values[valuesById[2] = "LOG_RECOVER"] = 2;
+        values[valuesById[3] = "LOG_COUNTER"] = 3;
+        values[valuesById[4] = "LOG_BUFF"] = 4;
+        values[valuesById[5] = "LOG_DEATH"] = 5;
+        values[valuesById[6] = "LOG_OTHER"] = 6;
         return values;
     })();
 
@@ -3384,6 +3380,2296 @@ $root.proto = (function() {
         return Msg_SyncFightStatus;
     })();
 
+    proto.AttackLog = (function() {
+
+        /**
+         * Properties of an AttackLog.
+         * @typedef {Object} proto.AttackLog.$Properties
+         * @property {number|null} [source] AttackLog source
+         * @property {number|null} [target] AttackLog target
+         * @property {number|null} [damage] AttackLog damage
+         * @property {number|null} [hpBefore] AttackLog hpBefore
+         * @property {number|null} [hpAfter] AttackLog hpAfter
+         * @property {number|null} [ref] AttackLog ref
+         * @property {number|null} [special] AttackLog special
+         * @property {string|null} [other] AttackLog other
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of an AttackLog.
+         * @memberof proto
+         * @interface IAttackLog
+         * @augments proto.AttackLog.$Properties
+         * @deprecated Use proto.AttackLog.$Properties instead.
+         */
+
+        /**
+         * Shape of an AttackLog.
+         * @typedef {proto.AttackLog.$Properties} proto.AttackLog.$Shape
+         */
+
+        /**
+         * Constructs a new AttackLog.
+         * @memberof proto
+         * @classdesc Represents an AttackLog.
+         * @constructor
+         * @param {proto.AttackLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var AttackLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * AttackLog source.
+         * @member {number} source
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.source = 0;
+
+        /**
+         * AttackLog target.
+         * @member {number} target
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.target = 0;
+
+        /**
+         * AttackLog damage.
+         * @member {number} damage
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.damage = 0;
+
+        /**
+         * AttackLog hpBefore.
+         * @member {number} hpBefore
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.hpBefore = 0;
+
+        /**
+         * AttackLog hpAfter.
+         * @member {number} hpAfter
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.hpAfter = 0;
+
+        /**
+         * AttackLog ref.
+         * @member {number} ref
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.ref = 0;
+
+        /**
+         * AttackLog special.
+         * @member {number} special
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.special = 0;
+
+        /**
+         * AttackLog other.
+         * @member {string} other
+         * @memberof proto.AttackLog
+         * @instance
+         */
+        AttackLog.prototype.other = "";
+
+        /**
+         * Creates a new AttackLog instance using the specified properties.
+         * @function create
+         * @memberof proto.AttackLog
+         * @static
+         * @param {proto.AttackLog.$Properties=} [properties] Properties to set
+         * @returns {proto.AttackLog} AttackLog instance
+         * @type {{
+         *   (properties: proto.AttackLog.$Shape): proto.AttackLog & proto.AttackLog.$Shape;
+         *   (properties?: proto.AttackLog.$Properties): proto.AttackLog;
+         * }}
+         */
+        AttackLog.create = function(properties) {
+            return new AttackLog(properties);
+        };
+
+        /**
+         * Encodes the specified AttackLog message. Does not implicitly {@link proto.AttackLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.AttackLog
+         * @static
+         * @param {proto.AttackLog.$Properties} message AttackLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        AttackLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.source);
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.target);
+            if (message.damage != null && $Object.hasOwnProperty.call(message, "damage") && message.damage !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.damage);
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore") && message.hpBefore !== 0)
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.hpBefore);
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter") && message.hpAfter !== 0)
+                writer.uint32(/* id 5, wireType 0 =*/40).int32(message.hpAfter);
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref") && message.ref !== 0)
+                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.ref);
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special") && message.special !== 0)
+                writer.uint32(/* id 7, wireType 0 =*/56).int32(message.special);
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other") && message.other !== "")
+                writer.uint32(/* id 8, wireType 2 =*/66).string(message.other);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified AttackLog message, length delimited. Does not implicitly {@link proto.AttackLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.AttackLog
+         * @static
+         * @param {proto.AttackLog.$Properties} message AttackLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        AttackLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes an AttackLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.AttackLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.AttackLog & proto.AttackLog.$Shape} AttackLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        AttackLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.AttackLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.source = value;
+                        else
+                            delete message.source;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.target = value;
+                        else
+                            delete message.target;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.damage = value;
+                        else
+                            delete message.damage;
+                        continue;
+                    }
+                case 4: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpBefore = value;
+                        else
+                            delete message.hpBefore;
+                        continue;
+                    }
+                case 5: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpAfter = value;
+                        else
+                            delete message.hpAfter;
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.ref = value;
+                        else
+                            delete message.ref;
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.special = value;
+                        else
+                            delete message.special;
+                        continue;
+                    }
+                case 8: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.other = value;
+                        else
+                            delete message.other;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes an AttackLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.AttackLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.AttackLog & proto.AttackLog.$Shape} AttackLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        AttackLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an AttackLog message.
+         * @function verify
+         * @memberof proto.AttackLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        AttackLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                if (!$util.isInteger(message.source))
+                    return "source: integer expected";
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                if (!$util.isInteger(message.target))
+                    return "target: integer expected";
+            if (message.damage != null && $Object.hasOwnProperty.call(message, "damage"))
+                if (!$util.isInteger(message.damage))
+                    return "damage: integer expected";
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                if (!$util.isInteger(message.hpBefore))
+                    return "hpBefore: integer expected";
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                if (!$util.isInteger(message.hpAfter))
+                    return "hpAfter: integer expected";
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                if (!$util.isInteger(message.ref))
+                    return "ref: integer expected";
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                if (!$util.isInteger(message.special))
+                    return "special: integer expected";
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                if (!$util.isString(message.other))
+                    return "other: string expected";
+            return null;
+        };
+
+        /**
+         * Creates an AttackLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.AttackLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.AttackLog} AttackLog
+         */
+        AttackLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.AttackLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.AttackLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.AttackLog();
+            if (object.source != null)
+                if ($Number(object.source) !== 0)
+                    message.source = object.source | 0;
+            if (object.target != null)
+                if ($Number(object.target) !== 0)
+                    message.target = object.target | 0;
+            if (object.damage != null)
+                if ($Number(object.damage) !== 0)
+                    message.damage = object.damage | 0;
+            if (object.hpBefore != null)
+                if ($Number(object.hpBefore) !== 0)
+                    message.hpBefore = object.hpBefore | 0;
+            if (object.hpAfter != null)
+                if ($Number(object.hpAfter) !== 0)
+                    message.hpAfter = object.hpAfter | 0;
+            if (object.ref != null)
+                if ($Number(object.ref) !== 0)
+                    message.ref = object.ref | 0;
+            if (object.special != null)
+                if ($Number(object.special) !== 0)
+                    message.special = object.special | 0;
+            if (object.other != null)
+                if (typeof object.other !== "string" || object.other.length)
+                    message.other = $String(object.other);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an AttackLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.AttackLog
+         * @static
+         * @param {proto.AttackLog} message AttackLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        AttackLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.source = 0;
+                object.target = 0;
+                object.damage = 0;
+                object.hpBefore = 0;
+                object.hpAfter = 0;
+                object.ref = 0;
+                object.special = 0;
+                object.other = "";
+            }
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                object.source = message.source;
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                object.target = message.target;
+            if (message.damage != null && $Object.hasOwnProperty.call(message, "damage"))
+                object.damage = message.damage;
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                object.hpBefore = message.hpBefore;
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                object.hpAfter = message.hpAfter;
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                object.ref = message.ref;
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                object.special = message.special;
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                object.other = message.other;
+            return object;
+        };
+
+        /**
+         * Converts this AttackLog to JSON.
+         * @function toJSON
+         * @memberof proto.AttackLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        AttackLog.prototype.toJSON = function() {
+            return AttackLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for AttackLog
+         * @function getTypeUrl
+         * @memberof proto.AttackLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        AttackLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.AttackLog";
+        };
+
+        return AttackLog;
+    })();
+
+    proto.RecoverLog = (function() {
+
+        /**
+         * Properties of a RecoverLog.
+         * @typedef {Object} proto.RecoverLog.$Properties
+         * @property {number|null} [source] RecoverLog source
+         * @property {number|null} [target] RecoverLog target
+         * @property {number|null} [recover] RecoverLog recover
+         * @property {number|null} [hpBefore] RecoverLog hpBefore
+         * @property {number|null} [hpAfter] RecoverLog hpAfter
+         * @property {number|null} [ref] RecoverLog ref
+         * @property {number|null} [special] RecoverLog special
+         * @property {string|null} [other] RecoverLog other
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a RecoverLog.
+         * @memberof proto
+         * @interface IRecoverLog
+         * @augments proto.RecoverLog.$Properties
+         * @deprecated Use proto.RecoverLog.$Properties instead.
+         */
+
+        /**
+         * Shape of a RecoverLog.
+         * @typedef {proto.RecoverLog.$Properties} proto.RecoverLog.$Shape
+         */
+
+        /**
+         * Constructs a new RecoverLog.
+         * @memberof proto
+         * @classdesc Represents a RecoverLog.
+         * @constructor
+         * @param {proto.RecoverLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var RecoverLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * RecoverLog source.
+         * @member {number} source
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.source = 0;
+
+        /**
+         * RecoverLog target.
+         * @member {number} target
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.target = 0;
+
+        /**
+         * RecoverLog recover.
+         * @member {number} recover
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.recover = 0;
+
+        /**
+         * RecoverLog hpBefore.
+         * @member {number} hpBefore
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.hpBefore = 0;
+
+        /**
+         * RecoverLog hpAfter.
+         * @member {number} hpAfter
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.hpAfter = 0;
+
+        /**
+         * RecoverLog ref.
+         * @member {number} ref
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.ref = 0;
+
+        /**
+         * RecoverLog special.
+         * @member {number} special
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.special = 0;
+
+        /**
+         * RecoverLog other.
+         * @member {string} other
+         * @memberof proto.RecoverLog
+         * @instance
+         */
+        RecoverLog.prototype.other = "";
+
+        /**
+         * Creates a new RecoverLog instance using the specified properties.
+         * @function create
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {proto.RecoverLog.$Properties=} [properties] Properties to set
+         * @returns {proto.RecoverLog} RecoverLog instance
+         * @type {{
+         *   (properties: proto.RecoverLog.$Shape): proto.RecoverLog & proto.RecoverLog.$Shape;
+         *   (properties?: proto.RecoverLog.$Properties): proto.RecoverLog;
+         * }}
+         */
+        RecoverLog.create = function(properties) {
+            return new RecoverLog(properties);
+        };
+
+        /**
+         * Encodes the specified RecoverLog message. Does not implicitly {@link proto.RecoverLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {proto.RecoverLog.$Properties} message RecoverLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RecoverLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.source);
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.target);
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover") && message.recover !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.recover);
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore") && message.hpBefore !== 0)
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.hpBefore);
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter") && message.hpAfter !== 0)
+                writer.uint32(/* id 5, wireType 0 =*/40).int32(message.hpAfter);
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref") && message.ref !== 0)
+                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.ref);
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special") && message.special !== 0)
+                writer.uint32(/* id 7, wireType 0 =*/56).int32(message.special);
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other") && message.other !== "")
+                writer.uint32(/* id 8, wireType 2 =*/66).string(message.other);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified RecoverLog message, length delimited. Does not implicitly {@link proto.RecoverLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {proto.RecoverLog.$Properties} message RecoverLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        RecoverLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a RecoverLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.RecoverLog & proto.RecoverLog.$Shape} RecoverLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RecoverLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.RecoverLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.source = value;
+                        else
+                            delete message.source;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.target = value;
+                        else
+                            delete message.target;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.recover = value;
+                        else
+                            delete message.recover;
+                        continue;
+                    }
+                case 4: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpBefore = value;
+                        else
+                            delete message.hpBefore;
+                        continue;
+                    }
+                case 5: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.hpAfter = value;
+                        else
+                            delete message.hpAfter;
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.ref = value;
+                        else
+                            delete message.ref;
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.special = value;
+                        else
+                            delete message.special;
+                        continue;
+                    }
+                case 8: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.other = value;
+                        else
+                            delete message.other;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a RecoverLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.RecoverLog & proto.RecoverLog.$Shape} RecoverLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        RecoverLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a RecoverLog message.
+         * @function verify
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        RecoverLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                if (!$util.isInteger(message.source))
+                    return "source: integer expected";
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                if (!$util.isInteger(message.target))
+                    return "target: integer expected";
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover"))
+                if (!$util.isInteger(message.recover))
+                    return "recover: integer expected";
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                if (!$util.isInteger(message.hpBefore))
+                    return "hpBefore: integer expected";
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                if (!$util.isInteger(message.hpAfter))
+                    return "hpAfter: integer expected";
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                if (!$util.isInteger(message.ref))
+                    return "ref: integer expected";
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                if (!$util.isInteger(message.special))
+                    return "special: integer expected";
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                if (!$util.isString(message.other))
+                    return "other: string expected";
+            return null;
+        };
+
+        /**
+         * Creates a RecoverLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.RecoverLog} RecoverLog
+         */
+        RecoverLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.RecoverLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.RecoverLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.RecoverLog();
+            if (object.source != null)
+                if ($Number(object.source) !== 0)
+                    message.source = object.source | 0;
+            if (object.target != null)
+                if ($Number(object.target) !== 0)
+                    message.target = object.target | 0;
+            if (object.recover != null)
+                if ($Number(object.recover) !== 0)
+                    message.recover = object.recover | 0;
+            if (object.hpBefore != null)
+                if ($Number(object.hpBefore) !== 0)
+                    message.hpBefore = object.hpBefore | 0;
+            if (object.hpAfter != null)
+                if ($Number(object.hpAfter) !== 0)
+                    message.hpAfter = object.hpAfter | 0;
+            if (object.ref != null)
+                if ($Number(object.ref) !== 0)
+                    message.ref = object.ref | 0;
+            if (object.special != null)
+                if ($Number(object.special) !== 0)
+                    message.special = object.special | 0;
+            if (object.other != null)
+                if (typeof object.other !== "string" || object.other.length)
+                    message.other = $String(object.other);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a RecoverLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {proto.RecoverLog} message RecoverLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        RecoverLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.source = 0;
+                object.target = 0;
+                object.recover = 0;
+                object.hpBefore = 0;
+                object.hpAfter = 0;
+                object.ref = 0;
+                object.special = 0;
+                object.other = "";
+            }
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                object.source = message.source;
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                object.target = message.target;
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover"))
+                object.recover = message.recover;
+            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
+                object.hpBefore = message.hpBefore;
+            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
+                object.hpAfter = message.hpAfter;
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                object.ref = message.ref;
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                object.special = message.special;
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                object.other = message.other;
+            return object;
+        };
+
+        /**
+         * Converts this RecoverLog to JSON.
+         * @function toJSON
+         * @memberof proto.RecoverLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        RecoverLog.prototype.toJSON = function() {
+            return RecoverLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for RecoverLog
+         * @function getTypeUrl
+         * @memberof proto.RecoverLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        RecoverLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.RecoverLog";
+        };
+
+        return RecoverLog;
+    })();
+
+    proto.CounterLog = (function() {
+
+        /**
+         * Properties of a CounterLog.
+         * @typedef {Object} proto.CounterLog.$Properties
+         * @property {string|null} [key] CounterLog key
+         * @property {number|null} [delta] CounterLog delta
+         * @property {number|null} [value] CounterLog value
+         * @property {number|null} [ref] CounterLog ref
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a CounterLog.
+         * @memberof proto
+         * @interface ICounterLog
+         * @augments proto.CounterLog.$Properties
+         * @deprecated Use proto.CounterLog.$Properties instead.
+         */
+
+        /**
+         * Shape of a CounterLog.
+         * @typedef {proto.CounterLog.$Properties} proto.CounterLog.$Shape
+         */
+
+        /**
+         * Constructs a new CounterLog.
+         * @memberof proto
+         * @classdesc Represents a CounterLog.
+         * @constructor
+         * @param {proto.CounterLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var CounterLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * CounterLog key.
+         * @member {string} key
+         * @memberof proto.CounterLog
+         * @instance
+         */
+        CounterLog.prototype.key = "";
+
+        /**
+         * CounterLog delta.
+         * @member {number} delta
+         * @memberof proto.CounterLog
+         * @instance
+         */
+        CounterLog.prototype.delta = 0;
+
+        /**
+         * CounterLog value.
+         * @member {number} value
+         * @memberof proto.CounterLog
+         * @instance
+         */
+        CounterLog.prototype.value = 0;
+
+        /**
+         * CounterLog ref.
+         * @member {number} ref
+         * @memberof proto.CounterLog
+         * @instance
+         */
+        CounterLog.prototype.ref = 0;
+
+        /**
+         * Creates a new CounterLog instance using the specified properties.
+         * @function create
+         * @memberof proto.CounterLog
+         * @static
+         * @param {proto.CounterLog.$Properties=} [properties] Properties to set
+         * @returns {proto.CounterLog} CounterLog instance
+         * @type {{
+         *   (properties: proto.CounterLog.$Shape): proto.CounterLog & proto.CounterLog.$Shape;
+         *   (properties?: proto.CounterLog.$Properties): proto.CounterLog;
+         * }}
+         */
+        CounterLog.create = function(properties) {
+            return new CounterLog(properties);
+        };
+
+        /**
+         * Encodes the specified CounterLog message. Does not implicitly {@link proto.CounterLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.CounterLog
+         * @static
+         * @param {proto.CounterLog.$Properties} message CounterLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CounterLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.key != null && $Object.hasOwnProperty.call(message, "key") && message.key !== "")
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.key);
+            if (message.delta != null && $Object.hasOwnProperty.call(message, "delta") && message.delta !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.delta);
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value") && message.value !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.value);
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref") && message.ref !== 0)
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.ref);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified CounterLog message, length delimited. Does not implicitly {@link proto.CounterLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.CounterLog
+         * @static
+         * @param {proto.CounterLog.$Properties} message CounterLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        CounterLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a CounterLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.CounterLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.CounterLog & proto.CounterLog.$Shape} CounterLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CounterLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.CounterLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.key = value;
+                        else
+                            delete message.key;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.delta = value;
+                        else
+                            delete message.delta;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.value = value;
+                        else
+                            delete message.value;
+                        continue;
+                    }
+                case 4: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.ref = value;
+                        else
+                            delete message.ref;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a CounterLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.CounterLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.CounterLog & proto.CounterLog.$Shape} CounterLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        CounterLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a CounterLog message.
+         * @function verify
+         * @memberof proto.CounterLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        CounterLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.key != null && $Object.hasOwnProperty.call(message, "key"))
+                if (!$util.isString(message.key))
+                    return "key: string expected";
+            if (message.delta != null && $Object.hasOwnProperty.call(message, "delta"))
+                if (!$util.isInteger(message.delta))
+                    return "delta: integer expected";
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
+                if (!$util.isInteger(message.value))
+                    return "value: integer expected";
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                if (!$util.isInteger(message.ref))
+                    return "ref: integer expected";
+            return null;
+        };
+
+        /**
+         * Creates a CounterLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.CounterLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.CounterLog} CounterLog
+         */
+        CounterLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.CounterLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.CounterLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.CounterLog();
+            if (object.key != null)
+                if (typeof object.key !== "string" || object.key.length)
+                    message.key = $String(object.key);
+            if (object.delta != null)
+                if ($Number(object.delta) !== 0)
+                    message.delta = object.delta | 0;
+            if (object.value != null)
+                if ($Number(object.value) !== 0)
+                    message.value = object.value | 0;
+            if (object.ref != null)
+                if ($Number(object.ref) !== 0)
+                    message.ref = object.ref | 0;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a CounterLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.CounterLog
+         * @static
+         * @param {proto.CounterLog} message CounterLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        CounterLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.key = "";
+                object.delta = 0;
+                object.value = 0;
+                object.ref = 0;
+            }
+            if (message.key != null && $Object.hasOwnProperty.call(message, "key"))
+                object.key = message.key;
+            if (message.delta != null && $Object.hasOwnProperty.call(message, "delta"))
+                object.delta = message.delta;
+            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
+                object.value = message.value;
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                object.ref = message.ref;
+            return object;
+        };
+
+        /**
+         * Converts this CounterLog to JSON.
+         * @function toJSON
+         * @memberof proto.CounterLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        CounterLog.prototype.toJSON = function() {
+            return CounterLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for CounterLog
+         * @function getTypeUrl
+         * @memberof proto.CounterLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        CounterLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.CounterLog";
+        };
+
+        return CounterLog;
+    })();
+
+    proto.BuffLog = (function() {
+
+        /**
+         * Properties of a BuffLog.
+         * @typedef {Object} proto.BuffLog.$Properties
+         * @property {number|null} [source] BuffLog source
+         * @property {number|null} [target] BuffLog target
+         * @property {number|null} [buffId] BuffLog buffId
+         * @property {number|null} [time] BuffLog time
+         * @property {number|null} [ref] BuffLog ref
+         * @property {number|null} [special] BuffLog special
+         * @property {string|null} [other] BuffLog other
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a BuffLog.
+         * @memberof proto
+         * @interface IBuffLog
+         * @augments proto.BuffLog.$Properties
+         * @deprecated Use proto.BuffLog.$Properties instead.
+         */
+
+        /**
+         * Shape of a BuffLog.
+         * @typedef {proto.BuffLog.$Properties} proto.BuffLog.$Shape
+         */
+
+        /**
+         * Constructs a new BuffLog.
+         * @memberof proto
+         * @classdesc Represents a BuffLog.
+         * @constructor
+         * @param {proto.BuffLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var BuffLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * BuffLog source.
+         * @member {number} source
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.source = 0;
+
+        /**
+         * BuffLog target.
+         * @member {number} target
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.target = 0;
+
+        /**
+         * BuffLog buffId.
+         * @member {number} buffId
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.buffId = 0;
+
+        /**
+         * BuffLog time.
+         * @member {number} time
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.time = 0;
+
+        /**
+         * BuffLog ref.
+         * @member {number} ref
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.ref = 0;
+
+        /**
+         * BuffLog special.
+         * @member {number} special
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.special = 0;
+
+        /**
+         * BuffLog other.
+         * @member {string} other
+         * @memberof proto.BuffLog
+         * @instance
+         */
+        BuffLog.prototype.other = "";
+
+        /**
+         * Creates a new BuffLog instance using the specified properties.
+         * @function create
+         * @memberof proto.BuffLog
+         * @static
+         * @param {proto.BuffLog.$Properties=} [properties] Properties to set
+         * @returns {proto.BuffLog} BuffLog instance
+         * @type {{
+         *   (properties: proto.BuffLog.$Shape): proto.BuffLog & proto.BuffLog.$Shape;
+         *   (properties?: proto.BuffLog.$Properties): proto.BuffLog;
+         * }}
+         */
+        BuffLog.create = function(properties) {
+            return new BuffLog(properties);
+        };
+
+        /**
+         * Encodes the specified BuffLog message. Does not implicitly {@link proto.BuffLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.BuffLog
+         * @static
+         * @param {proto.BuffLog.$Properties} message BuffLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BuffLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.source);
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.target);
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId") && message.buffId !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.buffId);
+            if (message.time != null && $Object.hasOwnProperty.call(message, "time") && message.time !== 0)
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.time);
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref") && message.ref !== 0)
+                writer.uint32(/* id 5, wireType 0 =*/40).int32(message.ref);
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special") && message.special !== 0)
+                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.special);
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other") && message.other !== "")
+                writer.uint32(/* id 7, wireType 2 =*/58).string(message.other);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified BuffLog message, length delimited. Does not implicitly {@link proto.BuffLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.BuffLog
+         * @static
+         * @param {proto.BuffLog.$Properties} message BuffLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        BuffLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a BuffLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.BuffLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.BuffLog & proto.BuffLog.$Shape} BuffLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BuffLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.BuffLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.source = value;
+                        else
+                            delete message.source;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.target = value;
+                        else
+                            delete message.target;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.buffId = value;
+                        else
+                            delete message.buffId;
+                        continue;
+                    }
+                case 4: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.time = value;
+                        else
+                            delete message.time;
+                        continue;
+                    }
+                case 5: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.ref = value;
+                        else
+                            delete message.ref;
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.special = value;
+                        else
+                            delete message.special;
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.other = value;
+                        else
+                            delete message.other;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a BuffLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.BuffLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.BuffLog & proto.BuffLog.$Shape} BuffLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        BuffLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a BuffLog message.
+         * @function verify
+         * @memberof proto.BuffLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        BuffLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                if (!$util.isInteger(message.source))
+                    return "source: integer expected";
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                if (!$util.isInteger(message.target))
+                    return "target: integer expected";
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
+                if (!$util.isInteger(message.buffId))
+                    return "buffId: integer expected";
+            if (message.time != null && $Object.hasOwnProperty.call(message, "time"))
+                if (!$util.isInteger(message.time))
+                    return "time: integer expected";
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                if (!$util.isInteger(message.ref))
+                    return "ref: integer expected";
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                if (!$util.isInteger(message.special))
+                    return "special: integer expected";
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                if (!$util.isString(message.other))
+                    return "other: string expected";
+            return null;
+        };
+
+        /**
+         * Creates a BuffLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.BuffLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.BuffLog} BuffLog
+         */
+        BuffLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.BuffLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.BuffLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.BuffLog();
+            if (object.source != null)
+                if ($Number(object.source) !== 0)
+                    message.source = object.source | 0;
+            if (object.target != null)
+                if ($Number(object.target) !== 0)
+                    message.target = object.target | 0;
+            if (object.buffId != null)
+                if ($Number(object.buffId) !== 0)
+                    message.buffId = object.buffId | 0;
+            if (object.time != null)
+                if ($Number(object.time) !== 0)
+                    message.time = object.time | 0;
+            if (object.ref != null)
+                if ($Number(object.ref) !== 0)
+                    message.ref = object.ref | 0;
+            if (object.special != null)
+                if ($Number(object.special) !== 0)
+                    message.special = object.special | 0;
+            if (object.other != null)
+                if (typeof object.other !== "string" || object.other.length)
+                    message.other = $String(object.other);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a BuffLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.BuffLog
+         * @static
+         * @param {proto.BuffLog} message BuffLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        BuffLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.source = 0;
+                object.target = 0;
+                object.buffId = 0;
+                object.time = 0;
+                object.ref = 0;
+                object.special = 0;
+                object.other = "";
+            }
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                object.source = message.source;
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                object.target = message.target;
+            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
+                object.buffId = message.buffId;
+            if (message.time != null && $Object.hasOwnProperty.call(message, "time"))
+                object.time = message.time;
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                object.ref = message.ref;
+            if (message.special != null && $Object.hasOwnProperty.call(message, "special"))
+                object.special = message.special;
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                object.other = message.other;
+            return object;
+        };
+
+        /**
+         * Converts this BuffLog to JSON.
+         * @function toJSON
+         * @memberof proto.BuffLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        BuffLog.prototype.toJSON = function() {
+            return BuffLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for BuffLog
+         * @function getTypeUrl
+         * @memberof proto.BuffLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        BuffLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.BuffLog";
+        };
+
+        return BuffLog;
+    })();
+
+    proto.DeathLog = (function() {
+
+        /**
+         * Properties of a DeathLog.
+         * @typedef {Object} proto.DeathLog.$Properties
+         * @property {number|null} [source] DeathLog source
+         * @property {number|null} [target] DeathLog target
+         * @property {number|null} [ref] DeathLog ref
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of a DeathLog.
+         * @memberof proto
+         * @interface IDeathLog
+         * @augments proto.DeathLog.$Properties
+         * @deprecated Use proto.DeathLog.$Properties instead.
+         */
+
+        /**
+         * Shape of a DeathLog.
+         * @typedef {proto.DeathLog.$Properties} proto.DeathLog.$Shape
+         */
+
+        /**
+         * Constructs a new DeathLog.
+         * @memberof proto
+         * @classdesc Represents a DeathLog.
+         * @constructor
+         * @param {proto.DeathLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var DeathLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * DeathLog source.
+         * @member {number} source
+         * @memberof proto.DeathLog
+         * @instance
+         */
+        DeathLog.prototype.source = 0;
+
+        /**
+         * DeathLog target.
+         * @member {number} target
+         * @memberof proto.DeathLog
+         * @instance
+         */
+        DeathLog.prototype.target = 0;
+
+        /**
+         * DeathLog ref.
+         * @member {number} ref
+         * @memberof proto.DeathLog
+         * @instance
+         */
+        DeathLog.prototype.ref = 0;
+
+        /**
+         * Creates a new DeathLog instance using the specified properties.
+         * @function create
+         * @memberof proto.DeathLog
+         * @static
+         * @param {proto.DeathLog.$Properties=} [properties] Properties to set
+         * @returns {proto.DeathLog} DeathLog instance
+         * @type {{
+         *   (properties: proto.DeathLog.$Shape): proto.DeathLog & proto.DeathLog.$Shape;
+         *   (properties?: proto.DeathLog.$Properties): proto.DeathLog;
+         * }}
+         */
+        DeathLog.create = function(properties) {
+            return new DeathLog(properties);
+        };
+
+        /**
+         * Encodes the specified DeathLog message. Does not implicitly {@link proto.DeathLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.DeathLog
+         * @static
+         * @param {proto.DeathLog.$Properties} message DeathLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DeathLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
+                writer.uint32(/* id 1, wireType 0 =*/8).int32(message.source);
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
+                writer.uint32(/* id 2, wireType 0 =*/16).int32(message.target);
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref") && message.ref !== 0)
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.ref);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified DeathLog message, length delimited. Does not implicitly {@link proto.DeathLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.DeathLog
+         * @static
+         * @param {proto.DeathLog.$Properties} message DeathLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        DeathLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes a DeathLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.DeathLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.DeathLog & proto.DeathLog.$Shape} DeathLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DeathLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.DeathLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.source = value;
+                        else
+                            delete message.source;
+                        continue;
+                    }
+                case 2: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.target = value;
+                        else
+                            delete message.target;
+                        continue;
+                    }
+                case 3: {
+                        if (wireType !== 0)
+                            break;
+                        if (value = reader.int32())
+                            message.ref = value;
+                        else
+                            delete message.ref;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes a DeathLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.DeathLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.DeathLog & proto.DeathLog.$Shape} DeathLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        DeathLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies a DeathLog message.
+         * @function verify
+         * @memberof proto.DeathLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        DeathLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                if (!$util.isInteger(message.source))
+                    return "source: integer expected";
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                if (!$util.isInteger(message.target))
+                    return "target: integer expected";
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                if (!$util.isInteger(message.ref))
+                    return "ref: integer expected";
+            return null;
+        };
+
+        /**
+         * Creates a DeathLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.DeathLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.DeathLog} DeathLog
+         */
+        DeathLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.DeathLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.DeathLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.DeathLog();
+            if (object.source != null)
+                if ($Number(object.source) !== 0)
+                    message.source = object.source | 0;
+            if (object.target != null)
+                if ($Number(object.target) !== 0)
+                    message.target = object.target | 0;
+            if (object.ref != null)
+                if ($Number(object.ref) !== 0)
+                    message.ref = object.ref | 0;
+            return message;
+        };
+
+        /**
+         * Creates a plain object from a DeathLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.DeathLog
+         * @static
+         * @param {proto.DeathLog} message DeathLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        DeathLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults) {
+                object.source = 0;
+                object.target = 0;
+                object.ref = 0;
+            }
+            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
+                object.source = message.source;
+            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
+                object.target = message.target;
+            if (message.ref != null && $Object.hasOwnProperty.call(message, "ref"))
+                object.ref = message.ref;
+            return object;
+        };
+
+        /**
+         * Converts this DeathLog to JSON.
+         * @function toJSON
+         * @memberof proto.DeathLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        DeathLog.prototype.toJSON = function() {
+            return DeathLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for DeathLog
+         * @function getTypeUrl
+         * @memberof proto.DeathLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        DeathLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.DeathLog";
+        };
+
+        return DeathLog;
+    })();
+
+    proto.OtherLog = (function() {
+
+        /**
+         * Properties of an OtherLog.
+         * @typedef {Object} proto.OtherLog.$Properties
+         * @property {string|null} [detail] OtherLog detail
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+
+        /**
+         * Properties of an OtherLog.
+         * @memberof proto
+         * @interface IOtherLog
+         * @augments proto.OtherLog.$Properties
+         * @deprecated Use proto.OtherLog.$Properties instead.
+         */
+
+        /**
+         * Shape of an OtherLog.
+         * @typedef {proto.OtherLog.$Properties} proto.OtherLog.$Shape
+         */
+
+        /**
+         * Constructs a new OtherLog.
+         * @memberof proto
+         * @classdesc Represents an OtherLog.
+         * @constructor
+         * @param {proto.OtherLog.$Properties=} [properties] Properties to set
+         * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+         */
+        var OtherLog = function (properties) {
+            if (properties)
+                for (var keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        };
+
+        /**
+         * OtherLog detail.
+         * @member {string} detail
+         * @memberof proto.OtherLog
+         * @instance
+         */
+        OtherLog.prototype.detail = "";
+
+        /**
+         * Creates a new OtherLog instance using the specified properties.
+         * @function create
+         * @memberof proto.OtherLog
+         * @static
+         * @param {proto.OtherLog.$Properties=} [properties] Properties to set
+         * @returns {proto.OtherLog} OtherLog instance
+         * @type {{
+         *   (properties: proto.OtherLog.$Shape): proto.OtherLog & proto.OtherLog.$Shape;
+         *   (properties?: proto.OtherLog.$Properties): proto.OtherLog;
+         * }}
+         */
+        OtherLog.create = function(properties) {
+            return new OtherLog(properties);
+        };
+
+        /**
+         * Encodes the specified OtherLog message. Does not implicitly {@link proto.OtherLog.verify|verify} messages.
+         * @function encode
+         * @memberof proto.OtherLog
+         * @static
+         * @param {proto.OtherLog.$Properties} message OtherLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OtherLog.encode = function (message, writer, _depth) {
+            if (!writer)
+                writer = $Writer.create();
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            if (message.detail != null && $Object.hasOwnProperty.call(message, "detail") && message.detail !== "")
+                writer.uint32(/* id 1, wireType 2 =*/10).string(message.detail);
+            if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                for (var i = 0; i < message.$unknowns.length; ++i)
+                    writer.raw(message.$unknowns[i]);
+            return writer;
+        };
+
+        /**
+         * Encodes the specified OtherLog message, length delimited. Does not implicitly {@link proto.OtherLog.verify|verify} messages.
+         * @function encodeDelimited
+         * @memberof proto.OtherLog
+         * @static
+         * @param {proto.OtherLog.$Properties} message OtherLog message or plain object to encode
+         * @param {$protobuf.Writer} [writer] Writer to encode to
+         * @returns {$protobuf.Writer} Writer
+         */
+        OtherLog.encodeDelimited = function(message, writer) {
+            return this.encode(message, (writer || $Writer.create()).fork()).ldelim();
+        };
+
+        /**
+         * Decodes an OtherLog message from the specified reader or buffer.
+         * @function decode
+         * @memberof proto.OtherLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @param {number} [length] Message length if known beforehand
+         * @returns {proto.OtherLog & proto.OtherLog.$Shape} OtherLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OtherLog.decode = function (reader, length, _end, _depth, _target) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $Reader.recursionLimit)
+                throw $Error("max depth exceeded");
+            var end = length === $undefined ? reader.len : reader.pos + length, message = _target || new $root.proto.OtherLog(), value;
+            while (reader.pos < end) {
+                var start = reader.pos;
+                var tag = reader.tag();
+                if (tag === _end) {
+                    _end = $undefined;
+                    break;
+                }
+                var wireType = tag & 7;
+                switch (tag >>>= 3) {
+                case 1: {
+                        if (wireType !== 2)
+                            break;
+                        if ((value = reader.stringVerify()).length)
+                            message.detail = value;
+                        else
+                            delete message.detail;
+                        continue;
+                    }
+                }
+                reader.skipType(wireType, _depth, tag);
+                if (!reader.discardUnknown) {
+                    $util.makeProp(message, "$unknowns", false);
+                    (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                }
+            }
+            if (_end !== $undefined)
+                throw $Error("missing end group");
+            return message;
+        };
+
+        /**
+         * Decodes an OtherLog message from the specified reader or buffer, length delimited.
+         * @function decodeDelimited
+         * @memberof proto.OtherLog
+         * @static
+         * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+         * @returns {proto.OtherLog & proto.OtherLog.$Shape} OtherLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        OtherLog.decodeDelimited = function(reader) {
+            if (!(reader instanceof $Reader))
+                reader = new $Reader(reader);
+            return this.decode(reader, reader.uint32());
+        };
+
+        /**
+         * Verifies an OtherLog message.
+         * @function verify
+         * @memberof proto.OtherLog
+         * @static
+         * @param {Object.<string,*>} message Plain object to verify
+         * @returns {string|null} `null` if valid, otherwise the reason why it is not
+         */
+        OtherLog.verify = function (message, _depth) {
+            if (typeof message !== "object" || message === null)
+                return "object expected";
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                return "max depth exceeded";
+            if (message.detail != null && $Object.hasOwnProperty.call(message, "detail"))
+                if (!$util.isString(message.detail))
+                    return "detail: string expected";
+            return null;
+        };
+
+        /**
+         * Creates an OtherLog message from a plain object. Also converts values to their respective internal types.
+         * @function fromObject
+         * @memberof proto.OtherLog
+         * @static
+         * @param {Object.<string,*>} object Plain object
+         * @returns {proto.OtherLog} OtherLog
+         */
+        OtherLog.fromObject = function (object, _depth) {
+            if (object instanceof $root.proto.OtherLog)
+                return object;
+            if (!$util.isObject(object))
+                throw $TypeError(".proto.OtherLog: object expected");
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var message = new $root.proto.OtherLog();
+            if (object.detail != null)
+                if (typeof object.detail !== "string" || object.detail.length)
+                    message.detail = $String(object.detail);
+            return message;
+        };
+
+        /**
+         * Creates a plain object from an OtherLog message. Also converts values to other types if specified.
+         * @function toObject
+         * @memberof proto.OtherLog
+         * @static
+         * @param {proto.OtherLog} message OtherLog
+         * @param {$protobuf.IConversionOptions} [options] Conversion options
+         * @returns {Object.<string,*>} Plain object
+         */
+        OtherLog.toObject = function (message, options, _depth) {
+            if (!options)
+                options = {};
+            if (_depth === $undefined)
+                _depth = 0;
+            if (_depth > $util.recursionLimit)
+                throw $Error("max depth exceeded");
+            var object = {};
+            if (options.defaults)
+                object.detail = "";
+            if (message.detail != null && $Object.hasOwnProperty.call(message, "detail"))
+                object.detail = message.detail;
+            return object;
+        };
+
+        /**
+         * Converts this OtherLog to JSON.
+         * @function toJSON
+         * @memberof proto.OtherLog
+         * @instance
+         * @returns {Object.<string,*>} JSON object
+         */
+        OtherLog.prototype.toJSON = function() {
+            return OtherLog.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        /**
+         * Gets the type url for OtherLog
+         * @function getTypeUrl
+         * @memberof proto.OtherLog
+         * @static
+         * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns {string} The type url
+         */
+        OtherLog.getTypeUrl = function(prefix) {
+            if (prefix === $undefined)
+                prefix = "type.googleapis.com";
+            return prefix + "/proto.OtherLog";
+        };
+
+        return OtherLog;
+    })();
+
     proto.FightLog = (function() {
 
         /**
@@ -3391,16 +5677,15 @@ $root.proto = (function() {
          * @typedef {Object} proto.FightLog.$Properties
          * @property {number|null} [seq] FightLog seq
          * @property {proto.FightLogType|null} [type] FightLog type
-         * @property {number|null} [source] FightLog source
-         * @property {number|null} [target] FightLog target
-         * @property {number|null} [skillId] FightLog skillId
-         * @property {number|null} [buffId] FightLog buffId
-         * @property {number|null} [value] FightLog value
-         * @property {number|null} [hpBefore] FightLog hpBefore
-         * @property {number|null} [hpAfter] FightLog hpAfter
          * @property {number|null} [round] FightLog round
          * @property {number|null} [stateNumber] FightLog stateNumber
-         * @property {string|null} [text] FightLog text
+         * @property {proto.AttackLog.$Properties|null} [attack] FightLog attack
+         * @property {proto.RecoverLog.$Properties|null} [recover] FightLog recover
+         * @property {proto.CounterLog.$Properties|null} [counter] FightLog counter
+         * @property {proto.BuffLog.$Properties|null} [buff] FightLog buff
+         * @property {proto.DeathLog.$Properties|null} [death] FightLog death
+         * @property {proto.OtherLog.$Properties|null} [other] FightLog other
+         * @property {"attack"|"recover"|"counter"|"buff"|"death"|"other"} [detail] FightLog detail
          * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
          */
 
@@ -3413,8 +5698,22 @@ $root.proto = (function() {
          */
 
         /**
-         * Shape of a FightLog.
-         * @typedef {proto.FightLog.$Properties} proto.FightLog.$Shape
+         * Narrowed shape of a FightLog.
+         * @typedef {{
+         *   seq?: number|null;
+         *   type?: proto.FightLogType|null;
+         *   round?: number|null;
+         *   stateNumber?: number|null;
+         *   attack?: proto.AttackLog.$Shape|null;
+         *   recover?: proto.RecoverLog.$Shape|null;
+         *   counter?: proto.CounterLog.$Shape|null;
+         *   buff?: proto.BuffLog.$Shape|null;
+         *   death?: proto.DeathLog.$Shape|null;
+         *   other?: proto.OtherLog.$Shape|null;
+         *   $unknowns?: Array.<Uint8Array>;
+         * } & (
+         *   ({ detail?: undefined; attack?: null; recover?: null; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "attack"; attack: proto.AttackLog.$Shape; recover?: null; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "recover"; attack?: null; recover: proto.RecoverLog.$Shape; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "counter"; attack?: null; recover?: null; counter: proto.CounterLog.$Shape; buff?: null; death?: null; other?: null }|{ detail?: "buff"; attack?: null; recover?: null; counter?: null; buff: proto.BuffLog.$Shape; death?: null; other?: null }|{ detail?: "death"; attack?: null; recover?: null; counter?: null; buff?: null; death: proto.DeathLog.$Shape; other?: null }|{ detail?: "other"; attack?: null; recover?: null; counter?: null; buff?: null; death?: null; other: proto.OtherLog.$Shape })
+         * )} proto.FightLog.$Shape
          */
 
         /**
@@ -3449,62 +5748,6 @@ $root.proto = (function() {
         FightLog.prototype.type = 0;
 
         /**
-         * FightLog source.
-         * @member {number} source
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.source = 0;
-
-        /**
-         * FightLog target.
-         * @member {number} target
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.target = 0;
-
-        /**
-         * FightLog skillId.
-         * @member {number} skillId
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.skillId = 0;
-
-        /**
-         * FightLog buffId.
-         * @member {number} buffId
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.buffId = 0;
-
-        /**
-         * FightLog value.
-         * @member {number} value
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.value = 0;
-
-        /**
-         * FightLog hpBefore.
-         * @member {number} hpBefore
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.hpBefore = 0;
-
-        /**
-         * FightLog hpAfter.
-         * @member {number} hpAfter
-         * @memberof proto.FightLog
-         * @instance
-         */
-        FightLog.prototype.hpAfter = 0;
-
-        /**
          * FightLog round.
          * @member {number} round
          * @memberof proto.FightLog
@@ -3521,12 +5764,66 @@ $root.proto = (function() {
         FightLog.prototype.stateNumber = 0;
 
         /**
-         * FightLog text.
-         * @member {string} text
+         * FightLog attack.
+         * @member {proto.AttackLog.$Properties|null|undefined} attack
          * @memberof proto.FightLog
          * @instance
          */
-        FightLog.prototype.text = "";
+        FightLog.prototype.attack = null;
+
+        /**
+         * FightLog recover.
+         * @member {proto.RecoverLog.$Properties|null|undefined} recover
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.recover = null;
+
+        /**
+         * FightLog counter.
+         * @member {proto.CounterLog.$Properties|null|undefined} counter
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.counter = null;
+
+        /**
+         * FightLog buff.
+         * @member {proto.BuffLog.$Properties|null|undefined} buff
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.buff = null;
+
+        /**
+         * FightLog death.
+         * @member {proto.DeathLog.$Properties|null|undefined} death
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.death = null;
+
+        /**
+         * FightLog other.
+         * @member {proto.OtherLog.$Properties|null|undefined} other
+         * @memberof proto.FightLog
+         * @instance
+         */
+        FightLog.prototype.other = null;
+
+        // OneOf field names bound to virtual getters and setters
+        var $oneOfFields;
+
+        /**
+         * FightLog detail.
+         * @member {"attack"|"recover"|"counter"|"buff"|"death"|"other"|undefined} detail
+         * @memberof proto.FightLog
+         * @instance
+         */
+        $Object.defineProperty(FightLog.prototype, "detail", {
+            get: $util.oneOfGetter($oneOfFields = ["attack", "recover", "counter", "buff", "death", "other"]),
+            set: $util.oneOfSetter($oneOfFields)
+        });
 
         /**
          * Creates a new FightLog instance using the specified properties.
@@ -3564,26 +5861,22 @@ $root.proto = (function() {
                 writer.uint32(/* id 1, wireType 0 =*/8).int32(message.seq);
             if (message.type != null && $Object.hasOwnProperty.call(message, "type") && message.type !== 0)
                 writer.uint32(/* id 2, wireType 0 =*/16).int32(message.type);
-            if (message.source != null && $Object.hasOwnProperty.call(message, "source") && message.source !== 0)
-                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.source);
-            if (message.target != null && $Object.hasOwnProperty.call(message, "target") && message.target !== 0)
-                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.target);
-            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId") && message.skillId !== 0)
-                writer.uint32(/* id 5, wireType 0 =*/40).int32(message.skillId);
-            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId") && message.buffId !== 0)
-                writer.uint32(/* id 6, wireType 0 =*/48).int32(message.buffId);
-            if (message.value != null && $Object.hasOwnProperty.call(message, "value") && message.value !== 0)
-                writer.uint32(/* id 7, wireType 0 =*/56).int32(message.value);
-            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore") && message.hpBefore !== 0)
-                writer.uint32(/* id 8, wireType 0 =*/64).int32(message.hpBefore);
-            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter") && message.hpAfter !== 0)
-                writer.uint32(/* id 9, wireType 0 =*/72).int32(message.hpAfter);
             if (message.round != null && $Object.hasOwnProperty.call(message, "round") && message.round !== 0)
-                writer.uint32(/* id 10, wireType 0 =*/80).int32(message.round);
+                writer.uint32(/* id 3, wireType 0 =*/24).int32(message.round);
             if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber") && message.stateNumber !== 0)
-                writer.uint32(/* id 11, wireType 0 =*/88).int32(message.stateNumber);
-            if (message.text != null && $Object.hasOwnProperty.call(message, "text") && message.text !== "")
-                writer.uint32(/* id 12, wireType 2 =*/98).string(message.text);
+                writer.uint32(/* id 4, wireType 0 =*/32).int32(message.stateNumber);
+            if (message.attack != null && $Object.hasOwnProperty.call(message, "attack"))
+                $root.proto.AttackLog.encode(message.attack, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover"))
+                $root.proto.RecoverLog.encode(message.recover, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+            if (message.counter != null && $Object.hasOwnProperty.call(message, "counter"))
+                $root.proto.CounterLog.encode(message.counter, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+            if (message.buff != null && $Object.hasOwnProperty.call(message, "buff"))
+                $root.proto.BuffLog.encode(message.buff, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+            if (message.death != null && $Object.hasOwnProperty.call(message, "death"))
+                $root.proto.DeathLog.encode(message.death, writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other"))
+                $root.proto.OtherLog.encode(message.other, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
             if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                 for (var i = 0; i < message.$unknowns.length; ++i)
                     writer.raw(message.$unknowns[i]);
@@ -3653,75 +5946,12 @@ $root.proto = (function() {
                         if (wireType !== 0)
                             break;
                         if (value = reader.int32())
-                            message.source = value;
-                        else
-                            delete message.source;
-                        continue;
-                    }
-                case 4: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.target = value;
-                        else
-                            delete message.target;
-                        continue;
-                    }
-                case 5: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.skillId = value;
-                        else
-                            delete message.skillId;
-                        continue;
-                    }
-                case 6: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.buffId = value;
-                        else
-                            delete message.buffId;
-                        continue;
-                    }
-                case 7: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.value = value;
-                        else
-                            delete message.value;
-                        continue;
-                    }
-                case 8: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.hpBefore = value;
-                        else
-                            delete message.hpBefore;
-                        continue;
-                    }
-                case 9: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
-                            message.hpAfter = value;
-                        else
-                            delete message.hpAfter;
-                        continue;
-                    }
-                case 10: {
-                        if (wireType !== 0)
-                            break;
-                        if (value = reader.int32())
                             message.round = value;
                         else
                             delete message.round;
                         continue;
                     }
-                case 11: {
+                case 4: {
                         if (wireType !== 0)
                             break;
                         if (value = reader.int32())
@@ -3730,13 +5960,46 @@ $root.proto = (function() {
                             delete message.stateNumber;
                         continue;
                     }
-                case 12: {
+                case 5: {
                         if (wireType !== 2)
                             break;
-                        if ((value = reader.stringVerify()).length)
-                            message.text = value;
-                        else
-                            delete message.text;
+                        message.attack = $root.proto.AttackLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.attack);
+                        message.detail = "attack";
+                        continue;
+                    }
+                case 6: {
+                        if (wireType !== 2)
+                            break;
+                        message.recover = $root.proto.RecoverLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.recover);
+                        message.detail = "recover";
+                        continue;
+                    }
+                case 7: {
+                        if (wireType !== 2)
+                            break;
+                        message.counter = $root.proto.CounterLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.counter);
+                        message.detail = "counter";
+                        continue;
+                    }
+                case 8: {
+                        if (wireType !== 2)
+                            break;
+                        message.buff = $root.proto.BuffLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.buff);
+                        message.detail = "buff";
+                        continue;
+                    }
+                case 9: {
+                        if (wireType !== 2)
+                            break;
+                        message.death = $root.proto.DeathLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.death);
+                        message.detail = "death";
+                        continue;
+                    }
+                case 10: {
+                        if (wireType !== 2)
+                            break;
+                        message.other = $root.proto.OtherLog.decode(reader, reader.uint32(), $undefined, _depth + 1, message.other);
+                        message.detail = "other";
                         continue;
                     }
                 }
@@ -3782,42 +6045,77 @@ $root.proto = (function() {
                 _depth = 0;
             if (_depth > $util.recursionLimit)
                 return "max depth exceeded";
+            var properties = {};
             if (message.seq != null && $Object.hasOwnProperty.call(message, "seq"))
                 if (!$util.isInteger(message.seq))
                     return "seq: integer expected";
             if (message.type != null && $Object.hasOwnProperty.call(message, "type"))
                 if (typeof message.type !== "number" || (message.type | 0) !== message.type)
                     return "type: enum value expected";
-            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
-                if (!$util.isInteger(message.source))
-                    return "source: integer expected";
-            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
-                if (!$util.isInteger(message.target))
-                    return "target: integer expected";
-            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId"))
-                if (!$util.isInteger(message.skillId))
-                    return "skillId: integer expected";
-            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
-                if (!$util.isInteger(message.buffId))
-                    return "buffId: integer expected";
-            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
-                if (!$util.isInteger(message.value))
-                    return "value: integer expected";
-            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
-                if (!$util.isInteger(message.hpBefore))
-                    return "hpBefore: integer expected";
-            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
-                if (!$util.isInteger(message.hpAfter))
-                    return "hpAfter: integer expected";
             if (message.round != null && $Object.hasOwnProperty.call(message, "round"))
                 if (!$util.isInteger(message.round))
                     return "round: integer expected";
             if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber"))
                 if (!$util.isInteger(message.stateNumber))
                     return "stateNumber: integer expected";
-            if (message.text != null && $Object.hasOwnProperty.call(message, "text"))
-                if (!$util.isString(message.text))
-                    return "text: string expected";
+            if (message.attack != null && $Object.hasOwnProperty.call(message, "attack")) {
+                properties.detail = 1;
+                {
+                    var error = $root.proto.AttackLog.verify(message.attack, _depth + 1);
+                    if (error)
+                        return "attack." + error;
+                }
+            }
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover")) {
+                if (properties.detail === 1)
+                    return "detail: multiple values";
+                properties.detail = 1;
+                {
+                    var error = $root.proto.RecoverLog.verify(message.recover, _depth + 1);
+                    if (error)
+                        return "recover." + error;
+                }
+            }
+            if (message.counter != null && $Object.hasOwnProperty.call(message, "counter")) {
+                if (properties.detail === 1)
+                    return "detail: multiple values";
+                properties.detail = 1;
+                {
+                    var error = $root.proto.CounterLog.verify(message.counter, _depth + 1);
+                    if (error)
+                        return "counter." + error;
+                }
+            }
+            if (message.buff != null && $Object.hasOwnProperty.call(message, "buff")) {
+                if (properties.detail === 1)
+                    return "detail: multiple values";
+                properties.detail = 1;
+                {
+                    var error = $root.proto.BuffLog.verify(message.buff, _depth + 1);
+                    if (error)
+                        return "buff." + error;
+                }
+            }
+            if (message.death != null && $Object.hasOwnProperty.call(message, "death")) {
+                if (properties.detail === 1)
+                    return "detail: multiple values";
+                properties.detail = 1;
+                {
+                    var error = $root.proto.DeathLog.verify(message.death, _depth + 1);
+                    if (error)
+                        return "death." + error;
+                }
+            }
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other")) {
+                if (properties.detail === 1)
+                    return "detail: multiple values";
+                properties.detail = 1;
+                {
+                    var error = $root.proto.OtherLog.verify(message.other, _depth + 1);
+                    if (error)
+                        return "other." + error;
+                }
+            }
             return null;
         };
 
@@ -3848,72 +6146,70 @@ $root.proto = (function() {
                 case 0:
                     message.type = 0;
                     break;
-                case "LOG_CAST":
+                case "LOG_ATTACK":
                 case 1:
                     message.type = 1;
                     break;
-                case "LOG_ATTACK":
+                case "LOG_RECOVER":
                 case 2:
                     message.type = 2;
                     break;
-                case "LOG_RECOVER":
+                case "LOG_COUNTER":
                 case 3:
                     message.type = 3;
                     break;
-                case "LOG_BUFF_ADD":
+                case "LOG_BUFF":
                 case 4:
                     message.type = 4;
                     break;
-                case "LOG_BUFF_REMOVE":
+                case "LOG_DEATH":
                 case 5:
                     message.type = 5;
                     break;
-                case "LOG_DEATH":
+                case "LOG_OTHER":
                 case 6:
                     message.type = 6;
-                    break;
-                case "LOG_ROUND":
-                case 7:
-                    message.type = 7;
-                    break;
-                case "LOG_END":
-                case 8:
-                    message.type = 8;
                     break;
                 default:
                     if (typeof object.type === "number" && (object.type | 0) === object.type)
                         message.type = object.type;
                 }
-            if (object.source != null)
-                if ($Number(object.source) !== 0)
-                    message.source = object.source | 0;
-            if (object.target != null)
-                if ($Number(object.target) !== 0)
-                    message.target = object.target | 0;
-            if (object.skillId != null)
-                if ($Number(object.skillId) !== 0)
-                    message.skillId = object.skillId | 0;
-            if (object.buffId != null)
-                if ($Number(object.buffId) !== 0)
-                    message.buffId = object.buffId | 0;
-            if (object.value != null)
-                if ($Number(object.value) !== 0)
-                    message.value = object.value | 0;
-            if (object.hpBefore != null)
-                if ($Number(object.hpBefore) !== 0)
-                    message.hpBefore = object.hpBefore | 0;
-            if (object.hpAfter != null)
-                if ($Number(object.hpAfter) !== 0)
-                    message.hpAfter = object.hpAfter | 0;
             if (object.round != null)
                 if ($Number(object.round) !== 0)
                     message.round = object.round | 0;
             if (object.stateNumber != null)
                 if ($Number(object.stateNumber) !== 0)
                     message.stateNumber = object.stateNumber | 0;
-            if (object.text != null)
-                if (typeof object.text !== "string" || object.text.length)
-                    message.text = $String(object.text);
+            if (object.attack != null) {
+                if (!$util.isObject(object.attack))
+                    throw $TypeError(".proto.FightLog.attack: object expected");
+                message.attack = $root.proto.AttackLog.fromObject(object.attack, _depth + 1);
+            }
+            if (object.recover != null) {
+                if (!$util.isObject(object.recover))
+                    throw $TypeError(".proto.FightLog.recover: object expected");
+                message.recover = $root.proto.RecoverLog.fromObject(object.recover, _depth + 1);
+            }
+            if (object.counter != null) {
+                if (!$util.isObject(object.counter))
+                    throw $TypeError(".proto.FightLog.counter: object expected");
+                message.counter = $root.proto.CounterLog.fromObject(object.counter, _depth + 1);
+            }
+            if (object.buff != null) {
+                if (!$util.isObject(object.buff))
+                    throw $TypeError(".proto.FightLog.buff: object expected");
+                message.buff = $root.proto.BuffLog.fromObject(object.buff, _depth + 1);
+            }
+            if (object.death != null) {
+                if (!$util.isObject(object.death))
+                    throw $TypeError(".proto.FightLog.death: object expected");
+                message.death = $root.proto.DeathLog.fromObject(object.death, _depth + 1);
+            }
+            if (object.other != null) {
+                if (!$util.isObject(object.other))
+                    throw $TypeError(".proto.FightLog.other: object expected");
+                message.other = $root.proto.OtherLog.fromObject(object.other, _depth + 1);
+            }
             return message;
         };
 
@@ -3937,41 +6233,47 @@ $root.proto = (function() {
             if (options.defaults) {
                 object.seq = 0;
                 object.type = options.enums === $String ? "LOG_UNKNOWN" : 0;
-                object.source = 0;
-                object.target = 0;
-                object.skillId = 0;
-                object.buffId = 0;
-                object.value = 0;
-                object.hpBefore = 0;
-                object.hpAfter = 0;
                 object.round = 0;
                 object.stateNumber = 0;
-                object.text = "";
             }
             if (message.seq != null && $Object.hasOwnProperty.call(message, "seq"))
                 object.seq = message.seq;
             if (message.type != null && $Object.hasOwnProperty.call(message, "type"))
                 object.type = options.enums === $String ? $root.proto.FightLogType[message.type] === $undefined ? message.type : $root.proto.FightLogType[message.type] : message.type;
-            if (message.source != null && $Object.hasOwnProperty.call(message, "source"))
-                object.source = message.source;
-            if (message.target != null && $Object.hasOwnProperty.call(message, "target"))
-                object.target = message.target;
-            if (message.skillId != null && $Object.hasOwnProperty.call(message, "skillId"))
-                object.skillId = message.skillId;
-            if (message.buffId != null && $Object.hasOwnProperty.call(message, "buffId"))
-                object.buffId = message.buffId;
-            if (message.value != null && $Object.hasOwnProperty.call(message, "value"))
-                object.value = message.value;
-            if (message.hpBefore != null && $Object.hasOwnProperty.call(message, "hpBefore"))
-                object.hpBefore = message.hpBefore;
-            if (message.hpAfter != null && $Object.hasOwnProperty.call(message, "hpAfter"))
-                object.hpAfter = message.hpAfter;
             if (message.round != null && $Object.hasOwnProperty.call(message, "round"))
                 object.round = message.round;
             if (message.stateNumber != null && $Object.hasOwnProperty.call(message, "stateNumber"))
                 object.stateNumber = message.stateNumber;
-            if (message.text != null && $Object.hasOwnProperty.call(message, "text"))
-                object.text = message.text;
+            if (message.attack != null && $Object.hasOwnProperty.call(message, "attack")) {
+                object.attack = $root.proto.AttackLog.toObject(message.attack, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "attack";
+            }
+            if (message.recover != null && $Object.hasOwnProperty.call(message, "recover")) {
+                object.recover = $root.proto.RecoverLog.toObject(message.recover, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "recover";
+            }
+            if (message.counter != null && $Object.hasOwnProperty.call(message, "counter")) {
+                object.counter = $root.proto.CounterLog.toObject(message.counter, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "counter";
+            }
+            if (message.buff != null && $Object.hasOwnProperty.call(message, "buff")) {
+                object.buff = $root.proto.BuffLog.toObject(message.buff, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "buff";
+            }
+            if (message.death != null && $Object.hasOwnProperty.call(message, "death")) {
+                object.death = $root.proto.DeathLog.toObject(message.death, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "death";
+            }
+            if (message.other != null && $Object.hasOwnProperty.call(message, "other")) {
+                object.other = $root.proto.OtherLog.toObject(message.other, options, _depth + 1);
+                if (options.oneofs)
+                    object.detail = "other";
+            }
             return object;
         };
 
@@ -4022,7 +6324,10 @@ $root.proto = (function() {
 
         /**
          * Shape of a S2C_FightLogs.
-         * @typedef {proto.S2C_FightLogs.$Properties} proto.S2C_FightLogs.$Shape
+         * @typedef {{
+         *   logs?: Array.<proto.FightLog.$Shape>|null;
+         *   $unknowns?: Array.<Uint8Array>;
+         * }} proto.S2C_FightLogs.$Shape
          */
 
         /**

@@ -36,6 +36,10 @@ func (k EffectKind) String() string {
 
 // Effect 一条待结算的战斗效果，也是定制行为方法收到的值对象。
 // TargetID / SourceID 都是战斗位索引（0..N-1，我方在前敌方在后），不是角色 DB ID。
+//
+// 用指针传递（*Effect）的原因：记账收口在 actuator.Apply，定制行为在结算过程中
+// 需要能"声明自己做了什么"（例如"我用龙力 buff 抵消了这一击"），
+// 通过写 Effect.Special / Effect.Ref 就能让日志带上这些信息，不必额外开返回值或旁路通道。
 type Effect struct {
 	Kind     EffectKind
 	TargetID int // 目标战斗位索引
@@ -45,6 +49,15 @@ type Effect struct {
 	BuffID   int // Kind == EffectBuff 时的 buff ID
 	BuffTime int // Kind == EffectBuff 时的持续回合
 	Other    string
+
+	// Ref 本次效果的来源，由发布方（技能/buff/敌方行动）在事件载荷里填写：
+	// > 0 技能 ID ；< 0 −buffID ；= 0 被动。
+	Ref int
+	// Special 结算过程中被声明"本次触发的被动/特殊受击效果"：
+	// > 0 角色 DB ID ；< 0 −buffID ；= 0 无。
+	// 定制行为（如 Character2AttackListener 用龙力抵消伤害）在这里登记自己消耗/生效的 buff，
+	// Apply 记账时透传给客户端。
+	Special int
 }
 
 // PubSub 发布/订阅端抽象，*gochannel.GoChannel 满足该接口。

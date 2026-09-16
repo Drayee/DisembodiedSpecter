@@ -23,29 +23,23 @@ export namespace proto {
         /** LOG_UNKNOWN value */
         LOG_UNKNOWN = 0,
 
-        /** LOG_CAST value */
-        LOG_CAST = 1,
-
         /** LOG_ATTACK value */
-        LOG_ATTACK = 2,
+        LOG_ATTACK = 1,
 
         /** LOG_RECOVER value */
-        LOG_RECOVER = 3,
+        LOG_RECOVER = 2,
 
-        /** LOG_BUFF_ADD value */
-        LOG_BUFF_ADD = 4,
+        /** LOG_COUNTER value */
+        LOG_COUNTER = 3,
 
-        /** LOG_BUFF_REMOVE value */
-        LOG_BUFF_REMOVE = 5,
+        /** LOG_BUFF value */
+        LOG_BUFF = 4,
 
         /** LOG_DEATH value */
-        LOG_DEATH = 6,
+        LOG_DEATH = 5,
 
-        /** LOG_ROUND value */
-        LOG_ROUND = 7,
-
-        /** LOG_END value */
-        LOG_END = 8
+        /** LOG_OTHER value */
+        LOG_OTHER = 6
     }
 
     /**
@@ -1333,6 +1327,858 @@ export namespace proto {
     }
 
     /**
+     * Properties of an AttackLog.
+     * @deprecated Use proto.AttackLog.$Properties instead.
+     */
+    interface IAttackLog extends proto.AttackLog.$Properties {
+    }
+
+    /** Represents an AttackLog. */
+    class AttackLog {
+
+        /**
+         * Constructs a new AttackLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.AttackLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** AttackLog source. */
+        source: number;
+
+        /** AttackLog target. */
+        target: number;
+
+        /** AttackLog damage. */
+        damage: number;
+
+        /** AttackLog hpBefore. */
+        hpBefore: number;
+
+        /** AttackLog hpAfter. */
+        hpAfter: number;
+
+        /** AttackLog ref. */
+        ref: number;
+
+        /** AttackLog special. */
+        special: number;
+
+        /** AttackLog other. */
+        other: string;
+
+        /**
+         * Creates a new AttackLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns AttackLog instance
+         */
+        static create(properties: proto.AttackLog.$Shape): proto.AttackLog & proto.AttackLog.$Shape;
+        static create(properties?: proto.AttackLog.$Properties): proto.AttackLog;
+
+        /**
+         * Encodes the specified AttackLog message. Does not implicitly {@link proto.AttackLog.verify|verify} messages.
+         * @param message AttackLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.AttackLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified AttackLog message, length delimited. Does not implicitly {@link proto.AttackLog.verify|verify} messages.
+         * @param message AttackLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.AttackLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes an AttackLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.AttackLog & proto.AttackLog.$Shape} AttackLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.AttackLog & proto.AttackLog.$Shape;
+
+        /**
+         * Decodes an AttackLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.AttackLog & proto.AttackLog.$Shape} AttackLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.AttackLog & proto.AttackLog.$Shape;
+
+        /**
+         * Verifies an AttackLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates an AttackLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns AttackLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.AttackLog;
+
+        /**
+         * Creates a plain object from an AttackLog message. Also converts values to other types if specified.
+         * @param message AttackLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.AttackLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this AttackLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for AttackLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace AttackLog {
+
+        /** Properties of an AttackLog. */
+        interface $Properties {
+
+            /** AttackLog source */
+            source?: (number|null);
+
+            /** AttackLog target */
+            target?: (number|null);
+
+            /** AttackLog damage */
+            damage?: (number|null);
+
+            /** AttackLog hpBefore */
+            hpBefore?: (number|null);
+
+            /** AttackLog hpAfter */
+            hpAfter?: (number|null);
+
+            /** AttackLog ref */
+            ref?: (number|null);
+
+            /** AttackLog special */
+            special?: (number|null);
+
+            /** AttackLog other */
+            other?: (string|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of an AttackLog. */
+        type $Shape = proto.AttackLog.$Properties;
+    }
+
+    /**
+     * Properties of a RecoverLog.
+     * @deprecated Use proto.RecoverLog.$Properties instead.
+     */
+    interface IRecoverLog extends proto.RecoverLog.$Properties {
+    }
+
+    /** Represents a RecoverLog. */
+    class RecoverLog {
+
+        /**
+         * Constructs a new RecoverLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.RecoverLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** RecoverLog source. */
+        source: number;
+
+        /** RecoverLog target. */
+        target: number;
+
+        /** RecoverLog recover. */
+        recover: number;
+
+        /** RecoverLog hpBefore. */
+        hpBefore: number;
+
+        /** RecoverLog hpAfter. */
+        hpAfter: number;
+
+        /** RecoverLog ref. */
+        ref: number;
+
+        /** RecoverLog special. */
+        special: number;
+
+        /** RecoverLog other. */
+        other: string;
+
+        /**
+         * Creates a new RecoverLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns RecoverLog instance
+         */
+        static create(properties: proto.RecoverLog.$Shape): proto.RecoverLog & proto.RecoverLog.$Shape;
+        static create(properties?: proto.RecoverLog.$Properties): proto.RecoverLog;
+
+        /**
+         * Encodes the specified RecoverLog message. Does not implicitly {@link proto.RecoverLog.verify|verify} messages.
+         * @param message RecoverLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.RecoverLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified RecoverLog message, length delimited. Does not implicitly {@link proto.RecoverLog.verify|verify} messages.
+         * @param message RecoverLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.RecoverLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a RecoverLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.RecoverLog & proto.RecoverLog.$Shape} RecoverLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.RecoverLog & proto.RecoverLog.$Shape;
+
+        /**
+         * Decodes a RecoverLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.RecoverLog & proto.RecoverLog.$Shape} RecoverLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.RecoverLog & proto.RecoverLog.$Shape;
+
+        /**
+         * Verifies a RecoverLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a RecoverLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns RecoverLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.RecoverLog;
+
+        /**
+         * Creates a plain object from a RecoverLog message. Also converts values to other types if specified.
+         * @param message RecoverLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.RecoverLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this RecoverLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for RecoverLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace RecoverLog {
+
+        /** Properties of a RecoverLog. */
+        interface $Properties {
+
+            /** RecoverLog source */
+            source?: (number|null);
+
+            /** RecoverLog target */
+            target?: (number|null);
+
+            /** RecoverLog recover */
+            recover?: (number|null);
+
+            /** RecoverLog hpBefore */
+            hpBefore?: (number|null);
+
+            /** RecoverLog hpAfter */
+            hpAfter?: (number|null);
+
+            /** RecoverLog ref */
+            ref?: (number|null);
+
+            /** RecoverLog special */
+            special?: (number|null);
+
+            /** RecoverLog other */
+            other?: (string|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a RecoverLog. */
+        type $Shape = proto.RecoverLog.$Properties;
+    }
+
+    /**
+     * Properties of a CounterLog.
+     * @deprecated Use proto.CounterLog.$Properties instead.
+     */
+    interface ICounterLog extends proto.CounterLog.$Properties {
+    }
+
+    /** Represents a CounterLog. */
+    class CounterLog {
+
+        /**
+         * Constructs a new CounterLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.CounterLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** CounterLog key. */
+        key: string;
+
+        /** CounterLog delta. */
+        delta: number;
+
+        /** CounterLog value. */
+        value: number;
+
+        /** CounterLog ref. */
+        ref: number;
+
+        /**
+         * Creates a new CounterLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns CounterLog instance
+         */
+        static create(properties: proto.CounterLog.$Shape): proto.CounterLog & proto.CounterLog.$Shape;
+        static create(properties?: proto.CounterLog.$Properties): proto.CounterLog;
+
+        /**
+         * Encodes the specified CounterLog message. Does not implicitly {@link proto.CounterLog.verify|verify} messages.
+         * @param message CounterLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.CounterLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified CounterLog message, length delimited. Does not implicitly {@link proto.CounterLog.verify|verify} messages.
+         * @param message CounterLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.CounterLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a CounterLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.CounterLog & proto.CounterLog.$Shape} CounterLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.CounterLog & proto.CounterLog.$Shape;
+
+        /**
+         * Decodes a CounterLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.CounterLog & proto.CounterLog.$Shape} CounterLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.CounterLog & proto.CounterLog.$Shape;
+
+        /**
+         * Verifies a CounterLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a CounterLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns CounterLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.CounterLog;
+
+        /**
+         * Creates a plain object from a CounterLog message. Also converts values to other types if specified.
+         * @param message CounterLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.CounterLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this CounterLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for CounterLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace CounterLog {
+
+        /** Properties of a CounterLog. */
+        interface $Properties {
+
+            /** CounterLog key */
+            key?: (string|null);
+
+            /** CounterLog delta */
+            delta?: (number|null);
+
+            /** CounterLog value */
+            value?: (number|null);
+
+            /** CounterLog ref */
+            ref?: (number|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a CounterLog. */
+        type $Shape = proto.CounterLog.$Properties;
+    }
+
+    /**
+     * Properties of a BuffLog.
+     * @deprecated Use proto.BuffLog.$Properties instead.
+     */
+    interface IBuffLog extends proto.BuffLog.$Properties {
+    }
+
+    /** Represents a BuffLog. */
+    class BuffLog {
+
+        /**
+         * Constructs a new BuffLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.BuffLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** BuffLog source. */
+        source: number;
+
+        /** BuffLog target. */
+        target: number;
+
+        /** BuffLog buffId. */
+        buffId: number;
+
+        /** BuffLog time. */
+        time: number;
+
+        /** BuffLog ref. */
+        ref: number;
+
+        /** BuffLog special. */
+        special: number;
+
+        /** BuffLog other. */
+        other: string;
+
+        /**
+         * Creates a new BuffLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns BuffLog instance
+         */
+        static create(properties: proto.BuffLog.$Shape): proto.BuffLog & proto.BuffLog.$Shape;
+        static create(properties?: proto.BuffLog.$Properties): proto.BuffLog;
+
+        /**
+         * Encodes the specified BuffLog message. Does not implicitly {@link proto.BuffLog.verify|verify} messages.
+         * @param message BuffLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.BuffLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified BuffLog message, length delimited. Does not implicitly {@link proto.BuffLog.verify|verify} messages.
+         * @param message BuffLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.BuffLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a BuffLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.BuffLog & proto.BuffLog.$Shape} BuffLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.BuffLog & proto.BuffLog.$Shape;
+
+        /**
+         * Decodes a BuffLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.BuffLog & proto.BuffLog.$Shape} BuffLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.BuffLog & proto.BuffLog.$Shape;
+
+        /**
+         * Verifies a BuffLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a BuffLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns BuffLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.BuffLog;
+
+        /**
+         * Creates a plain object from a BuffLog message. Also converts values to other types if specified.
+         * @param message BuffLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.BuffLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this BuffLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for BuffLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace BuffLog {
+
+        /** Properties of a BuffLog. */
+        interface $Properties {
+
+            /** BuffLog source */
+            source?: (number|null);
+
+            /** BuffLog target */
+            target?: (number|null);
+
+            /** BuffLog buffId */
+            buffId?: (number|null);
+
+            /** BuffLog time */
+            time?: (number|null);
+
+            /** BuffLog ref */
+            ref?: (number|null);
+
+            /** BuffLog special */
+            special?: (number|null);
+
+            /** BuffLog other */
+            other?: (string|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a BuffLog. */
+        type $Shape = proto.BuffLog.$Properties;
+    }
+
+    /**
+     * Properties of a DeathLog.
+     * @deprecated Use proto.DeathLog.$Properties instead.
+     */
+    interface IDeathLog extends proto.DeathLog.$Properties {
+    }
+
+    /** Represents a DeathLog. */
+    class DeathLog {
+
+        /**
+         * Constructs a new DeathLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.DeathLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** DeathLog source. */
+        source: number;
+
+        /** DeathLog target. */
+        target: number;
+
+        /** DeathLog ref. */
+        ref: number;
+
+        /**
+         * Creates a new DeathLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns DeathLog instance
+         */
+        static create(properties: proto.DeathLog.$Shape): proto.DeathLog & proto.DeathLog.$Shape;
+        static create(properties?: proto.DeathLog.$Properties): proto.DeathLog;
+
+        /**
+         * Encodes the specified DeathLog message. Does not implicitly {@link proto.DeathLog.verify|verify} messages.
+         * @param message DeathLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.DeathLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified DeathLog message, length delimited. Does not implicitly {@link proto.DeathLog.verify|verify} messages.
+         * @param message DeathLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.DeathLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes a DeathLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.DeathLog & proto.DeathLog.$Shape} DeathLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.DeathLog & proto.DeathLog.$Shape;
+
+        /**
+         * Decodes a DeathLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.DeathLog & proto.DeathLog.$Shape} DeathLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.DeathLog & proto.DeathLog.$Shape;
+
+        /**
+         * Verifies a DeathLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates a DeathLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns DeathLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.DeathLog;
+
+        /**
+         * Creates a plain object from a DeathLog message. Also converts values to other types if specified.
+         * @param message DeathLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.DeathLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this DeathLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for DeathLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace DeathLog {
+
+        /** Properties of a DeathLog. */
+        interface $Properties {
+
+            /** DeathLog source */
+            source?: (number|null);
+
+            /** DeathLog target */
+            target?: (number|null);
+
+            /** DeathLog ref */
+            ref?: (number|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of a DeathLog. */
+        type $Shape = proto.DeathLog.$Properties;
+    }
+
+    /**
+     * Properties of an OtherLog.
+     * @deprecated Use proto.OtherLog.$Properties instead.
+     */
+    interface IOtherLog extends proto.OtherLog.$Properties {
+    }
+
+    /** Represents an OtherLog. */
+    class OtherLog {
+
+        /**
+         * Constructs a new OtherLog.
+         * @param [properties] Properties to set
+         */
+        constructor(properties?: proto.OtherLog.$Properties);
+
+        /** Unknown fields preserved while decoding when enabled */
+        $unknowns?: Uint8Array[];
+
+        /** OtherLog detail. */
+        detail: string;
+
+        /**
+         * Creates a new OtherLog instance using the specified properties.
+         * @param [properties] Properties to set
+         * @returns OtherLog instance
+         */
+        static create(properties: proto.OtherLog.$Shape): proto.OtherLog & proto.OtherLog.$Shape;
+        static create(properties?: proto.OtherLog.$Properties): proto.OtherLog;
+
+        /**
+         * Encodes the specified OtherLog message. Does not implicitly {@link proto.OtherLog.verify|verify} messages.
+         * @param message OtherLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encode(message: proto.OtherLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Encodes the specified OtherLog message, length delimited. Does not implicitly {@link proto.OtherLog.verify|verify} messages.
+         * @param message OtherLog message or plain object to encode
+         * @param [writer] Writer to encode to
+         * @returns Writer
+         */
+        static encodeDelimited(message: proto.OtherLog.$Properties, writer?: $protobuf.Writer): $protobuf.Writer;
+
+        /**
+         * Decodes an OtherLog message from the specified reader or buffer.
+         * @param reader Reader or buffer to decode from
+         * @param [length] Message length if known beforehand
+         * @returns {proto.OtherLog & proto.OtherLog.$Shape} OtherLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): proto.OtherLog & proto.OtherLog.$Shape;
+
+        /**
+         * Decodes an OtherLog message from the specified reader or buffer, length delimited.
+         * @param reader Reader or buffer to decode from
+         * @returns {proto.OtherLog & proto.OtherLog.$Shape} OtherLog
+         * @throws {Error} If the payload is not a reader or valid buffer
+         * @throws {$protobuf.util.ProtocolError} If required fields are missing
+         */
+        static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): proto.OtherLog & proto.OtherLog.$Shape;
+
+        /**
+         * Verifies an OtherLog message.
+         * @param message Plain object to verify
+         * @returns `null` if valid, otherwise the reason why it is not
+         */
+        static verify(message: { [k: string]: any }): (string|null);
+
+        /**
+         * Creates an OtherLog message from a plain object. Also converts values to their respective internal types.
+         * @param object Plain object
+         * @returns OtherLog
+         */
+        static fromObject(object: { [k: string]: any }): proto.OtherLog;
+
+        /**
+         * Creates a plain object from an OtherLog message. Also converts values to other types if specified.
+         * @param message OtherLog
+         * @param [options] Conversion options
+         * @returns Plain object
+         */
+        static toObject(message: proto.OtherLog, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+        /**
+         * Converts this OtherLog to JSON.
+         * @returns JSON object
+         */
+        toJSON(): { [k: string]: any };
+
+        /**
+         * Gets the type url for OtherLog
+         * @param [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+         * @returns The type url
+         */
+        static getTypeUrl(prefix?: string): string;
+    }
+
+    namespace OtherLog {
+
+        /** Properties of an OtherLog. */
+        interface $Properties {
+
+            /** OtherLog detail */
+            detail?: (string|null);
+
+            /** Unknown fields preserved while decoding when enabled */
+            $unknowns?: Uint8Array[];
+        }
+
+        /** Shape of an OtherLog. */
+        type $Shape = proto.OtherLog.$Properties;
+    }
+
+    /**
      * Properties of a FightLog.
      * @deprecated Use proto.FightLog.$Properties instead.
      */
@@ -1357,35 +2203,32 @@ export namespace proto {
         /** FightLog type. */
         type: proto.FightLogType;
 
-        /** FightLog source. */
-        source: number;
-
-        /** FightLog target. */
-        target: number;
-
-        /** FightLog skillId. */
-        skillId: number;
-
-        /** FightLog buffId. */
-        buffId: number;
-
-        /** FightLog value. */
-        value: number;
-
-        /** FightLog hpBefore. */
-        hpBefore: number;
-
-        /** FightLog hpAfter. */
-        hpAfter: number;
-
         /** FightLog round. */
         round: number;
 
         /** FightLog stateNumber. */
         stateNumber: number;
 
-        /** FightLog text. */
-        text: string;
+        /** FightLog attack. */
+        attack?: (proto.AttackLog.$Properties|null);
+
+        /** FightLog recover. */
+        recover?: (proto.RecoverLog.$Properties|null);
+
+        /** FightLog counter. */
+        counter?: (proto.CounterLog.$Properties|null);
+
+        /** FightLog buff. */
+        buff?: (proto.BuffLog.$Properties|null);
+
+        /** FightLog death. */
+        death?: (proto.DeathLog.$Properties|null);
+
+        /** FightLog other. */
+        other?: (proto.OtherLog.$Properties|null);
+
+        /** FightLog detail. */
+        detail?: ("attack"|"recover"|"counter"|"buff"|"death"|"other");
 
         /**
          * Creates a new FightLog instance using the specified properties.
@@ -1477,42 +2320,53 @@ export namespace proto {
             /** FightLog type */
             type?: (proto.FightLogType|null);
 
-            /** FightLog source */
-            source?: (number|null);
-
-            /** FightLog target */
-            target?: (number|null);
-
-            /** FightLog skillId */
-            skillId?: (number|null);
-
-            /** FightLog buffId */
-            buffId?: (number|null);
-
-            /** FightLog value */
-            value?: (number|null);
-
-            /** FightLog hpBefore */
-            hpBefore?: (number|null);
-
-            /** FightLog hpAfter */
-            hpAfter?: (number|null);
-
             /** FightLog round */
             round?: (number|null);
 
             /** FightLog stateNumber */
             stateNumber?: (number|null);
 
-            /** FightLog text */
-            text?: (string|null);
+            /** FightLog attack */
+            attack?: (proto.AttackLog.$Properties|null);
+
+            /** FightLog recover */
+            recover?: (proto.RecoverLog.$Properties|null);
+
+            /** FightLog counter */
+            counter?: (proto.CounterLog.$Properties|null);
+
+            /** FightLog buff */
+            buff?: (proto.BuffLog.$Properties|null);
+
+            /** FightLog death */
+            death?: (proto.DeathLog.$Properties|null);
+
+            /** FightLog other */
+            other?: (proto.OtherLog.$Properties|null);
+
+            /** FightLog detail */
+            detail?: ("attack"|"recover"|"counter"|"buff"|"death"|"other");
 
             /** Unknown fields preserved while decoding when enabled */
             $unknowns?: Uint8Array[];
         }
 
-        /** Shape of a FightLog. */
-        type $Shape = proto.FightLog.$Properties;
+        /** Narrowed shape of a FightLog. */
+        type $Shape = {
+          seq?: number|null;
+          type?: proto.FightLogType|null;
+          round?: number|null;
+          stateNumber?: number|null;
+          attack?: proto.AttackLog.$Shape|null;
+          recover?: proto.RecoverLog.$Shape|null;
+          counter?: proto.CounterLog.$Shape|null;
+          buff?: proto.BuffLog.$Shape|null;
+          death?: proto.DeathLog.$Shape|null;
+          other?: proto.OtherLog.$Shape|null;
+          $unknowns?: Uint8Array[];
+        } & (
+          ({ detail?: undefined; attack?: null; recover?: null; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "attack"; attack: proto.AttackLog.$Shape; recover?: null; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "recover"; attack?: null; recover: proto.RecoverLog.$Shape; counter?: null; buff?: null; death?: null; other?: null }|{ detail?: "counter"; attack?: null; recover?: null; counter: proto.CounterLog.$Shape; buff?: null; death?: null; other?: null }|{ detail?: "buff"; attack?: null; recover?: null; counter?: null; buff: proto.BuffLog.$Shape; death?: null; other?: null }|{ detail?: "death"; attack?: null; recover?: null; counter?: null; buff?: null; death: proto.DeathLog.$Shape; other?: null }|{ detail?: "other"; attack?: null; recover?: null; counter?: null; buff?: null; death?: null; other: proto.OtherLog.$Shape })
+        );
     }
 
     /**
@@ -1629,7 +2483,10 @@ export namespace proto {
         }
 
         /** Shape of a S2C_FightLogs. */
-        type $Shape = proto.S2C_FightLogs.$Properties;
+        type $Shape = {
+          logs?: proto.FightLog.$Shape[]|null;
+          $unknowns?: Uint8Array[];
+        };
     }
 
     /**

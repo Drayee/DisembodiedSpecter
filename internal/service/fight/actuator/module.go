@@ -7,14 +7,15 @@ import (
 	"math/rand"
 )
 
-func AttackModule(machine *structs.Machine, sourceIndex int, targetIndex int, damage int, damageType structs.DamageType) {
+// 本文件是**纯数值模块**：只负责"把效果算成数值"，不写任何日志。
+//
+// 记账（战斗日志）统一收口在 ActuatorManager.Apply：那里用"结算前后血量差"记录最终
+// 伤害/恢复，因此这里无论怎么改血量（包括被定制行为直接调用本模块的情况）都不会漏日志，
+// 也不需要在每个伤害分支里重复记账、更不用把日志索引从雷扩散的下标改写里抢救出来。
+
+func AttackModule(machine *structs.Machine, sourceIndex int, targetIndex int, damage int, damageType structs.DamageType, ref int) {
 	stateSource := machine.CharacterState[sourceIndex]
 	stateTarget := machine.CharacterState[targetIndex]
-
-	// 记账用的原始战斗位：下面的雷伤害分支会把 targetIndex/sourceIndex
-	// 改成"阵营内下标"，日志必须用改之前的索引（客户端按下标找站位）。
-	logSource, logTarget := sourceIndex, targetIndex
-	before := stateTarget.Health
 
 	switch damageType {
 	case structs.DamageTypeThunder:
@@ -31,7 +32,7 @@ func AttackModule(machine *structs.Machine, sourceIndex int, targetIndex int, da
 			sites = machine.CharacterSite[machine.SelfCharacterNumber:]
 		}
 		_ = states
-		_ = thunderDamage(machine, sites, sourceIndex, targetIndex, damage/2, 0.5)
+		_ = thunderDamage(machine, sites, sourceIndex, targetIndex, damage/2, 0.5, ref)
 	case structs.DamageTypeFire:
 	case structs.DamageTypeReally:
 		stateTarget.Health -= max(int(float64(damage)*stateSource.Attack), 0)
@@ -46,50 +47,18 @@ func AttackModule(machine *structs.Machine, sourceIndex int, targetIndex int, da
 	if stateTarget.Health < 0 {
 		stateTarget.Health = 0
 	}
-
-	logSettle(machine, structs.FightLogAttack, logSource, logTarget, before, stateTarget.Health)
 }
 
 func RecoverModule(machine *structs.Machine, targetIndex int, recover int) {
 	stateTarget := machine.CharacterState[targetIndex]
-	before := stateTarget.Health
 	stateTarget.Health += recover
-	logSettle(machine, structs.FightLogRecover, -1, targetIndex, before, stateTarget.Health)
 }
 
-// logSettle 记录一次生命值变动（伤害/治疗）。
+// thunderDamage 雷伤害的连锁扩散：沿着同一阵营的站位往两侧找一个"非行动角色"作为下一个落点。
 //
-// 数值直接取结算前后的血量差：各伤害类型（普通/真实/雷/火）与防御减免口径不同，
-// 用血量差记账可以完全不重复计算，也就不会与结算逻辑产生分歧。
-// 顺带记录阵亡：血量从"有"跨到"无"的那一次结算同时产出一条 Death 日志。
-func logSettle(machine *structs.Machine, kind structs.FightLogType, source, target, before, after int) {
-	if machine == nil {
-		return
-	}
-	delta := after - before
-	if delta < 0 {
-		delta = -delta // 伤害记正数，前端可直接拿去做飘字
-	}
-	machine.AppendLog(structs.FightLog{
-		Type:     kind,
-		Source:   source,
-		Target:   target,
-		Value:    delta,
-		HPBefore: before,
-		HPAfter:  after,
-	})
-	if before > 0 && after <= 0 {
-		machine.AppendLog(structs.FightLog{
-			Type:     structs.FightLogDeath,
-			Source:   source,
-			Target:   target,
-			HPBefore: before,
-			HPAfter:  after,
-		})
-	}
-}
-
-func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex int, targetIndex int, damage int, probability float64) error {
+// ref 是**最初的伤害来源**（技能/buff/被动），扩散出去的每一跳都原样带上，
+// 这样客户端看到的每条攻击日志都知道"这一串雷是哪来的"，而不是一堆无来源的伤害。
+func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex int, targetIndex int, damage int, probability float64, ref int) error {
 	siteTarget := sites[targetIndex]
 	if damage <= 0 {
 		return nil
@@ -99,14 +68,14 @@ func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex 
 		currentTargetIndex := targetIndex
 		for currentTargetIndex < len(sites) {
 			currentTargetIndex++
-			if err := thunderDamage(machine, sites, currentTargetIndex, sourceIndex, rand.Intn(damage/2), float64(rand.Intn(int(probability*100)))/100); err == nil {
+			if err := thunderDamage(machine, sites, currentTargetIndex, sourceIndex, rand.Intn(damage/2), float64(rand.Intn(int(probability*100)))/100, ref); err == nil {
 				break
 			}
 		}
 		currentTargetIndex = targetIndex
 		for currentTargetIndex >= 0 {
 			currentTargetIndex--
-			if err := thunderDamage(machine, sites, currentTargetIndex, sourceIndex, rand.Intn(damage/2), float64(rand.Intn(int(probability*100)))/100); err == nil {
+			if err := thunderDamage(machine, sites, currentTargetIndex, sourceIndex, rand.Intn(damage/2), float64(rand.Intn(int(probability*100)))/100, ref); err == nil {
 				break
 			}
 		}
@@ -116,6 +85,7 @@ func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex 
 			TargetID: targetIndex,
 			SourceID: sourceIndex,
 			Other:    "{\"type\":\"thunder:no\"}",
+			Ref:      ref,
 		})
 		// 这里发的是 Attack 载荷，必须走 fight-attack：
 		// 发到 fight-buff 会被 GetBuffListener 当成 BuffMessage 反序列化
@@ -126,8 +96,11 @@ func thunderDamage(machine *structs.Machine, sites []*structs.Site, sourceIndex 
 	return errors.New("target is not main action character")
 }
 
-func ParseDamageType(e structs.Effect) structs.DamageType {
-	var dict map[string]interface{}
+func ParseDamageType(e *structs.Effect) structs.DamageType {
+	if e == nil {
+		return structs.DamageTypeNormal
+	}
+	var dict map[string]any
 	if err := json.Unmarshal([]byte(e.Other), &dict); err != nil {
 		return structs.DamageTypeNormal
 	}

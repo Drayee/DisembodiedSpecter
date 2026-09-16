@@ -111,6 +111,9 @@ func (fe *FightEngine) ArmRoundReactors(machine *structs.Machine) {
 // Listener 必须排在 Init 前面：本回合的被动反应（如"追加攻击"）要先装上监听，
 // 才能对 Init 阶段发出的伤害事件做出反应。任一阶段失败会记录并继续后续技能，
 // 不中断整轮战斗。注意：本函数返回不代表数值已结算，需要同步时调用 WaitSettled。
+//
+// 这里**不再记"出手"日志**：出手动作由攻击事件自身承载（AttackLog.Source 就是出手方），
+// 因此被动追加攻击天然也会播出手动画，无需单独的出手事件。
 func (fe *FightEngine) RunSkillStart(skills []*pd.Skill, machine *structs.Machine) error {
 	// 记下本回合的技能集合：敌方回合（不跑技能阶段）要照它重新武装
 	machine.RoundSkills = make([]structs.ArmedSkill, 0, len(skills))
@@ -123,21 +126,6 @@ func (fe *FightEngine) RunSkillStart(skills []*pd.Skill, machine *structs.Machin
 	}
 
 	fe.ArmRoundReactors(machine)
-
-	// 记账：本回合每次出手一条 Cast 日志（发生在 Init 之前，与"先出手、后结算"的
-	// 执行顺序一致）。客户端据此播放出手动画，随后的 Attack/Buff 日志再演结算。
-	for _, s := range skills {
-		index, ok := machine.SelfCharacterIndex[int(s.GetCharacterId())]
-		if !ok {
-			continue
-		}
-		machine.AppendLog(structs.FightLog{
-			Type:    structs.FightLogCast,
-			Source:  index,
-			Target:  int(s.GetTargetId()),
-			SkillID: int(s.GetSkillId()),
-		})
-	}
 
 	for _, s := range skills {
 		if err := fe.skillManger.Init(int(s.GetSkillId()), machine, int(s.GetCharacterId()), int(s.GetTargetId())); err != nil {

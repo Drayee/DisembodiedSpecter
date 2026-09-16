@@ -5,6 +5,7 @@ import (
 	"DisembodiedSpecter/proto/pd"
 	"context"
 	"fmt"
+	"maps"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -151,9 +152,7 @@ func BuildFightStatus(machine *structs.Machine) *pd.FightStatus {
 		status.Tools = append(status.Tools, &pd.Tool{ToolId: int32(tool.ID), Count: int32(tool.Count)})
 	}
 
-	for k, v := range machine.Counters {
-		status.Counters[k] = v
-	}
+	maps.Copy(status.Counters, machine.Counters)
 
 	return status
 }

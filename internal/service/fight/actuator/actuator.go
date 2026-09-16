@@ -19,7 +19,7 @@ var (
 	managerTypeRef = reflect.TypeFor[*ActuatorManager]()
 	machineTypeRef = reflect.TypeFor[*structs.Machine]()
 	intTypeRef     = reflect.TypeFor[int]()
-	effectTypeRef  = reflect.TypeFor[structs.Effect]()
+	effectTypeRef  = reflect.TypeFor[*structs.Effect]()
 	errorTypeRef   = reflect.TypeFor[error]()
 )
 
@@ -64,7 +64,7 @@ func (b Behavior) pick(kind structs.EffectKind) (reflect.Method, bool) {
 //	我方角色：Character<DB ID>AttackListener / RecoverListener / GetBuffListener
 //	敌方 NPC：Enemy<DB ID>AttackListener     / RecoverListener / GetBuffListener
 //
-// 方法签名：func (a *ActuatorManager) Character1AttackListener(machine *structs.Machine, self int, e structs.Effect) error
+// 方法签名：func (a *ActuatorManager) Character1AttackListener(machine *structs.Machine, self int, e *structs.Effect) error
 // （返回值可省略；self 为该战斗位索引，等于 e.TargetID）。
 //
 // 语义：方法**存在即完全接管**该类事件的结算，默认结算不再执行（可实现闪避/免疫/反伤等）；
@@ -72,8 +72,10 @@ func (b Behavior) pick(kind structs.EffectKind) (reflect.Method, bool) {
 //
 // 定制行为的两条约定：
 //   - 调用时**不持有 machine.Mu**，方法内部若读写角色状态请自行加锁；
-//     反过来，不要在持锁区间内发布事件（PublishEvent 需要读锁，会自锁死）。
+//     反过来，不要在持锁区间内发布事件（PublishPayload 需要读锁，会自锁死）。
 //   - panic 会被捕获并转成错误记录，不会拖垮战斗主循环。
+//   - 它做了什么会由 Apply 记账（血量差 + e.Special/e.Ref），因此**不需要**自己写日志；
+//     若它完全改写了结算语义（例如把伤害转成治疗），在 e 上登记 Special 即可让前端知道原因。
 type ActuatorManager struct {
 	GameContentManager *utils.GameContentManager
 
@@ -197,11 +199,43 @@ func (am *ActuatorManager) StartListener(machine *structs.Machine, ids []int) er
 	return nil
 }
 
-// Apply 结算单条效果：优先使用该战斗位的定制行为（完全接管），否则走默认结算。
+// Apply 结算单条效果，并**在唯一一处记账**（战斗日志的 ATTACK/RECOVER/DEATH 都从这里出）。
 //
-// 注意：调用定制行为时**不持有 machine.Mu**。定制行为若需读写角色状态请自行加锁
-// （与 Skill2Listener 等既有监听器的风格一致）；默认结算内部会自行加锁。
-func (am *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) error {
+// 记账方式：结算前后各读一次目标生命值，用血量差作为"最终伤害/恢复量"。这样做的关键收益是
+// **定制行为完全接管结算时也不会漏日志**——不管它内部怎么改血量（甚至不调 AttackModule），
+// 只要血量变了就一定会有一条攻击/恢复日志；血量没变（如用龙力抵消）则记一条 0 伤害的攻击事件，
+// 配合 e.Special 让客户端能播"格挡/免疫"而不是掉血。
+//
+// 注意：调用定制行为与默认结算时**都不持有 machine.Mu**，
+// 只有读血量时会短暂加读锁（默认结算内部自行加锁，定制行为按约定自行加锁）。
+func (am *ActuatorManager) Apply(machine *structs.Machine, e *structs.Effect) error {
+	if machine == nil {
+		return fmt.Errorf("战斗状态机为空")
+	}
+	if e == nil {
+		return fmt.Errorf("待结算效果为空")
+	}
+
+	before, ok := healthOf(machine, e.TargetID)
+	if !ok {
+		return fmt.Errorf("战斗位 %d 不存在", e.TargetID)
+	}
+
+	settleErr := am.settle(machine, e)
+
+	// 结算失败时不记账：那种情况下血量通常没变，记一条 0 伤害的事件只会变成噪声
+	if settleErr != nil {
+		return settleErr
+	}
+	after, _ := healthOf(machine, e.TargetID)
+	am.record(machine, e, before, after)
+	return nil
+}
+
+// settle 实际结算：定制行为（完全接管）→ buff（需先取定义）→ 默认结算。
+//
+// 顺序与既有行为保持一致：定制行为的 GetBuffListener 同样可以接管 buff 结算。
+func (am *ActuatorManager) settle(machine *structs.Machine, e *structs.Effect) error {
 	if dbID, isSelf, ok := machine.CharacterDBID(e.TargetID); ok {
 		behaviors := am.enemyBehaviors
 		if isSelf {
@@ -221,21 +255,59 @@ func (am *ActuatorManager) Apply(machine *structs.Machine, e structs.Effect) err
 	return defaultSettle(machine, e)
 }
 
+// record 把一次结算的结果写进战斗日志。
+//
+//	攻击 → AttackLog（伤害 = 血量差，被抵消的部分天然不计入）+ 血量跨到 0 时补一条 DeathLog
+//	恢复 → RecoverLog（恢复量 = 血量差）
+//	buff → 不在这里记：获得/刷新的最终时长由 buff 包决定，日志在 buff.AddBuff 里写
+func (am *ActuatorManager) record(machine *structs.Machine, e *structs.Effect, before, after int) {
+	switch e.Kind {
+	case structs.EffectAttack:
+		damage := before - after
+		if damage < 0 {
+			damage = 0 // 结算过程反而回了血（反伤/吸血等）时不记负伤害
+		}
+		machine.LogAttack(e.SourceID, e.TargetID, damage, before, after, e.Ref, e.Special, e.Other)
+		if before > 0 && after <= 0 {
+			machine.LogDeath(e.SourceID, e.TargetID, e.Ref)
+		}
+	case structs.EffectRecover:
+		recover := after - before
+		if recover < 0 {
+			recover = 0
+		}
+		machine.LogRecover(e.SourceID, e.TargetID, recover, before, after, e.Ref, e.Special, e.Other)
+	default:
+		// EffectBuff 的日志在 buff.AddBuff 里（它才知道最终时长与是否刷新）
+	}
+}
+
+// healthOf 读一个战斗位的当前生命值（短暂加读锁，取完即释放）。
+func healthOf(machine *structs.Machine, index int) (int, bool) {
+	machine.Mu.RLock()
+	defer machine.Mu.RUnlock()
+
+	if index < 0 || index >= len(machine.CharacterState) || machine.CharacterState[index] == nil {
+		return 0, false
+	}
+	return machine.CharacterState[index].Health, true
+}
+
 // applyBuff 施加/刷新 buff：先取定义（不持锁），再交给 buff 包结算。
-// buff 包负责去重、默认时长兜底、效果快照、属性重算与监听器武装。
-func applyBuff(machine *structs.Machine, e structs.Effect) error {
+// buff 包负责去重、默认时长兜底、效果快照、属性重算、监听器武装与日志。
+func applyBuff(machine *structs.Machine, e *structs.Effect) error {
 	def, err := buff.GetBuff(machine, e.BuffID)
 	if err != nil {
 		return fmt.Errorf("获取 buff %d 定义失败: %w", e.BuffID, err)
 	}
-	if err := buff.AddBuff(machine, e.TargetID, def, e.BuffTime, e.SourceID); err != nil {
+	if err := buff.AddBuff(machine, e.TargetID, def, e.BuffTime, e.SourceID, e.Ref); err != nil {
 		return fmt.Errorf("施加 buff %d 失败: %w", e.BuffID, err)
 	}
 	return nil
 }
 
 // callBehavior 反射调用定制行为；panic 被捕获转为错误，避免拖垮主循环。
-func (am *ActuatorManager) callBehavior(method reflect.Method, machine *structs.Machine, e structs.Effect) (err error) {
+func (am *ActuatorManager) callBehavior(method reflect.Method, machine *structs.Machine, e *structs.Effect) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("战斗位 %d 的定制行为 %s 执行 panic: %v", e.TargetID, method.Name, r)
@@ -255,7 +327,7 @@ func (am *ActuatorManager) callBehavior(method reflect.Method, machine *structs.
 }
 
 // defaultSettle 默认结算：伤害按防御减免（不低于 0，且生命不为负）、恢复累加、buff 追加。
-func defaultSettle(machine *structs.Machine, e structs.Effect) error {
+func defaultSettle(machine *structs.Machine, e *structs.Effect) error {
 	machine.Mu.Lock()
 	defer machine.Mu.Unlock()
 
@@ -270,7 +342,7 @@ func defaultSettle(machine *structs.Machine, e structs.Effect) error {
 	switch e.Kind {
 	case structs.EffectAttack:
 		damageType := ParseDamageType(e)
-		AttackModule(machine, e.SourceID, e.TargetID, e.Damage, damageType)
+		AttackModule(machine, e.SourceID, e.TargetID, e.Damage, damageType, e.Ref)
 	case structs.EffectRecover:
 		RecoverModule(machine, e.TargetID, e.Recover)
 	default:
@@ -351,7 +423,7 @@ func (a *ActuatorImpl) runPermanent(machine *structs.Machine) {
 
 // settleOwned 负责结算命中本战斗位的效果：
 // 先等该事件要求的反应者全部打点（"actuator 最后执行"由此保证），再立即结算并释放事件。
-func (a *ActuatorImpl) settleOwned(msg *message.Message, machine *structs.Machine, e structs.Effect) {
+func (a *ActuatorImpl) settleOwned(msg *message.Message, machine *structs.Machine, e *structs.Effect) {
 	gate := machine.Events()
 	eventID, _ := structs.EventStamp(msg)
 
@@ -373,12 +445,13 @@ func (a *ActuatorImpl) AttackListener(msg *message.Message, machine *structs.Mac
 	if attack.TargetID != a.ID {
 		return nil // 不负责该事件：不等待、不结算、不释放
 	}
-	a.settleOwned(msg, machine, structs.Effect{
+	a.settleOwned(msg, machine, &structs.Effect{
 		Kind:     structs.EffectAttack,
 		TargetID: attack.TargetID,
 		SourceID: attack.SourceID,
 		Damage:   attack.Damage,
 		Other:    attack.Other,
+		Ref:      attack.Ref,
 	})
 	return nil
 }
@@ -392,13 +465,14 @@ func (a *ActuatorImpl) GetBuffListener(msg *message.Message, machine *structs.Ma
 	if buff.TargetID != a.ID {
 		return nil
 	}
-	a.settleOwned(msg, machine, structs.Effect{
+	a.settleOwned(msg, machine, &structs.Effect{
 		Kind:     structs.EffectBuff,
 		TargetID: buff.TargetID,
 		SourceID: buff.SourceID,
 		BuffID:   buff.ID,
 		BuffTime: buff.Time,
 		Other:    buff.Other,
+		Ref:      buff.Ref,
 	})
 	return nil
 }
@@ -412,12 +486,13 @@ func (a *ActuatorImpl) RecoverListener(msg *message.Message, machine *structs.Ma
 	if r.TargetID != a.ID {
 		return nil
 	}
-	a.settleOwned(msg, machine, structs.Effect{
+	a.settleOwned(msg, machine, &structs.Effect{
 		Kind:     structs.EffectRecover,
 		TargetID: r.TargetID,
 		SourceID: r.SourceID,
 		Recover:  r.Recover,
 		Other:    r.Other,
+		Ref:      r.Ref,
 	})
 	return nil
 }

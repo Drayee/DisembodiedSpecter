@@ -10,18 +10,24 @@ enum Switch_Phase_Option {
 }
 
 // 战斗日志类型。
-// 服务端在执行战斗时按发生顺序记录，客户端按同一顺序回放演出（动画/飘字/血条）。
+//
+// 服务端执行战斗时按发生顺序记录，客户端按同一顺序回放演出（动画/飘字/血条）。
 // 约定：日志是"一次性事件"，状态（FightStatus）是"当前快照"，两者互不替代。
+//
+// 每一类事件都有**独立的详情 message**（见下方 AttackLog/RecoverLog/...），
+// 由 FightLog.detail 这个 oneof 承载；type 与 detail 的分支必须一一对应（服务端保证）。
+//
+// 注意：**没有"出手/CAST"类型** —— 出手动作由攻击事件自身承载
+// （source 就是出手方），因此被动追加攻击天然也会播出手动画。
+// 回合推进、阶段切换不下发日志（客户端从 FightStatus.round / state_number 取）。
 enum FightLogType {
   LOG_UNKNOWN = 0;
-  LOG_CAST = 1; // 施放技能 / 敌方开始行动
-  LOG_ATTACK = 2; // 伤害结算
-  LOG_RECOVER = 3; // 治疗结算
-  LOG_BUFF_ADD = 4; // 获得 buff
-  LOG_BUFF_REMOVE = 5; // 失去 buff
-  LOG_DEATH = 6; // 战斗位阵亡
-  LOG_ROUND = 7; // 回合 / 阶段推进
-  LOG_END = 8; // 战斗结束
+  LOG_ATTACK = 1; // 攻击（含被被动/特殊受击接管的情况）
+  LOG_RECOVER = 2; // 恢复
+  LOG_COUNTER = 3; // 计数器变化（含 buff 层数/时间变化）
+  LOG_BUFF = 4; // 获得/刷新 buff
+  LOG_DEATH = 5; // 阵亡
+  LOG_OTHER = 6; // 其他（详情走 JSON）
 }
 
 message Buff {
@@ -97,27 +103,95 @@ message Msg_SyncFightStatus {
   int64 timestamp = 2; // 消息发送时间戳
 }
 
-// 一条战斗日志（不可变事件）。
+// ==================== 战斗日志：事件详情 ====================
 //
-// source / target 都是**战斗位索引**（0..N-1，我方在前敌方在后，与 FightStatus.characters 下标一致），
-// 不是角色 DB ID；-1 表示无来源/无目标。
-// hp_before / hp_after 让客户端不必自己推算血量，可直接把血条补间到 hp_after。
+// 通用约定：
+//   - source / target 都是**战斗位索引**（0..N-1，我方在前敌方在后，与
+//     FightStatus.characters 下标一致），不是角色 DB ID；-1 表示无来源/无目标。
+//   - hp_before / hp_after 让客户端不必自己推算血量，可直接把血条补间到 hp_after。
+//   - ref（伤害/效果的来源）用正负号编码，避免多开字段：
+//       > 0 → 技能 ID
+//       < 0 → buff ID（取负）
+//       = 0 → 被动（含普攻、永久行为等非技能非 buff 的来源）
+//   - special（本次事件触发的被动/特殊受击效果）同样用正负号编码：
+//       > 0 → 角色 DB ID（该战斗位自身的被动生效）
+//       < 0 → buff ID（取负）
+//       = 0 → 无
+
+// 攻击事件详情
+message AttackLog {
+  int32 source = 1; // 来源战斗位索引（出手方）
+  int32 target = 2; // 目标战斗位索引（受击方）
+  int32 damage = 3; // **最终伤害**：实际掉血量；被被动/特殊受击抵消掉的部分不计入
+  int32 hp_before = 4; // 结算前生命值
+  int32 hp_after = 5; // 结算后生命值
+  int32 ref = 6; // 伤害来源：>0 技能ID；<0 −buffID；0 被动
+  int32 special = 7; // 本次攻击触发的被动/特殊受击效果：>0 角色DB ID；<0 −buffID；0 无
+  string other = 8; // 攻击事件原始 other（JSON 原文，服务端不解析、原样透传）
+}
+
+// 恢复事件详情（与攻击同构）
+message RecoverLog {
+  int32 source = 1; // 来源战斗位索引
+  int32 target = 2; // 目标战斗位索引
+  int32 recover = 3; // **实际恢复量**（血量差）
+  int32 hp_before = 4; // 结算前生命值
+  int32 hp_after = 5; // 结算后生命值
+  int32 ref = 6; // 恢复来源：>0 技能ID；<0 −buffID；0 被动
+  int32 special = 7; // 本次恢复触发的被动/特殊效果：>0 角色DB ID；<0 −buffID；0 无
+  string other = 8; // 恢复事件原始 other（JSON 原文）
+}
+
+// 计数器变化事件详情。
+//
+// 战斗内一切"计数"都走这里，包括 buff 的层数/时间变化：
+// buff 用约定键 "buff:<buffID>:<战斗位索引>"，值即剩余层数/时间，
+// 归零即表示该 buff 失效（客户端据此移除图标），因此不另设"buff 消失"事件。
+message CounterLog {
+  string key = 1; // 计数器键
+  int32 delta = 2; // 变化值（正=增加，负=减少）
+  int32 value = 3; // 变化后的值
+  int32 ref = 4; // 触发来源：>0 技能ID；<0 −buffID；0 被动
+}
+
+// 获得/刷新 buff 事件详情。之后的层数/时间变化走 CounterLog。
+message BuffLog {
+  int32 source = 1; // 施加者战斗位索引（-1 表示无来源）
+  int32 target = 2; // 获得者战斗位索引
+  int32 buff_id = 3; // 获得的 buff ID
+  int32 time = 4; // 本次时长/层数（已应用默认时长兜底）
+  int32 ref = 5; // 施加来源：>0 技能ID；<0 −buffID；0 被动
+  int32 special = 6; // 施加时触发的被动/特殊效果：>0 角色DB ID；<0 −buffID；0 无
+  string other = 7; // buff 事件原始 other（JSON 原文）
+}
+
+// 阵亡事件详情
+message DeathLog {
+  int32 source = 1; // 击杀者战斗位索引（-1 表示无来源，如 buff/场地伤害）
+  int32 target = 2; // 阵亡的战斗位索引
+  int32 ref = 3; // 致死来源：>0 技能ID；<0 −buffID；0 被动
+}
+
+// 其他事件详情（战斗结束等；内容由客户端按需解析）
+message OtherLog {
+  string detail = 1; // JSON 原文，例如 {"op":"end","win":1}
+}
+
+// 一条战斗日志：信封（通用字段）+ 详情（按类型只有一个分支非空）。
 message FightLog {
   int32 seq = 1; // 同一场战斗内自增序号（客户端可据此排序/去重）
-  FightLogType type = 2; // 事件类型
-  int32 source = 3; // 来源战斗位索引（-1 表示无来源）
-  int32 target = 4; // 目标战斗位索引（-1 表示无目标）
+  FightLogType type = 2; // 事件类型（与 detail 分支一一对应）
+  int32 round = 3; // 所属回合数
+  int32 state_number = 4; // 所属战斗状态编号
 
-  int32 skill_id = 5; // 技能 ID（LOG_CAST）
-  int32 buff_id = 6; // buff ID（LOG_BUFF_ADD / LOG_BUFF_REMOVE）
-  int32 value = 7; // 数值：伤害/恢复量；LOG_END 时 1=胜利 0=失败
-
-  int32 hp_before = 8; // 结算前生命值
-  int32 hp_after = 9; // 结算后生命值
-  int32 round = 10; // 发生时的回合数
-  int32 state_number = 11; // 发生时的战斗状态编号
-
-  string text = 12; // 展示文案（可选，留给前端直接飘字）
+  oneof detail {
+    AttackLog attack = 5; // 攻击
+    RecoverLog recover = 6; // 恢复
+    CounterLog counter = 7; // 计数器变化
+    BuffLog buff = 8; // 获得/刷新 buff
+    DeathLog death = 9; // 阵亡
+    OtherLog other = 10; // 其他
+  }
 }
 
 // 战斗日志批次（服务端 → 客户端）。

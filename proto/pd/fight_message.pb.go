@@ -71,45 +71,47 @@ func (Switch_Phase_Option) EnumDescriptor() ([]byte, []int) {
 }
 
 // 战斗日志类型。
-// 服务端在执行战斗时按发生顺序记录，客户端按同一顺序回放演出（动画/飘字/血条）。
+//
+// 服务端执行战斗时按发生顺序记录，客户端按同一顺序回放演出（动画/飘字/血条）。
 // 约定：日志是"一次性事件"，状态（FightStatus）是"当前快照"，两者互不替代。
+//
+// 每一类事件都有**独立的详情 message**（见下方 AttackLog/RecoverLog/...），
+// 由 FightLog.detail 这个 oneof 承载；type 与 detail 的分支必须一一对应（服务端保证）。
+//
+// 注意：**没有"出手/CAST"类型** —— 出手动作由攻击事件自身承载
+// （source 就是出手方），因此被动追加攻击天然也会播出手动画。
+// 回合推进、阶段切换不下发日志（客户端从 FightStatus.round / state_number 取）。
 type FightLogType int32
 
 const (
-	FightLogType_LOG_UNKNOWN     FightLogType = 0
-	FightLogType_LOG_CAST        FightLogType = 1 // 施放技能 / 敌方开始行动
-	FightLogType_LOG_ATTACK      FightLogType = 2 // 伤害结算
-	FightLogType_LOG_RECOVER     FightLogType = 3 // 治疗结算
-	FightLogType_LOG_BUFF_ADD    FightLogType = 4 // 获得 buff
-	FightLogType_LOG_BUFF_REMOVE FightLogType = 5 // 失去 buff
-	FightLogType_LOG_DEATH       FightLogType = 6 // 战斗位阵亡
-	FightLogType_LOG_ROUND       FightLogType = 7 // 回合 / 阶段推进
-	FightLogType_LOG_END         FightLogType = 8 // 战斗结束
+	FightLogType_LOG_UNKNOWN FightLogType = 0
+	FightLogType_LOG_ATTACK  FightLogType = 1 // 攻击（含被被动/特殊受击接管的情况）
+	FightLogType_LOG_RECOVER FightLogType = 2 // 恢复
+	FightLogType_LOG_COUNTER FightLogType = 3 // 计数器变化（含 buff 层数/时间变化）
+	FightLogType_LOG_BUFF    FightLogType = 4 // 获得/刷新 buff
+	FightLogType_LOG_DEATH   FightLogType = 5 // 阵亡
+	FightLogType_LOG_OTHER   FightLogType = 6 // 其他（详情走 JSON）
 )
 
 // Enum value maps for FightLogType.
 var (
 	FightLogType_name = map[int32]string{
 		0: "LOG_UNKNOWN",
-		1: "LOG_CAST",
-		2: "LOG_ATTACK",
-		3: "LOG_RECOVER",
-		4: "LOG_BUFF_ADD",
-		5: "LOG_BUFF_REMOVE",
-		6: "LOG_DEATH",
-		7: "LOG_ROUND",
-		8: "LOG_END",
+		1: "LOG_ATTACK",
+		2: "LOG_RECOVER",
+		3: "LOG_COUNTER",
+		4: "LOG_BUFF",
+		5: "LOG_DEATH",
+		6: "LOG_OTHER",
 	}
 	FightLogType_value = map[string]int32{
-		"LOG_UNKNOWN":     0,
-		"LOG_CAST":        1,
-		"LOG_ATTACK":      2,
-		"LOG_RECOVER":     3,
-		"LOG_BUFF_ADD":    4,
-		"LOG_BUFF_REMOVE": 5,
-		"LOG_DEATH":       6,
-		"LOG_ROUND":       7,
-		"LOG_END":         8,
+		"LOG_UNKNOWN": 0,
+		"LOG_ATTACK":  1,
+		"LOG_RECOVER": 2,
+		"LOG_COUNTER": 3,
+		"LOG_BUFF":    4,
+		"LOG_DEATH":   5,
+		"LOG_OTHER":   6,
 	}
 )
 
@@ -741,32 +743,503 @@ func (x *Msg_SyncFightStatus) GetTimestamp() int64 {
 	return 0
 }
 
-// 一条战斗日志（不可变事件）。
-//
-// source / target 都是**战斗位索引**（0..N-1，我方在前敌方在后，与 FightStatus.characters 下标一致），
-// 不是角色 DB ID；-1 表示无来源/无目标。
-// hp_before / hp_after 让客户端不必自己推算血量，可直接把血条补间到 hp_after。
-type FightLog struct {
+// 攻击事件详情
+type AttackLog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Seq           int32                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`                                     // 同一场战斗内自增序号（客户端可据此排序/去重）
-	Type          FightLogType           `protobuf:"varint,2,opt,name=type,proto3,enum=proto.FightLogType" json:"type,omitempty"`           // 事件类型
-	Source        int32                  `protobuf:"varint,3,opt,name=source,proto3" json:"source,omitempty"`                               // 来源战斗位索引（-1 表示无来源）
-	Target        int32                  `protobuf:"varint,4,opt,name=target,proto3" json:"target,omitempty"`                               // 目标战斗位索引（-1 表示无目标）
-	SkillId       int32                  `protobuf:"varint,5,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`              // 技能 ID（LOG_CAST）
-	BuffId        int32                  `protobuf:"varint,6,opt,name=buff_id,json=buffId,proto3" json:"buff_id,omitempty"`                 // buff ID（LOG_BUFF_ADD / LOG_BUFF_REMOVE）
-	Value         int32                  `protobuf:"varint,7,opt,name=value,proto3" json:"value,omitempty"`                                 // 数值：伤害/恢复量；LOG_END 时 1=胜利 0=失败
-	HpBefore      int32                  `protobuf:"varint,8,opt,name=hp_before,json=hpBefore,proto3" json:"hp_before,omitempty"`           // 结算前生命值
-	HpAfter       int32                  `protobuf:"varint,9,opt,name=hp_after,json=hpAfter,proto3" json:"hp_after,omitempty"`              // 结算后生命值
-	Round         int32                  `protobuf:"varint,10,opt,name=round,proto3" json:"round,omitempty"`                                // 发生时的回合数
-	StateNumber   int32                  `protobuf:"varint,11,opt,name=state_number,json=stateNumber,proto3" json:"state_number,omitempty"` // 发生时的战斗状态编号
-	Text          string                 `protobuf:"bytes,12,opt,name=text,proto3" json:"text,omitempty"`                                   // 展示文案（可选，留给前端直接飘字）
+	Source        int32                  `protobuf:"varint,1,opt,name=source,proto3" json:"source,omitempty"`                     // 来源战斗位索引（出手方）
+	Target        int32                  `protobuf:"varint,2,opt,name=target,proto3" json:"target,omitempty"`                     // 目标战斗位索引（受击方）
+	Damage        int32                  `protobuf:"varint,3,opt,name=damage,proto3" json:"damage,omitempty"`                     // **最终伤害**：实际掉血量；被被动/特殊受击抵消掉的部分不计入
+	HpBefore      int32                  `protobuf:"varint,4,opt,name=hp_before,json=hpBefore,proto3" json:"hp_before,omitempty"` // 结算前生命值
+	HpAfter       int32                  `protobuf:"varint,5,opt,name=hp_after,json=hpAfter,proto3" json:"hp_after,omitempty"`    // 结算后生命值
+	Ref           int32                  `protobuf:"varint,6,opt,name=ref,proto3" json:"ref,omitempty"`                           // 伤害来源：>0 技能ID；<0 −buffID；0 被动
+	Special       int32                  `protobuf:"varint,7,opt,name=special,proto3" json:"special,omitempty"`                   // 本次攻击触发的被动/特殊受击效果：>0 角色DB ID；<0 −buffID；0 无
+	Other         string                 `protobuf:"bytes,8,opt,name=other,proto3" json:"other,omitempty"`                        // 攻击事件原始 other（JSON 原文，服务端不解析、原样透传）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttackLog) Reset() {
+	*x = AttackLog{}
+	mi := &file_fight_message_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttackLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttackLog) ProtoMessage() {}
+
+func (x *AttackLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttackLog.ProtoReflect.Descriptor instead.
+func (*AttackLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AttackLog) GetSource() int32 {
+	if x != nil {
+		return x.Source
+	}
+	return 0
+}
+
+func (x *AttackLog) GetTarget() int32 {
+	if x != nil {
+		return x.Target
+	}
+	return 0
+}
+
+func (x *AttackLog) GetDamage() int32 {
+	if x != nil {
+		return x.Damage
+	}
+	return 0
+}
+
+func (x *AttackLog) GetHpBefore() int32 {
+	if x != nil {
+		return x.HpBefore
+	}
+	return 0
+}
+
+func (x *AttackLog) GetHpAfter() int32 {
+	if x != nil {
+		return x.HpAfter
+	}
+	return 0
+}
+
+func (x *AttackLog) GetRef() int32 {
+	if x != nil {
+		return x.Ref
+	}
+	return 0
+}
+
+func (x *AttackLog) GetSpecial() int32 {
+	if x != nil {
+		return x.Special
+	}
+	return 0
+}
+
+func (x *AttackLog) GetOther() string {
+	if x != nil {
+		return x.Other
+	}
+	return ""
+}
+
+// 恢复事件详情（与攻击同构）
+type RecoverLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        int32                  `protobuf:"varint,1,opt,name=source,proto3" json:"source,omitempty"`                     // 来源战斗位索引
+	Target        int32                  `protobuf:"varint,2,opt,name=target,proto3" json:"target,omitempty"`                     // 目标战斗位索引
+	Recover       int32                  `protobuf:"varint,3,opt,name=recover,proto3" json:"recover,omitempty"`                   // **实际恢复量**（血量差）
+	HpBefore      int32                  `protobuf:"varint,4,opt,name=hp_before,json=hpBefore,proto3" json:"hp_before,omitempty"` // 结算前生命值
+	HpAfter       int32                  `protobuf:"varint,5,opt,name=hp_after,json=hpAfter,proto3" json:"hp_after,omitempty"`    // 结算后生命值
+	Ref           int32                  `protobuf:"varint,6,opt,name=ref,proto3" json:"ref,omitempty"`                           // 恢复来源：>0 技能ID；<0 −buffID；0 被动
+	Special       int32                  `protobuf:"varint,7,opt,name=special,proto3" json:"special,omitempty"`                   // 本次恢复触发的被动/特殊效果：>0 角色DB ID；<0 −buffID；0 无
+	Other         string                 `protobuf:"bytes,8,opt,name=other,proto3" json:"other,omitempty"`                        // 恢复事件原始 other（JSON 原文）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecoverLog) Reset() {
+	*x = RecoverLog{}
+	mi := &file_fight_message_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecoverLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecoverLog) ProtoMessage() {}
+
+func (x *RecoverLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecoverLog.ProtoReflect.Descriptor instead.
+func (*RecoverLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RecoverLog) GetSource() int32 {
+	if x != nil {
+		return x.Source
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetTarget() int32 {
+	if x != nil {
+		return x.Target
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetRecover() int32 {
+	if x != nil {
+		return x.Recover
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetHpBefore() int32 {
+	if x != nil {
+		return x.HpBefore
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetHpAfter() int32 {
+	if x != nil {
+		return x.HpAfter
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetRef() int32 {
+	if x != nil {
+		return x.Ref
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetSpecial() int32 {
+	if x != nil {
+		return x.Special
+	}
+	return 0
+}
+
+func (x *RecoverLog) GetOther() string {
+	if x != nil {
+		return x.Other
+	}
+	return ""
+}
+
+// 计数器变化事件详情。
+//
+// 战斗内一切"计数"都走这里，包括 buff 的层数/时间变化：
+// buff 用约定键 "buff:<buffID>:<战斗位索引>"，值即剩余层数/时间，
+// 归零即表示该 buff 失效（客户端据此移除图标），因此不另设"buff 消失"事件。
+type CounterLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`      // 计数器键
+	Delta         int32                  `protobuf:"varint,2,opt,name=delta,proto3" json:"delta,omitempty"` // 变化值（正=增加，负=减少）
+	Value         int32                  `protobuf:"varint,3,opt,name=value,proto3" json:"value,omitempty"` // 变化后的值
+	Ref           int32                  `protobuf:"varint,4,opt,name=ref,proto3" json:"ref,omitempty"`     // 触发来源：>0 技能ID；<0 −buffID；0 被动
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CounterLog) Reset() {
+	*x = CounterLog{}
+	mi := &file_fight_message_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CounterLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CounterLog) ProtoMessage() {}
+
+func (x *CounterLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CounterLog.ProtoReflect.Descriptor instead.
+func (*CounterLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CounterLog) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CounterLog) GetDelta() int32 {
+	if x != nil {
+		return x.Delta
+	}
+	return 0
+}
+
+func (x *CounterLog) GetValue() int32 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *CounterLog) GetRef() int32 {
+	if x != nil {
+		return x.Ref
+	}
+	return 0
+}
+
+// 获得/刷新 buff 事件详情。之后的层数/时间变化走 CounterLog。
+type BuffLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        int32                  `protobuf:"varint,1,opt,name=source,proto3" json:"source,omitempty"`               // 施加者战斗位索引（-1 表示无来源）
+	Target        int32                  `protobuf:"varint,2,opt,name=target,proto3" json:"target,omitempty"`               // 获得者战斗位索引
+	BuffId        int32                  `protobuf:"varint,3,opt,name=buff_id,json=buffId,proto3" json:"buff_id,omitempty"` // 获得的 buff ID
+	Time          int32                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`                   // 本次时长/层数（已应用默认时长兜底）
+	Ref           int32                  `protobuf:"varint,5,opt,name=ref,proto3" json:"ref,omitempty"`                     // 施加来源：>0 技能ID；<0 −buffID；0 被动
+	Special       int32                  `protobuf:"varint,6,opt,name=special,proto3" json:"special,omitempty"`             // 施加时触发的被动/特殊效果：>0 角色DB ID；<0 −buffID；0 无
+	Other         string                 `protobuf:"bytes,7,opt,name=other,proto3" json:"other,omitempty"`                  // buff 事件原始 other（JSON 原文）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BuffLog) Reset() {
+	*x = BuffLog{}
+	mi := &file_fight_message_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BuffLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BuffLog) ProtoMessage() {}
+
+func (x *BuffLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BuffLog.ProtoReflect.Descriptor instead.
+func (*BuffLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BuffLog) GetSource() int32 {
+	if x != nil {
+		return x.Source
+	}
+	return 0
+}
+
+func (x *BuffLog) GetTarget() int32 {
+	if x != nil {
+		return x.Target
+	}
+	return 0
+}
+
+func (x *BuffLog) GetBuffId() int32 {
+	if x != nil {
+		return x.BuffId
+	}
+	return 0
+}
+
+func (x *BuffLog) GetTime() int32 {
+	if x != nil {
+		return x.Time
+	}
+	return 0
+}
+
+func (x *BuffLog) GetRef() int32 {
+	if x != nil {
+		return x.Ref
+	}
+	return 0
+}
+
+func (x *BuffLog) GetSpecial() int32 {
+	if x != nil {
+		return x.Special
+	}
+	return 0
+}
+
+func (x *BuffLog) GetOther() string {
+	if x != nil {
+		return x.Other
+	}
+	return ""
+}
+
+// 阵亡事件详情
+type DeathLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        int32                  `protobuf:"varint,1,opt,name=source,proto3" json:"source,omitempty"` // 击杀者战斗位索引（-1 表示无来源，如 buff/场地伤害）
+	Target        int32                  `protobuf:"varint,2,opt,name=target,proto3" json:"target,omitempty"` // 阵亡的战斗位索引
+	Ref           int32                  `protobuf:"varint,3,opt,name=ref,proto3" json:"ref,omitempty"`       // 致死来源：>0 技能ID；<0 −buffID；0 被动
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeathLog) Reset() {
+	*x = DeathLog{}
+	mi := &file_fight_message_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeathLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeathLog) ProtoMessage() {}
+
+func (x *DeathLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeathLog.ProtoReflect.Descriptor instead.
+func (*DeathLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DeathLog) GetSource() int32 {
+	if x != nil {
+		return x.Source
+	}
+	return 0
+}
+
+func (x *DeathLog) GetTarget() int32 {
+	if x != nil {
+		return x.Target
+	}
+	return 0
+}
+
+func (x *DeathLog) GetRef() int32 {
+	if x != nil {
+		return x.Ref
+	}
+	return 0
+}
+
+// 其他事件详情（战斗结束等；内容由客户端按需解析）
+type OtherLog struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Detail        string                 `protobuf:"bytes,1,opt,name=detail,proto3" json:"detail,omitempty"` // JSON 原文，例如 {"op":"end","win":1}
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OtherLog) Reset() {
+	*x = OtherLog{}
+	mi := &file_fight_message_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OtherLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OtherLog) ProtoMessage() {}
+
+func (x *OtherLog) ProtoReflect() protoreflect.Message {
+	mi := &file_fight_message_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OtherLog.ProtoReflect.Descriptor instead.
+func (*OtherLog) Descriptor() ([]byte, []int) {
+	return file_fight_message_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *OtherLog) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+// 一条战斗日志：信封（通用字段）+ 详情（按类型只有一个分支非空）。
+type FightLog struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Seq         int32                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`                                    // 同一场战斗内自增序号（客户端可据此排序/去重）
+	Type        FightLogType           `protobuf:"varint,2,opt,name=type,proto3,enum=proto.FightLogType" json:"type,omitempty"`          // 事件类型（与 detail 分支一一对应）
+	Round       int32                  `protobuf:"varint,3,opt,name=round,proto3" json:"round,omitempty"`                                // 所属回合数
+	StateNumber int32                  `protobuf:"varint,4,opt,name=state_number,json=stateNumber,proto3" json:"state_number,omitempty"` // 所属战斗状态编号
+	// Types that are valid to be assigned to Detail:
+	//
+	//	*FightLog_Attack
+	//	*FightLog_Recover
+	//	*FightLog_Counter
+	//	*FightLog_Buff
+	//	*FightLog_Death
+	//	*FightLog_Other
+	Detail        isFightLog_Detail `protobuf_oneof:"detail"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FightLog) Reset() {
 	*x = FightLog{}
-	mi := &file_fight_message_proto_msgTypes[10]
+	mi := &file_fight_message_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -778,7 +1251,7 @@ func (x *FightLog) String() string {
 func (*FightLog) ProtoMessage() {}
 
 func (x *FightLog) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[10]
+	mi := &file_fight_message_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +1264,7 @@ func (x *FightLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FightLog.ProtoReflect.Descriptor instead.
 func (*FightLog) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{10}
+	return file_fight_message_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FightLog) GetSeq() int32 {
@@ -808,55 +1281,6 @@ func (x *FightLog) GetType() FightLogType {
 	return FightLogType_LOG_UNKNOWN
 }
 
-func (x *FightLog) GetSource() int32 {
-	if x != nil {
-		return x.Source
-	}
-	return 0
-}
-
-func (x *FightLog) GetTarget() int32 {
-	if x != nil {
-		return x.Target
-	}
-	return 0
-}
-
-func (x *FightLog) GetSkillId() int32 {
-	if x != nil {
-		return x.SkillId
-	}
-	return 0
-}
-
-func (x *FightLog) GetBuffId() int32 {
-	if x != nil {
-		return x.BuffId
-	}
-	return 0
-}
-
-func (x *FightLog) GetValue() int32 {
-	if x != nil {
-		return x.Value
-	}
-	return 0
-}
-
-func (x *FightLog) GetHpBefore() int32 {
-	if x != nil {
-		return x.HpBefore
-	}
-	return 0
-}
-
-func (x *FightLog) GetHpAfter() int32 {
-	if x != nil {
-		return x.HpAfter
-	}
-	return 0
-}
-
 func (x *FightLog) GetRound() int32 {
 	if x != nil {
 		return x.Round
@@ -871,12 +1295,106 @@ func (x *FightLog) GetStateNumber() int32 {
 	return 0
 }
 
-func (x *FightLog) GetText() string {
+func (x *FightLog) GetDetail() isFightLog_Detail {
 	if x != nil {
-		return x.Text
+		return x.Detail
 	}
-	return ""
+	return nil
 }
+
+func (x *FightLog) GetAttack() *AttackLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Attack); ok {
+			return x.Attack
+		}
+	}
+	return nil
+}
+
+func (x *FightLog) GetRecover() *RecoverLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Recover); ok {
+			return x.Recover
+		}
+	}
+	return nil
+}
+
+func (x *FightLog) GetCounter() *CounterLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Counter); ok {
+			return x.Counter
+		}
+	}
+	return nil
+}
+
+func (x *FightLog) GetBuff() *BuffLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Buff); ok {
+			return x.Buff
+		}
+	}
+	return nil
+}
+
+func (x *FightLog) GetDeath() *DeathLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Death); ok {
+			return x.Death
+		}
+	}
+	return nil
+}
+
+func (x *FightLog) GetOther() *OtherLog {
+	if x != nil {
+		if x, ok := x.Detail.(*FightLog_Other); ok {
+			return x.Other
+		}
+	}
+	return nil
+}
+
+type isFightLog_Detail interface {
+	isFightLog_Detail()
+}
+
+type FightLog_Attack struct {
+	Attack *AttackLog `protobuf:"bytes,5,opt,name=attack,proto3,oneof"` // 攻击
+}
+
+type FightLog_Recover struct {
+	Recover *RecoverLog `protobuf:"bytes,6,opt,name=recover,proto3,oneof"` // 恢复
+}
+
+type FightLog_Counter struct {
+	Counter *CounterLog `protobuf:"bytes,7,opt,name=counter,proto3,oneof"` // 计数器变化
+}
+
+type FightLog_Buff struct {
+	Buff *BuffLog `protobuf:"bytes,8,opt,name=buff,proto3,oneof"` // 获得/刷新 buff
+}
+
+type FightLog_Death struct {
+	Death *DeathLog `protobuf:"bytes,9,opt,name=death,proto3,oneof"` // 阵亡
+}
+
+type FightLog_Other struct {
+	Other *OtherLog `protobuf:"bytes,10,opt,name=other,proto3,oneof"` // 其他
+}
+
+func (*FightLog_Attack) isFightLog_Detail() {}
+
+func (*FightLog_Recover) isFightLog_Detail() {}
+
+func (*FightLog_Counter) isFightLog_Detail() {}
+
+func (*FightLog_Buff) isFightLog_Detail() {}
+
+func (*FightLog_Death) isFightLog_Detail() {}
+
+func (*FightLog_Other) isFightLog_Detail() {}
 
 // 战斗日志批次（服务端 → 客户端）。
 // 服务端在每次下发权威状态**之前**先发本批日志，因此客户端收到的
@@ -890,7 +1408,7 @@ type S2C_FightLogs struct {
 
 func (x *S2C_FightLogs) Reset() {
 	*x = S2C_FightLogs{}
-	mi := &file_fight_message_proto_msgTypes[11]
+	mi := &file_fight_message_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -902,7 +1420,7 @@ func (x *S2C_FightLogs) String() string {
 func (*S2C_FightLogs) ProtoMessage() {}
 
 func (x *S2C_FightLogs) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[11]
+	mi := &file_fight_message_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +1433,7 @@ func (x *S2C_FightLogs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use S2C_FightLogs.ProtoReflect.Descriptor instead.
 func (*S2C_FightLogs) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{11}
+	return file_fight_message_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *S2C_FightLogs) GetLogs() []*FightLog {
@@ -944,7 +1462,7 @@ type FightMessage struct {
 
 func (x *FightMessage) Reset() {
 	*x = FightMessage{}
-	mi := &file_fight_message_proto_msgTypes[12]
+	mi := &file_fight_message_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -956,7 +1474,7 @@ func (x *FightMessage) String() string {
 func (*FightMessage) ProtoMessage() {}
 
 func (x *FightMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_fight_message_proto_msgTypes[12]
+	mi := &file_fight_message_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +1487,7 @@ func (x *FightMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FightMessage.ProtoReflect.Descriptor instead.
 func (*FightMessage) Descriptor() ([]byte, []int) {
-	return file_fight_message_proto_rawDescGZIP(), []int{12}
+	return file_fight_message_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *FightMessage) GetSequenceId() uint64 {
@@ -1121,21 +1639,59 @@ const file_fight_message_proto_rawDesc = "" +
 	"\x05phase\x18\x01 \x01(\x0e2\x1a.proto.Switch_Phase_OptionR\x05phase\"_\n" +
 	"\x13Msg_SyncFightStatus\x12*\n" +
 	"\x06status\x18\x01 \x01(\v2\x12.proto.FightStatusR\x06status\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xc4\x02\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xcd\x01\n" +
+	"\tAttackLog\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\x05R\x06source\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\x05R\x06target\x12\x16\n" +
+	"\x06damage\x18\x03 \x01(\x05R\x06damage\x12\x1b\n" +
+	"\thp_before\x18\x04 \x01(\x05R\bhpBefore\x12\x19\n" +
+	"\bhp_after\x18\x05 \x01(\x05R\ahpAfter\x12\x10\n" +
+	"\x03ref\x18\x06 \x01(\x05R\x03ref\x12\x18\n" +
+	"\aspecial\x18\a \x01(\x05R\aspecial\x12\x14\n" +
+	"\x05other\x18\b \x01(\tR\x05other\"\xd0\x01\n" +
+	"\n" +
+	"RecoverLog\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\x05R\x06source\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\x05R\x06target\x12\x18\n" +
+	"\arecover\x18\x03 \x01(\x05R\arecover\x12\x1b\n" +
+	"\thp_before\x18\x04 \x01(\x05R\bhpBefore\x12\x19\n" +
+	"\bhp_after\x18\x05 \x01(\x05R\ahpAfter\x12\x10\n" +
+	"\x03ref\x18\x06 \x01(\x05R\x03ref\x12\x18\n" +
+	"\aspecial\x18\a \x01(\x05R\aspecial\x12\x14\n" +
+	"\x05other\x18\b \x01(\tR\x05other\"\\\n" +
+	"\n" +
+	"CounterLog\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05delta\x18\x02 \x01(\x05R\x05delta\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\x05R\x05value\x12\x10\n" +
+	"\x03ref\x18\x04 \x01(\x05R\x03ref\"\xa8\x01\n" +
+	"\aBuffLog\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\x05R\x06source\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\x05R\x06target\x12\x17\n" +
+	"\abuff_id\x18\x03 \x01(\x05R\x06buffId\x12\x12\n" +
+	"\x04time\x18\x04 \x01(\x05R\x04time\x12\x10\n" +
+	"\x03ref\x18\x05 \x01(\x05R\x03ref\x12\x18\n" +
+	"\aspecial\x18\x06 \x01(\x05R\aspecial\x12\x14\n" +
+	"\x05other\x18\a \x01(\tR\x05other\"L\n" +
+	"\bDeathLog\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\x05R\x06source\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\x05R\x06target\x12\x10\n" +
+	"\x03ref\x18\x03 \x01(\x05R\x03ref\"\"\n" +
+	"\bOtherLog\x12\x16\n" +
+	"\x06detail\x18\x01 \x01(\tR\x06detail\"\x8a\x03\n" +
 	"\bFightLog\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x05R\x03seq\x12'\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x13.proto.FightLogTypeR\x04type\x12\x16\n" +
-	"\x06source\x18\x03 \x01(\x05R\x06source\x12\x16\n" +
-	"\x06target\x18\x04 \x01(\x05R\x06target\x12\x19\n" +
-	"\bskill_id\x18\x05 \x01(\x05R\askillId\x12\x17\n" +
-	"\abuff_id\x18\x06 \x01(\x05R\x06buffId\x12\x14\n" +
-	"\x05value\x18\a \x01(\x05R\x05value\x12\x1b\n" +
-	"\thp_before\x18\b \x01(\x05R\bhpBefore\x12\x19\n" +
-	"\bhp_after\x18\t \x01(\x05R\ahpAfter\x12\x14\n" +
-	"\x05round\x18\n" +
-	" \x01(\x05R\x05round\x12!\n" +
-	"\fstate_number\x18\v \x01(\x05R\vstateNumber\x12\x12\n" +
-	"\x04text\x18\f \x01(\tR\x04text\"4\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x13.proto.FightLogTypeR\x04type\x12\x14\n" +
+	"\x05round\x18\x03 \x01(\x05R\x05round\x12!\n" +
+	"\fstate_number\x18\x04 \x01(\x05R\vstateNumber\x12*\n" +
+	"\x06attack\x18\x05 \x01(\v2\x10.proto.AttackLogH\x00R\x06attack\x12-\n" +
+	"\arecover\x18\x06 \x01(\v2\x11.proto.RecoverLogH\x00R\arecover\x12-\n" +
+	"\acounter\x18\a \x01(\v2\x11.proto.CounterLogH\x00R\acounter\x12$\n" +
+	"\x04buff\x18\b \x01(\v2\x0e.proto.BuffLogH\x00R\x04buff\x12'\n" +
+	"\x05death\x18\t \x01(\v2\x0f.proto.DeathLogH\x00R\x05death\x12'\n" +
+	"\x05other\x18\n" +
+	" \x01(\v2\x0f.proto.OtherLogH\x00R\x05otherB\b\n" +
+	"\x06detail\"4\n" +
 	"\rS2C_FightLogs\x12#\n" +
 	"\x04logs\x18\x01 \x03(\v2\x0f.proto.FightLogR\x04logs\"\x82\x03\n" +
 	"\fFightMessage\x12\x1f\n" +
@@ -1154,18 +1710,16 @@ const file_fight_message_proto_rawDesc = "" +
 	"\vSTART_PHASE\x10\x00\x12\x0e\n" +
 	"\n" +
 	"EXIT_FIGHT\x10\x01\x12\x15\n" +
-	"\x11RETURN_PREV_PHASE\x10\x02*\xa0\x01\n" +
+	"\x11RETURN_PREV_PHASE\x10\x02*}\n" +
 	"\fFightLogType\x12\x0f\n" +
-	"\vLOG_UNKNOWN\x10\x00\x12\f\n" +
-	"\bLOG_CAST\x10\x01\x12\x0e\n" +
+	"\vLOG_UNKNOWN\x10\x00\x12\x0e\n" +
 	"\n" +
-	"LOG_ATTACK\x10\x02\x12\x0f\n" +
-	"\vLOG_RECOVER\x10\x03\x12\x10\n" +
-	"\fLOG_BUFF_ADD\x10\x04\x12\x13\n" +
-	"\x0fLOG_BUFF_REMOVE\x10\x05\x12\r\n" +
-	"\tLOG_DEATH\x10\x06\x12\r\n" +
-	"\tLOG_ROUND\x10\a\x12\v\n" +
-	"\aLOG_END\x10\bB\x06Z\x04./pdb\x06proto3"
+	"LOG_ATTACK\x10\x01\x12\x0f\n" +
+	"\vLOG_RECOVER\x10\x02\x12\x0f\n" +
+	"\vLOG_COUNTER\x10\x03\x12\f\n" +
+	"\bLOG_BUFF\x10\x04\x12\r\n" +
+	"\tLOG_DEATH\x10\x05\x12\r\n" +
+	"\tLOG_OTHER\x10\x06B\x06Z\x04./pdb\x06proto3"
 
 var (
 	file_fight_message_proto_rawDescOnce sync.Once
@@ -1180,7 +1734,7 @@ func file_fight_message_proto_rawDescGZIP() []byte {
 }
 
 var file_fight_message_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_fight_message_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_fight_message_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_fight_message_proto_goTypes = []any{
 	(Switch_Phase_Option)(0),    // 0: proto.Switch_Phase_Option
 	(FightLogType)(0),           // 1: proto.FightLogType
@@ -1194,32 +1748,44 @@ var file_fight_message_proto_goTypes = []any{
 	(*C2S_UseTool)(nil),         // 9: proto.C2S_UseTool
 	(*C2S_SwitchPhase)(nil),     // 10: proto.C2S_SwitchPhase
 	(*Msg_SyncFightStatus)(nil), // 11: proto.Msg_SyncFightStatus
-	(*FightLog)(nil),            // 12: proto.FightLog
-	(*S2C_FightLogs)(nil),       // 13: proto.S2C_FightLogs
-	(*FightMessage)(nil),        // 14: proto.FightMessage
-	nil,                         // 15: proto.FightStatus.CountersEntry
+	(*AttackLog)(nil),           // 12: proto.AttackLog
+	(*RecoverLog)(nil),          // 13: proto.RecoverLog
+	(*CounterLog)(nil),          // 14: proto.CounterLog
+	(*BuffLog)(nil),             // 15: proto.BuffLog
+	(*DeathLog)(nil),            // 16: proto.DeathLog
+	(*OtherLog)(nil),            // 17: proto.OtherLog
+	(*FightLog)(nil),            // 18: proto.FightLog
+	(*S2C_FightLogs)(nil),       // 19: proto.S2C_FightLogs
+	(*FightMessage)(nil),        // 20: proto.FightMessage
+	nil,                         // 21: proto.FightStatus.CountersEntry
 }
 var file_fight_message_proto_depIdxs = []int32{
 	2,  // 0: proto.CharacterStatus.buffs:type_name -> proto.Buff
 	3,  // 1: proto.FightStatus.characters:type_name -> proto.CharacterStatus
 	6,  // 2: proto.FightStatus.sites:type_name -> proto.Site
 	4,  // 3: proto.FightStatus.tools:type_name -> proto.Tool
-	15, // 4: proto.FightStatus.counters:type_name -> proto.FightStatus.CountersEntry
+	21, // 4: proto.FightStatus.counters:type_name -> proto.FightStatus.CountersEntry
 	5,  // 5: proto.C2S_ChoseSkills.skills:type_name -> proto.Skill
 	0,  // 6: proto.C2S_SwitchPhase.phase:type_name -> proto.Switch_Phase_Option
 	7,  // 7: proto.Msg_SyncFightStatus.status:type_name -> proto.FightStatus
 	1,  // 8: proto.FightLog.type:type_name -> proto.FightLogType
-	12, // 9: proto.S2C_FightLogs.logs:type_name -> proto.FightLog
-	8,  // 10: proto.FightMessage.chose_skill:type_name -> proto.C2S_ChoseSkills
-	9,  // 11: proto.FightMessage.use_tool:type_name -> proto.C2S_UseTool
-	10, // 12: proto.FightMessage.switch_phase:type_name -> proto.C2S_SwitchPhase
-	11, // 13: proto.FightMessage.sync_fight_status:type_name -> proto.Msg_SyncFightStatus
-	13, // 14: proto.FightMessage.fight_logs:type_name -> proto.S2C_FightLogs
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	12, // 9: proto.FightLog.attack:type_name -> proto.AttackLog
+	13, // 10: proto.FightLog.recover:type_name -> proto.RecoverLog
+	14, // 11: proto.FightLog.counter:type_name -> proto.CounterLog
+	15, // 12: proto.FightLog.buff:type_name -> proto.BuffLog
+	16, // 13: proto.FightLog.death:type_name -> proto.DeathLog
+	17, // 14: proto.FightLog.other:type_name -> proto.OtherLog
+	18, // 15: proto.S2C_FightLogs.logs:type_name -> proto.FightLog
+	8,  // 16: proto.FightMessage.chose_skill:type_name -> proto.C2S_ChoseSkills
+	9,  // 17: proto.FightMessage.use_tool:type_name -> proto.C2S_UseTool
+	10, // 18: proto.FightMessage.switch_phase:type_name -> proto.C2S_SwitchPhase
+	11, // 19: proto.FightMessage.sync_fight_status:type_name -> proto.Msg_SyncFightStatus
+	19, // 20: proto.FightMessage.fight_logs:type_name -> proto.S2C_FightLogs
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_fight_message_proto_init() }
@@ -1227,7 +1793,15 @@ func file_fight_message_proto_init() {
 	if File_fight_message_proto != nil {
 		return
 	}
-	file_fight_message_proto_msgTypes[12].OneofWrappers = []any{
+	file_fight_message_proto_msgTypes[16].OneofWrappers = []any{
+		(*FightLog_Attack)(nil),
+		(*FightLog_Recover)(nil),
+		(*FightLog_Counter)(nil),
+		(*FightLog_Buff)(nil),
+		(*FightLog_Death)(nil),
+		(*FightLog_Other)(nil),
+	}
+	file_fight_message_proto_msgTypes[18].OneofWrappers = []any{
 		(*FightMessage_ChoseSkill)(nil),
 		(*FightMessage_UseTool)(nil),
 		(*FightMessage_SwitchPhase)(nil),
@@ -1240,7 +1814,7 @@ func file_fight_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fight_message_proto_rawDesc), len(file_fight_message_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

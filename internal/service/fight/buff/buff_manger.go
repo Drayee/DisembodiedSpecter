@@ -65,8 +65,7 @@ var (
 func init() {
 	customListeners = map[int]reflect.Method{}
 	t := reflect.TypeFor[*BuffListeners]()
-	for i := 0; i < t.NumMethod(); i++ {
-		m := t.Method(i)
+	for m := range t.Methods() {
 		matches := buffListenerName.FindStringSubmatch(m.Name)
 		if matches == nil {
 			continue
@@ -180,10 +179,12 @@ func FindBuff(machine *structs.Machine, index int, buffID int) (structs.Buff, bo
 //
 //   - 目标身上已有该 buff 时**刷新**剩余时间与来源，不新增实例；
 //   - buffTime <= 0 时用定义的 DefaultDuration 兜底；
-//   - 打入 LossWay 与 Effects 快照，重算属性，并按需武装监听器。
+//   - 打入 LossWay 与 Effects 快照，重算属性，并按需武装监听器；
+//   - 记一条"获得/刷新 buff"日志（最终时长由这里决定，所以日志也在这里写）。
 //
 // 调用前需要先把定义取出来（GetBuff）——即不要在持有 machine.Mu 时调 GetBuff。
-func AddBuff(machine *structs.Machine, index int, def *domain.Buff, buffTime int, source int) error {
+// ref 是施加来源（技能 ID / −buffID / 0 被动），由发布方一路传下来。
+func AddBuff(machine *structs.Machine, index int, def *domain.Buff, buffTime int, source int, ref int) error {
 	if machine == nil {
 		return errors.New("战斗状态机为空")
 	}
@@ -218,57 +219,45 @@ func AddBuff(machine *structs.Machine, index int, def *domain.Buff, buffTime int
 	recalcStats(state)
 	machine.Mu.Unlock()
 
-	// 记账放在解锁之后：AppendLog 只用 LogMu，但保持"不持 Mu 做 IO/记账"的一致风格
-	machine.AppendLog(structs.FightLog{
-		Type:   structs.FightLogBuffAdd,
-		Source: source,
-		Target: index,
-		BuffID: def.ID,
-		Value:  buffTime,
-	})
+	// 记账放在解锁之后：AppendLog 只用 LogMu，但保持"不持 Mu 记账"的一致风格
+	machine.LogBuff(source, index, def.ID, buffTime, ref, structs.RefPassive, "")
 
 	// 武装在解锁之后：RegisterReactor 会订阅 pubsub
 	arm(machine, index, def.ID)
 	return nil
 }
 
-// logBuffRemove 记录 buff 消失（时间耗尽或被主动移除）。
-func logBuffRemove(machine *structs.Machine, index int, buffID int) {
-	machine.AppendLog(structs.FightLog{
-		Type:   structs.FightLogBuffRemove,
-		Target: index,
-		BuffID: buffID,
-	})
-}
-
 // LossBuff 扣减战斗位 index 身上该 buff 的剩余时间；剩余时间归零则移除并重算属性。
 // loss <= 0 时不做事。
-func LossBuff(machine *structs.Machine, index int, buffID int, loss int) {
+//
+// 层数/时间变化走**计数器通道**（键 buff:<buffID>:<战斗位>，值即剩余量）：
+// 前端看到 value 归零就知道该 buff 失效，因此不需要单独的"buff 消失"事件。
+func LossBuff(machine *structs.Machine, index int, buffID int, loss int, ref int) {
 	if machine == nil || loss <= 0 {
 		return
 	}
 	machine.Mu.Lock()
 	state := stateAt(machine, index)
-	removed := false
+	before, after, removed := 0, 0, false
 	if state != nil {
-		removed = lossLocked(state, buffID, loss)
+		before, after, removed = lossLocked(state, buffID, loss)
 	}
 	machine.Mu.Unlock()
 
 	if removed {
 		disarm(machine, index, buffID)
-		logBuffRemove(machine, index, buffID)
 	}
+	machine.LogBuffCounter(index, buffID, before, after, ref)
 }
 
 // RemoveBuff 直接移除战斗位 index 身上的该 buff（不扣时间），并重算属性、停掉监听器。
-func RemoveBuff(machine *structs.Machine, index int, buffID int) {
+func RemoveBuff(machine *structs.Machine, index int, buffID int, ref int) {
 	if machine == nil {
 		return
 	}
 	machine.Mu.Lock()
 	state := stateAt(machine, index)
-	removed := false
+	before, removed := 0, false
 	if state != nil {
 		kept := make([]*structs.Buff, 0, len(state.Buffs))
 		for _, b := range state.Buffs {
@@ -277,6 +266,7 @@ func RemoveBuff(machine *structs.Machine, index int, buffID int) {
 			}
 			if b.ID == buffID {
 				removed = true
+				before = b.Time
 				continue
 			}
 			kept = append(kept, b)
@@ -290,7 +280,7 @@ func RemoveBuff(machine *structs.Machine, index int, buffID int) {
 
 	if removed {
 		disarm(machine, index, buffID)
-		logBuffRemove(machine, index, buffID)
+		machine.LogBuffCounter(index, buffID, before, 0, ref)
 	}
 }
 
@@ -409,30 +399,40 @@ func findBuff(state *structs.CharacterState, buffID int) *structs.Buff {
 	return nil
 }
 
-// lossLocked 扣减剩余时间；归零则移除并重算属性，返回是否因此移除了该 buff。
+// lossLocked 扣减剩余时间；归零则移除并重算属性。
+//
+// 返回扣减前后的剩余量（供调用方记"计数器变化"日志）与是否因此移除了该 buff；
+// 归零时 after 为 0，前端据此移除该 buff 的图标。
 // 调用方必须已持有 machine.Mu。
-func lossLocked(state *structs.CharacterState, buffID int, loss int) bool {
-	removed := false
+func lossLocked(state *structs.CharacterState, buffID int, loss int) (before int, after int, removed bool) {
 	kept := make([]*structs.Buff, 0, len(state.Buffs))
+	found := false
 	for _, b := range state.Buffs {
 		if b == nil {
 			continue
 		}
 		if b.ID == buffID {
+			found = true
+			before = b.Time
 			b.Time -= loss
 			if b.Time <= 0 {
 				removed = true
+				after = 0
 				continue
 			}
+			after = b.Time
 		}
 		kept = append(kept, b)
 	}
+	if !found {
+		return 0, 0, false
+	}
 	if !removed {
-		return false
+		return before, after, false
 	}
 	state.Buffs = kept
 	recalcStats(state)
-	return true
+	return before, 0, true
 }
 
 // ==================== 监听器武装 / 退订 ====================
@@ -505,16 +505,17 @@ func handleTick(machine *structs.Machine, index int, buffID int, msg *message.Me
 			loss = 1
 		}
 	}
-	removed := false
+	before, after, removed := 0, 0, false
 	if loss > 0 {
-		removed = lossLocked(stateAt(machine, index), buffID, loss)
+		before, after, removed = lossLocked(stateAt(machine, index), buffID, loss)
 	}
 	machine.Mu.Unlock()
 
 	if removed {
 		disarm(machine, index, buffID)
-		logBuffRemove(machine, index, buffID)
 	}
+	// ref 记被动（0）：时间到期是引擎的默认推进，不是某个技能/buff 主动干的
+	machine.LogBuffCounter(index, buffID, before, after, structs.RefPassive)
 }
 
 // ==================== 时间推进 ====================

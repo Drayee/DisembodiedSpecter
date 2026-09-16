@@ -4,7 +4,6 @@ import (
 	"DisembodiedSpecter/internal/config"
 	"DisembodiedSpecter/internal/dto/response"
 	"DisembodiedSpecter/internal/service/fight"
-	"DisembodiedSpecter/internal/service/fight/buff"
 	"DisembodiedSpecter/internal/service/fight/character"
 	"DisembodiedSpecter/internal/service/fight/enemy"
 	"DisembodiedSpecter/internal/service/fight/structs"
@@ -29,12 +28,11 @@ import (
 const maxFightMessageSize = 1 << 20 // 1MB
 
 type FightUseCase struct {
-	redis         rueidis.Client
-	fighter       map[int]struct{}
-	battleSession []*fight.BattleSession
-	key           string
+	redis   rueidis.Client
+	fighter map[int]struct{}
+	key     string
 
-	// mu 保护 fighter / battleSession 的并发访问（多个连接同时接入/断开）
+	// mu 保护 fighter 的并发访问（多个连接同时接入/断开）
 	mu sync.Mutex
 
 	gameContentManager *utils.GameContentManager
@@ -74,12 +72,6 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		return
 	}
 	fu.fighter[userID] = struct{}{}
-	fu.battleSession = append(fu.battleSession, &fight.BattleSession{
-		Mu:        sync.RWMutex{},
-		ID:        fmt.Sprintf("%d", len(fu.battleSession)),
-		Player1ID: userID,
-		Player2ID: -1,
-	})
 	fu.mu.Unlock()
 	// 断开时清理在线标记，保证玩家可以重连
 	defer func() {
@@ -141,11 +133,13 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 		}
 	}(ws)
 
-	// 战斗开始：启动全部战斗位的底层监听器（攻击/治疗/buff），并同步初始状态（计划步骤 1）
+	// 战斗开始：启动全部战斗位的底层监听器（攻击/治疗/buff），
+	// 进入第 1 回合（Round 语义 = 当前正在进行的回合），并同步初始状态
 	if err := fightEngine.ActuatorListenerStart(machine); err != nil {
 		log.Printf("启动战斗监听器失败: %v, userId %d", err, userID)
 		return
 	}
+	fightEngine.BeginRound(machine)
 	fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 
 	for {
@@ -193,46 +187,14 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 				log.Printf("未选择技能, userId %d", userID)
 				continue
 			}
-			// 校验全部技能：任一个不合法则整体拒绝（计划步骤 2）
-			rejected := false
-			for _, s := range skills {
-				if checkErr := fightEngine.CheckChoseSkill(machine.Ctx, machine, s); checkErr != nil {
-					log.Printf("选择技能被拒绝: %v, userId %d", checkErr, userID)
-					rejected = true
-					break
-				}
+			// 我方回合的全部流程（校验 → 执行 → 收尾 → 胜负 → 转敌方回合）都在 fight 包里，
+			// 这里只负责把结果同步给客户端。
+			result := fightEngine.PlayerRound(machine, skills)
+			if result.Rejected {
+				log.Printf("选择技能被拒绝: %s, userId %d", result.Reason, userID)
+			} else if result.Ended {
+				log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(result.PlayerWin), userID)
 			}
-			if rejected {
-				fu.sendFightStatus(ws, machine.Ctx, machine, userID)
-				continue
-			}
-			// 应用技能（记录本回合使用）并执行：Listener（武装）→ Init → Run
-			for _, s := range skills {
-				fightEngine.ApplyChoseSkill(machine, s)
-			}
-			machine.StateNumber = structs.MyRound
-			if err := fightEngine.RunSkillStart(skills, machine); err != nil {
-				log.Printf("技能执行失败: %v, userId %d", err, userID)
-			}
-			// 结束我方回合：等事件结算完并停掉监听器。
-			// 不推进 buff 时间——一个完整回合是"我方+敌方"，时间推进放在敌方回合结束时。
-			fightEngine.EndRound(machine, false)
-			machine.Round++
-			machine.CharacterUsedSkill = map[int]int{} // 本回合技能记录已用完，重置
-			// 胜负判定
-			if ended, win := machine.CheckBattleEnd(); ended {
-				machine.Ended = true
-				machine.PlayerWin = win
-				log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(win), userID)
-				fu.logBattleEnd(machine)
-				fu.sendFightStatus(ws, machine.Ctx, machine, userID)
-				continue
-			}
-			// 我方行动结束，进入敌方回合（前端发送 START_PHASE 触发敌方行动，计划步骤 6）
-			machine.LastStateNumber = structs.Waiting
-			machine.StateNumber = structs.OtherRound
-			// 记账：回合推进（Round 已 +1，StateNumber 已是敌方回合）
-			fu.logRound(machine)
 			fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 
 		case *pd.FightMessage_SwitchPhase:
@@ -241,29 +203,16 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 			case pd.Switch_Phase_Option_START_PHASE:
 				switch machine.StateNumber {
 				case structs.MyRound:
-					// 我方技能阶段结束 → 回到等待选择
+					// 我方技能阶段结束 → 回到等待选择。
+					// 正常流程不会走到这里（PlayerRound 会直接把状态推到 OtherRound），
+					// 只有客户端重复发 START_PHASE 时才可能命中，做兜底处理。
 					machine.LastStateNumber = structs.MyRound
 					machine.StateNumber = structs.Waiting
 					fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				case structs.OtherRound:
-					// 敌方回合不跑技能阶段，但本回合的被动反应仍要生效
-					// （例如"被攻击时追加攻击"），所以先用本回合技能集合重新武装监听器
-					fightEngine.ArmRoundReactors(machine)
-					fu.runEnemyRound(machine)
-					// 结束敌方回合：这里是"我方+敌方"一个完整回合的收尾，
-					// 因此由它推进 buff 时间（LossByTime 各扣 1 格）
-					fightEngine.EndRound(machine, true)
-					if ended, win := machine.CheckBattleEnd(); ended {
-						machine.Ended = true
-						machine.PlayerWin = win
-						log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(win), userID)
-						fu.logBattleEnd(machine)
-					}
-					machine.LastStateNumber = structs.OtherRound
-					machine.StateNumber = structs.Waiting
-					if !machine.Ended {
-						// 记账：一个完整回合（我方+敌方）收尾，回到等待选择
-						fu.logRound(machine)
+					result := fightEngine.EnemyRound(machine)
+					if result.Ended {
+						log.Printf("战斗结束: 玩家%s, userId %d", battleResultText(result.PlayerWin), userID)
 					}
 					fu.sendFightStatus(ws, machine.Ctx, machine, userID)
 				default:
@@ -286,45 +235,6 @@ func (fu *FightUseCase) Connect(c *gin.Context, userID int, wsCode string) {
 
 	// 连接正常结束，由 deferred close 发送正常关闭帧
 	normalClose = true
-}
-
-// logRound 记录一次回合/阶段推进（供客户端播回合提示）。
-func (fu *FightUseCase) logRound(machine *structs.Machine) {
-	machine.AppendLog(structs.FightLog{Type: structs.FightLogRound})
-}
-
-// logBattleEnd 记录战斗结束：Value 1=胜利 0=失败（供客户端播结算演出）。
-func (fu *FightUseCase) logBattleEnd(machine *structs.Machine) {
-	value := 0
-	if machine.PlayerWin {
-		value = 1
-	}
-	machine.AppendLog(structs.FightLog{Type: structs.FightLogEnd, Value: value})
-}
-
-// runEnemyRound 敌方回合：为每个敌方 NPC 执行其行动（Action{enemyID}Run）。
-// id 为敌方战斗位索引，enemyID 为敌方 DB ID（用于查找行动注册表）。
-func (fu *FightUseCase) runEnemyRound(machine *structs.Machine) {
-	for _, eid := range machine.EnemyCharacterIDs {
-		idx, ok := machine.EnemyCharacterIndex[eid]
-		if !ok {
-			continue
-		}
-		// 记账：敌方出手（目标是"由行动内部决定"的，日志里先记 -1，
-		// 随后的 Attack 日志会带上真实目标）
-		machine.AppendLog(structs.FightLog{
-			Type:   structs.FightLogCast,
-			Source: idx,
-			Target: -1,
-		})
-		if err := fu.enemyManager.Run(idx, machine, eid); err != nil {
-			log.Printf("敌方行动失败: %v", err)
-		}
-		// 该敌方单位行动完毕：发行动结束信号，让它身上 LossByAction 的 buff 各扣 1 格
-		if err := buff.PublishActionTick(machine, idx); err != nil {
-			log.Printf("敌方战斗位 %d 行动信号发布失败: %v", idx, err)
-		}
-	}
 }
 
 // sendFightStatus 向客户端下发服务器权威战斗状态（用于纠正前端或主动同步）。
@@ -359,28 +269,13 @@ func (fu *FightUseCase) sendFightStatus(ws *websocket.Conn, ctx context.Context,
 }
 
 // flushFightLogs 把本机已记录的战斗日志打包下发给客户端；没有日志时什么都不发。
+//
+// 日志 → protocol 的字段转换在 fight.BuildFightLogs 里（那才是它的属主），
+// 这里只负责收发。
 func (fu *FightUseCase) flushFightLogs(ws *websocket.Conn, ctx context.Context, machine *structs.Machine) error {
-	logs := machine.DrainLogs()
-	if len(logs) == 0 {
+	pbLogs := fight.BuildFightLogs(machine.DrainLogs())
+	if len(pbLogs) == 0 {
 		return nil
-	}
-
-	pbLogs := make([]*pd.FightLog, 0, len(logs))
-	for _, entry := range logs {
-		pbLogs = append(pbLogs, &pd.FightLog{
-			Seq:         int32(entry.Seq),
-			Type:        pd.FightLogType(entry.Type),
-			Source:      int32(entry.Source),
-			Target:      int32(entry.Target),
-			SkillId:     int32(entry.SkillID),
-			BuffId:      int32(entry.BuffID),
-			Value:       int32(entry.Value),
-			HpBefore:    int32(entry.HPBefore),
-			HpAfter:     int32(entry.HPAfter),
-			Round:       int32(entry.Round),
-			StateNumber: int32(entry.StateNumber),
-			Text:        entry.Text,
-		})
 	}
 
 	respMsg := &pd.FightMessage{
@@ -404,11 +299,12 @@ func battleResultText(playerWin bool) string {
 	return "失败"
 }
 
-/* 战斗机制:
- * 1. 进入战斗(通过websocket连接): 后端通过playData初始化战斗状态,启动actuator监听器,并同步到前端
- * 2. 技能选择: 前端选择技能，服务器校验(技能归属/队伍/目标/重复使用/状态机阶段)并应用到战斗状态
- * 3. 技能运行: 校验通过后按序执行 Init(主行动者) → Listener(从行动者) → Run(终结技能)
- * 4. 我方行动结束: 服务器做胜负判定；未结束时自动进入敌方回合(StateNumber=OtherRound)并同步
- * 5. 敌方回合: 前端发送 START_PHASE，服务器调用各敌方 Action{id}Run 行动,再做胜负判定,回到 Waiting
- * 6. 未结束则重复 2-5；EXIT_FIGHT 退出战斗, RETURN_PREV_PHASE 恢复上一阶段状态
+/* 战斗机制（本文件只负责连接与协议收发，流程编排在 fight 包）:
+ * 1. 连接:  校验并消费 ws-code → 建 Machine（队伍 + 对战 NPC）→ 起 actuator 监听器
+ *           → fightEngine.BeginRound（进入第 1 回合）→ 下发初始权威状态
+ * 2. 选技能: C2S_ChoseSkills → fightEngine.PlayerRound（校验→执行三阶段→收尾→胜负→转敌方回合）
+ * 3. 敌方回合: 前端发 START_PHASE → fightEngine.EnemyRound（重新武装→敌方行动→推进 buff 时间→胜负
+ *           →回到 Waiting 并进入下一回合）
+ * 4. 每次下发状态前，先把本批战斗日志冲刷出去（先日志、后快照）
+ * 5. EXIT_FIGHT 退出战斗；RETURN_PREV_PHASE 恢复上一阶段状态
  */
